@@ -9,18 +9,21 @@ A static HTML website for Aarhus Gamestormers, a monthly video game discussion c
 ├── index.html          # Danish (primary) version
 ├── index_en.html       # English version
 ├── css/style.css       # All styles (~514 lines)
-├── img/                # Game covers, logos, store icons
+├── img/
+│   ├── covers/         # Game cover images (one per upcoming event)
+│   └── ...             # Logos and store icons
 ├── favicon/            # Favicon set + site.webmanifest
-├── .htaccess           # Apache: HTTP → HTTPS redirect
-└── .well-known/        # ACME challenge dir (Let's Encrypt)
+├── CNAME               # GitHub Pages custom domain
+├── .gitignore          # Excludes .claude/
+└── .htaccess           # Kept for reference; not active on GitHub Pages
 ```
 
 ## Technology
 
 - **Pure static HTML/CSS** — no build tools, no npm, no frameworks
 - **Vanilla JS**: only one inline line to update the copyright year
-- **Vanilla JS**: only one inline line to update the copyright year
-- Hosted on Apache at **gamestormers.dk** with Let's Encrypt TLS
+- **Hosted on GitHub Pages** at [www.gamestormers.dk](https://www.gamestormers.dk)
+- Repo: `github.com/KasperKrog92/aarhus-gamestormers` — push to `main` deploys automatically
 
 ## Pages
 
@@ -34,7 +37,7 @@ Both pages share the same layout:
 2. Hero — branding, CTA buttons (Discord + Facebook)
 3. About (Om) — club description + practical info card (venue, frequency, Discord)
 4. Upcoming events — next 2 meetings with game cover image
-5. Past meetings — list of ~14 historical sessions
+5. Past meetings — list of historical sessions
 6. Footer — copyright year (auto-updated via JS) + credits
 
 ## CSS Architecture (`css/style.css`)
@@ -64,8 +67,8 @@ Key component classes:
 
 All content is **hardcoded in HTML**. To update:
 
-- **Upcoming events**: Edit the events section in both `index.html` and `index_en.html`. Add/remove `.event-card` blocks with the game cover image, title, date, and description.
-- **Past meetings**: Update the history list in both files.
+- **Upcoming events**: Edit the events section in both `index.html` and `index_en.html`. Add/remove `.event` blocks with the game cover image, title, date, and description. Cover image goes in `img/covers/`.
+- **Past meetings**: Move the event block out and add an entry to the history list (`<ol class="ticks">`).
 - **Discord/Facebook links**: Search for the existing invite URLs and replace.
 - **Venue info**: In the "Om" / "About" section's info card.
 
@@ -77,9 +80,9 @@ All content is **hardcoded in HTML**. To update:
 
 ## Deployment
 
-No build step required — deploy by copying files to the Apache server. The `.htaccess` handles the HTTP→HTTPS redirect automatically.
+Push to `main` — GitHub Pages deploys automatically. No build step required.
 
-The `.well-known/acme-challenge/` directory is used by Certbot for certificate renewal; do not delete it.
+HTTPS is handled by GitHub Pages natively. The `.htaccess` file is inert on GitHub Pages but kept in the repo.
 
 ## i18n
 
