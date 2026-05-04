@@ -189,13 +189,23 @@ p {
   justify-content: center;
 }
 
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-14px); }
+}
+
 .hero-logo img {
-  max-width: 100%;                 /* never overflow its container */
+  max-width: 100%;
   width: auto;
-  height: auto;                    /* preserve aspect ratio */
-  max-height: 320px;               /* reasonable cap on very large images */
+  height: auto;
+  max-height: 320px;
   display: block;
   filter: drop-shadow(0 6px 12px rgba(0,0,0,0.25));
+  animation: float 4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-logo img { animation: none; }
 }
 
 .hero-text {
@@ -308,12 +318,35 @@ p {
   background: var(--panel);
   border: 1px solid var(--ring);
   border-radius: 14px;
-  padding: 18px;
+  padding: 20px 22px;
   box-shadow: var(--shadow);
 }
 .card h3 {
   margin-top: 4px;
+  margin-bottom: 0;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--ring);
   color: var(--brand);
+}
+.card ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.card ul li {
+  padding: 9px 0;
+  border-bottom: 1px solid var(--ring);
+  line-height: 1.5;
+}
+.card ul li:last-child {
+  border-bottom: none;
+  padding-bottom: 2px;
+}
+.card > p:last-child {
+  margin-top: 14px;
+  margin-bottom: 0;
+  font-size: .9rem;
+  color: var(--muted);
 }
 
 /* ==== LISTE MED TJEKMARKER ==== */
@@ -349,24 +382,31 @@ p {
 .event {
   display: flex;
   align-items: center;
-  gap: 18px;
-  padding: 14px;
+  gap: 20px;
+  padding: 16px 20px;
   border: 1px solid var(--ring);
-  border-radius: 12px;
+  border-radius: 14px;
   background: var(--panel);
+  box-shadow: 0 2px 10px rgba(0,0,0,.08);
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+.event:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(0,0,0,.14);
 }
 .event + .event {
-  margin-top: 12px;
+  margin-top: 14px;
 }
 .date {
   width: 76px;
+  align-self: stretch;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: 10px 8px;
   border-radius: 12px;
-  background: linear-gradient(135deg, var(--brand-2), var(--brand));
+  background: var(--brand);
   color: #fff;
   font-weight: 800;
   box-shadow: 0 6px 12px rgba(0,0,0,0.12);
@@ -393,7 +433,7 @@ p {
 }
 .details h3{
   margin: 0 0 6px;
-  font-size: 1.05rem;
+  font-size: 1.1rem;
   line-height: 1.2;
 }
 .store-links{
@@ -430,12 +470,12 @@ p {
 }
 /* meta line (time + venue) should be slightly muted and smaller */
 .details p:first-of-type{ color: #333; font-weight: 600; margin-bottom: 6px; }
-/* excerpt: clamp to 2 lines on larger screens to keep events compact */
+/* excerpt: clamp to 1 line on desktop, more on mobile */
 .details p.tiny{
   color: #555;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
   -webkit-box-orient: vertical;
   overflow: hidden;
   text-overflow: ellipsis;
