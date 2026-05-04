@@ -301,6 +301,8 @@ img { display: block; max-width: 100%; }
   margin-bottom: 40px;
 }
 .event-card {
+  display: flex;
+  flex-direction: column;
   background: rgba(247,244,238,0.06);
   border: 1px solid rgba(150,195,141,0.18);
   border-radius: var(--radius);
@@ -319,7 +321,12 @@ img { display: block; max-width: 100%; }
   object-position: center center;
   display: block;
 }
-.event-body { padding: 24px 26px 28px; }
+.event-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  padding: 24px 26px 28px;
+}
 .event-meta {
   display: flex;
   align-items: center;
@@ -386,6 +393,12 @@ img { display: block; max-width: 100%; }
   font-size: 0.9rem;
   color: rgba(247,244,238,0.65);
   line-height: 1.6;
+}
+.event-calendar {
+  display: flex;
+  align-items: flex-start;
+  margin-top: auto;
+  padding-top: 16px;
 }
 .events-footer {
   display: flex;
