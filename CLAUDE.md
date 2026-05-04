@@ -42,7 +42,7 @@ Both pages share the same layout:
 3. How it works — 3 white cards on cream background
 4. Upcoming events — 2 cards on purple background with Steam CDN banners
 5. About (Om) — club description + practical info card
-6. History — interactive accordion list with Steam CDN banners and store links
+6. History — 4-column banner grid (desktop) / 2-column (mobile); each card shows the Steam banner upfront, clicking expands description + store links
 7. Footer — copyright · credits · logo
 
 ## CSS Architecture (`css/style.css`)
@@ -71,9 +71,11 @@ Key component classes:
 - `.gs-hero`, `.gs-how`, `.gs-events`, `.gs-about`, `.gs-history`, `.gs-footer` — section wrappers
 - `.event-card`, `.event-cover`, `.event-body` — upcoming event cards
 - `.event-store-links a` — small green text pill store links (Steam/GOG)
-- `.history-card`, `.history-card.open` — accordion rows (JS toggles `.open`)
+- `.history-grid` — CSS grid, 4 columns desktop / 2 columns mobile
+- `.history-card`, `.history-card.open` — banner-first grid cards (JS toggles `.open`)
+- `.history-card-banner` — always-visible banner wrapper with `.history-num` badge overlay
 - `.history-expand` — collapsible panel (max-height animation)
-- `.history-banner` — 280px wide Steam header image (desktop), full-width (mobile)
+- `.history-banner` — full-width Steam header image (460/215 aspect ratio), zooms on hover
 - `.info-card`, `.info-row` — practical info card in About section
 - `.gs-lang a.active` — active language in DA/EN toggle
 
@@ -82,7 +84,7 @@ Key component classes:
 All content is **hardcoded in HTML**. To update:
 
 - **Upcoming events**: Edit the events section in both `index.html` and `index_en.html`. Use Steam CDN banners: `https://cdn.akamai.steamstatic.com/steam/apps/{STEAM_APP_ID}/header.jpg`. Update the event-num badge, event-date, event-title, event-time-venue, event-desc, and store link URLs. Always verify Steam app IDs — wrong IDs are common.
-- **Past meetings (history)**: Add a new `.history-card` block to the history grid in both files. Include the Steam app ID for the banner and store link, the genre tag, and both DA and EN descriptions (different per file). The accordion JS requires no changes.
+- **Past meetings (history)**: Add a new `.history-card` block to the history grid in both files. Structure: `.history-card-banner` (img + `.history-num` badge) → `.history-card-top` (name, genre, chevron) → `.history-expand > .history-expand-inner` (desc + links). Include the Steam app ID for the banner and store link, the genre tag, and both DA and EN descriptions (different per file). The accordion JS requires no changes.
 - **Discord link**: Search and replace the existing invite URL in both files.
 - **Venue info**: In the `.info-card` inside the About section.
 
