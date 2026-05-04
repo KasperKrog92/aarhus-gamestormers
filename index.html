@@ -15,9 +15,13 @@
   <link rel="icon" type="image/png" sizes="16x16" href="favicon/favicon-16x16.png">
   <link rel="manifest" href="favicon/site.webmanifest">
 
-  <link rel="preload" href="/css/style.css?v=3" as="style">
-  <link rel="stylesheet" href="/css/style.css?v=3">
-  <!-- Prefetch the English homepage to make language switches smoother -->
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=DM+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+
+  <link rel="preload" href="/css/style.css?v=4" as="style">
+  <link rel="stylesheet" href="/css/style.css?v=4">
   <link rel="prefetch" href="/index_en.html">
 
   <!-- Open Graph -->
@@ -31,173 +35,494 @@
 </head>
 
 <body>
-<header class="site-header">
+
+<header class="gs-header">
   <div class="wrap">
-    <a href="/" class="brand">
-      <img src="img/logo.png" alt="Aarhus Gamestormers logo" class="logo">
+    <a href="/" aria-label="Aarhus Gamestormers forside">
+      <img src="img/logo.png" alt="Aarhus Gamestormers logo" class="gs-logo">
     </a>
-    <nav class="nav">
-      
-      
-      <a href="#about">Om</a>
-      <a href="#events">Kommende events</a>
-      <a class="btn" href="https://discord.gg/N2h6DJxVDF" target="_blank" rel="noopener noreferrer">Tilmeld Discord</a>
-      <span class="lang-switch" role="navigation" aria-label="Vælg sprog">
-        <a class="is-active" aria-current="page" href="/" title="Dansk">DA</a>
+    <nav class="gs-nav" aria-label="Primær navigation">
+      <a href="#events" class="nav-text">Events</a>
+      <a href="#about" class="nav-text">Om</a>
+      <a href="#history" class="nav-text">Historik</a>
+      <div class="gs-lang" role="navigation" aria-label="Vælg sprog">
+        <a href="/" class="active" aria-current="page" title="Dansk">DA</a>
         <a href="/index_en.html" lang="en" title="English">EN</a>
-      </span>
+      </div>
+      <a href="https://discord.gg/N2h6DJxVDF" target="_blank" rel="noopener noreferrer" class="nav-discord">Tilmeld Discord</a>
     </nav>
   </div>
 </header>
 
 <main>
-  <section class="hero section alt">
-    <div class="wrap hero-grid">
-      <div class="hero-logo">
-        <img src="img/logo_hero.png" alt="Aarhus Gamestormers logo" loading="lazy" decoding="async" />
-      </div>
-      <div class="hero-text">
-        <h1>Videospilklub i Aarhus</h1>
-        <p>Vi vælger et spil, spiller det hjemme, og mødes for at snakke om det – som en bogklub, bare med spil.</p>
-        <div class="cta">
-          <a class="btn primary" href="https://discord.gg/N2h6DJxVDF" target="_blank" rel="noopener">Kom med på Discord</a>
-          <a class="btn ghost" href="#events">Se kommende events</a>
+
+  <!-- ── Hero ──────────────────────────────────────────────────────────── -->
+  <section class="gs-hero">
+    <div class="wrap">
+      <div class="hero-inner">
+        <div class="hero-text">
+          <p class="hero-eyebrow">Videospilklub · Aarhus</p>
+          <h1 class="hero-headline">Spil, oplev,<br>diskutér.</h1>
+          <p class="hero-sub">Vi vælger et spil, spiller det hjemme og mødes for at snakke om det. Som en bogklub, bare med spil.</p>
+          <div class="hero-cta">
+            <a href="https://discord.gg/N2h6DJxVDF" target="_blank" rel="noopener noreferrer" class="btn-primary">Kom med på Discord</a>
+            <a href="#events" class="btn-ghost">Se kommende events</a>
+          </div>
+        </div>
+        <div class="hero-logo-wrap">
+          <img src="img/logo_hero.png" alt="Aarhus Gamestormers logo" class="hero-logo-img" loading="lazy" decoding="async">
         </div>
       </div>
     </div>
   </section>
 
-  <section class="section how-it-works">
+  <!-- ── How It Works ──────────────────────────────────────────────────── -->
+  <section class="gs-how">
     <div class="wrap">
-      <h2>Sådan fungerer det</h2>
-      <ol class="steps">
-        <li class="step">
-          <span class="step-num">1</span>
+      <h2 class="section-title">Sådan fungerer det</h2>
+      <div class="steps-grid">
+        <div class="step-card">
+          <div class="step-num">01</div>
           <h3>Vi vælger et spil</h3>
           <p>Fællesskabet stemmer om det næste spil via Discord.</p>
-        </li>
-        <li class="step">
-          <span class="step-num">2</span>
-          <h3>Du spiller det hjemme</h3>
+        </div>
+        <div class="step-card">
+          <div class="step-num">02</div>
+          <h3>Du spiller hjemme</h3>
           <p>I dit eget tempo i løbet af måneden.</p>
-        </li>
-        <li class="step">
-          <span class="step-num">3</span>
+        </div>
+        <div class="step-card">
+          <div class="step-num">03</div>
           <h3>Vi mødes og diskuterer</h3>
           <p>Én gang om måneden på Folkehuset Møllestien.</p>
-        </li>
-      </ol>
-    </div>
-  </section>
-
-  <section id="about" class="section alt">
-    <div class="wrap grid-2">
-      <div>
-        <h2>Om Aarhus Gamestormers</h2>
-        <p>Aarhus Gamestormers er en månedlig videospilsklub for voksne i Aarhus, hvor vi – ligesom i en bogklub – mødes for at diskutere et udvalgt spil, vi alle har spillet op til mødet. Formålet er at dykke ned i videospil som kunstform og interaktiv fortælling, og skabe et socialt samlingspunkt for folk med interesse for spil- og nørdekultur.</p>
-        <p>Møderne er uformelle og hyggelige – der er ingen krav om at have gennemført spillet, men forvent spoilers. Klubbens samlingspunkt er på <strong>Discord</strong>, hvor kommunikationen foregår på engelsk. Alle er velkomne, også dem der ikke kan komme til de fysiske møder. Man skal være mindst 18 år for at være med.</p>
+        </div>
       </div>
-      <aside class="card">
-        <h3>Praktisk info</h3>
-        <ul>
-          <li><strong>Sted:</strong> <a href="https://maps.app.goo.gl/dFx7cWVRnWtj9J7L9" target="_blank" rel="noopener">Folkehuset Møllestien, Grønnegade 10, 8000 Aarhus C</a></li>
-          <li><strong>Hvornår:</strong> Typisk hver første mandag i måneden</li>
-          <li><strong>Næste møde:</strong> <a href="#events">Se kommende events nedenfor</a></li>
-          <li><strong>Arrangør:</strong> Kasper Krog</li>
-          <li><strong>E-mail:</strong> <a href="mailto:kasper@gamestormers.dk" target="_blank" rel="noopener">kasper@gamestormers.dk</a></li>
-        </ul>
-        <p>Skriv endelig, hvis du har spørgsmål.</p>
-      </aside>
     </div>
   </section>
 
-  <section id="events" class="section">
+  <!-- ── Upcoming Events ────────────────────────────────────────────────── -->
+  <section id="events" class="gs-events">
     <div class="wrap">
-      <h2>Kommende events</h2>
+      <h2 class="section-title">Kommende events</h2>
+      <div class="events-grid">
 
-      <ul class="event-list">
         <!-- 15th Meeting -->
-        <li class="event">
-          <div class="date"><span class="day">11</span><span class="mon">MAJ</span></div>
-          <div class="details">
-            <h3>15. møde - American Arcadia
-                <span class="store-links" aria-hidden="true">
-                <a href="https://store.steampowered.com/app/1249040/American_Arcadia/" target="_blank" rel="noopener noreferrer" aria-label="American Arcadia on Steam">
-                  <img src="img/steam_icon.png" alt="Steam" />
-                </a>
-              </span>
-            </h3>
-            <p><strong>18:30</strong> · <a href="https://maps.app.goo.gl/dFx7cWVRnWtj9J7L9" target="_blank" rel="noopener">Folkehuset Møllestien, Grønnegade 10, 8000 Aarhus C</a></p>
-            <p class="tiny">Et filmisk puzzle-eventyr om at flygte fra en retro-futuristisk by, hvor dit liv bliver sendt som reality-TV.</p>
+        <div class="event-card">
+          <img src="https://cdn.akamai.steamstatic.com/steam/apps/1249040/header.jpg" alt="American Arcadia cover" class="event-cover" loading="lazy" decoding="async">
+          <div class="event-body">
+            <div class="event-meta">
+              <div class="event-badge">
+                <span class="event-num">15. møde</span>
+                <span class="event-date">11 MAJ</span>
+              </div>
+              <div class="event-store-links">
+                <a href="https://store.steampowered.com/app/1249040/American_Arcadia/" target="_blank" rel="noopener noreferrer">Steam</a>
+              </div>
+            </div>
+            <h3 class="event-title">American Arcadia</h3>
+            <p class="event-time-venue">18:30 · Folkehuset Møllestien</p>
+            <p class="event-desc">Et filmisk puzzle-eventyr om at flygte fra en retro-futuristisk by, hvor dit liv sendes som reality-TV.</p>
           </div>
-          
-          <div class="event-image"><img src="img/covers/American.jpg" alt="American Arcadia cover" loading="lazy" decoding="async" /></div>
-        </li>
+        </div>
+
         <!-- 16th Meeting -->
-        <li class="event">
-          <div class="date"><span class="day">08</span><span class="mon">JUNI</span></div>
-          <div class="details">
-            <h3>16. møde - The Infectious Madness of Doctor Dekker
-                <span class="store-links" aria-hidden="true">
-                <a href="https://store.steampowered.com/app/545540/The_Infectious_Madness_of_Doctor_Dekker/" target="_blank" rel="noopener noreferrer" aria-label="The Infectious Madness of Doctor Dekker on Steam">
-                  <img src="img/steam_icon.png" alt="Steam" />
-                </a>
-                <a href="https://www.gog.com/game/the_infectious_madness_of_doctor_dekker" target="_blank" rel="noopener noreferrer" aria-label="The Infectious Madness of Doctor Dekker on GOG">
-                  <img src="img/gog_icon.svg" alt="GOG" />
-                </a>
-              </span>
-            </h3>
-            <p><strong>18:30</strong> · <a href="https://maps.app.goo.gl/dFx7cWVRnWtj9J7L9" target="_blank" rel="noopener">Folkehuset Møllestien, Grønnegade 10, 8000 Aarhus C</a></p>
-            <p class="tiny">Et mørkt FMV-mysteriespil, hvor du afhører den afdøde Doctor Dekkers patienter for at finde hans morder.</p>
+        <div class="event-card">
+          <img src="https://cdn.akamai.steamstatic.com/steam/apps/545540/header.jpg" alt="The Infectious Madness of Doctor Dekker cover" class="event-cover" loading="lazy" decoding="async">
+          <div class="event-body">
+            <div class="event-meta">
+              <div class="event-badge">
+                <span class="event-num">16. møde</span>
+                <span class="event-date">08 JUNI</span>
+              </div>
+              <div class="event-store-links">
+                <a href="https://store.steampowered.com/app/545540/The_Infectious_Madness_of_Doctor_Dekker/" target="_blank" rel="noopener noreferrer">Steam</a>
+                <a href="https://www.gog.com/game/the_infectious_madness_of_doctor_dekker" target="_blank" rel="noopener noreferrer">GOG</a>
+              </div>
+            </div>
+            <h3 class="event-title">The Infectious Madness of Doctor Dekker</h3>
+            <p class="event-time-venue">18:30 · Folkehuset Møllestien</p>
+            <p class="event-desc">Et mørkt FMV-mysteriespil, hvor du afhører den afdøde Doctor Dekkers patienter for at finde hans morder.</p>
           </div>
-          
-          <div class="event-image"><img src="img/covers/Dekker.jpg" alt="The Infectious Madness of Doctor Dekker cover" loading="lazy" decoding="async" /></div>
-        </li>
+        </div>
 
-      </ul>
-
-      <p class="hint">Meld dig til møder og følg annonceringer og afstemninger på vores Discord.</p>
-      <a class="btn primary" href="https://discord.gg/N2h6DJxVDF" target="_blank" rel="noopener">Tilmeld Discord</a>
+      </div>
+      <div class="events-footer">
+        <p class="events-hint">Meld dig til møder og følg med i afstemninger og annonceringer på vores Discord.</p>
+        <a href="https://discord.gg/N2h6DJxVDF" target="_blank" rel="noopener noreferrer" class="btn-green">Tilmeld Discord</a>
+      </div>
     </div>
   </section>
 
-  <section id="history" class="section alt">
+  <!-- ── About ─────────────────────────────────────────────────────────── -->
+  <section id="about" class="gs-about">
     <div class="wrap">
-      <h2>Klubbens mødehistorik</h2>
-      <p>Her finder du de spil, vi allerede har oplevet og talt om sammen. Vi vælger typisk spil, der kan spilles på PC, og som man kan gennemføre hovedhistorien i på cirka 10 timer eller mindre. Der må dog gerne være masser af sideindhold for dem, der vil fordybe sig mere.</p>
-      <ol class="ticks">
-        <li><strong>1. møde</strong> — <em>Outer Wilds</em></li>
-        <li><strong>2. møde</strong> — <em>Oxenfree</em></li>
-        <li><strong>3. møde</strong> — <em>Little Nightmares</em></li>
-        <li><strong>4. møde</strong> — <em>Firewatch</em></li>
-        <li><strong>5. møde</strong> — <em>Vampire Therapist</em></li>
-        <li><strong>6. møde</strong> — <em>Neva</em></li>
-        <li><strong>7. møde</strong> — <em>A Plague Tale: Innocence</em></li>
-        <li><strong>8. møde</strong> — <em>TUNIC</em></li>
-        <li><strong>9. møde</strong> — <em>The Forgotten City</em></li>
-        <li><strong>10. møde</strong> — <em>The Stanley Parable</em></li>
-        <li><strong>11. møde</strong> — <em>Psychonauts</em></li>
-        <li><strong>12. møde</strong> — <em>Lost in Random</em></li>
-        <li><strong>13. møde</strong> — <em>Inscryption</em></li>
-        <li><strong>14. møde</strong> — <em>Tiny Bookshop</em></li>
-      </ol>
+      <div class="about-grid">
+        <div>
+          <h2 class="section-title">Om Aarhus Gamestormers</h2>
+          <div class="about-body">
+            <p>Aarhus Gamestormers er en månedlig videospilsklub for voksne i Aarhus. Ligesom i en bogklub mødes vi for at diskutere et udvalgt spil, som vi alle har spillet op til mødet.</p>
+            <p>Formålet er at tage videospil seriøst som kunstform og interaktiv fortælling, og at skabe et hyggeligt samlingspunkt for folk med interesse for spil og nørdekultur.</p>
+            <p>Møderne er uformelle. Der er ingen krav om at have gennemført spillet, men regn med spoilers. Kommunikationen i klubben foregår på engelsk via Discord. Alle er velkomne, også dem der ikke kan komme til de fysiske møder. Du skal være mindst 18 år.</p>
+          </div>
+        </div>
+        <div>
+          <div class="info-card">
+            <div class="info-card-title">Praktisk info</div>
+            <div class="info-row">
+              <span class="info-label">Sted</span>
+              <span class="info-value"><a href="https://maps.app.goo.gl/dFx7cWVRnWtj9J7L9" target="_blank" rel="noopener">Folkehuset Møllestien, Grønnegade 10, 8000 Aarhus C</a></span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Hvornår</span>
+              <span class="info-value">Typisk første mandag i måneden</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Arrangør</span>
+              <span class="info-value">Kasper Krog</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">E-mail</span>
+              <span class="info-value"><a href="mailto:kasper@gamestormers.dk">kasper@gamestormers.dk</a></span>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </section>
+
+  <!-- ── History ────────────────────────────────────────────────────────── -->
+  <section id="history" class="gs-history">
+    <div class="wrap">
+      <h2 class="section-title">Vi har spillet...</h2>
+      <p class="history-sub">14 møder, 14 spil. Her er dem vi har oplevet og diskuteret sammen.</p>
+      <div class="history-grid">
+
+        <div class="history-card" role="button" tabindex="0" aria-expanded="false">
+          <div class="history-card-top">
+            <span class="history-num">01</span>
+            <span class="history-name">Outer Wilds</span>
+            <span class="history-genre">Exploration</span>
+            <span class="history-chevron">▼</span>
+          </div>
+          <div class="history-expand">
+            <div class="history-expand-inner">
+              <img src="https://cdn.akamai.steamstatic.com/steam/apps/753640/header.jpg" alt="Outer Wilds" class="history-banner" loading="lazy">
+              <div class="history-expand-text">
+                <p class="history-desc">Et åbent-verdens mysterium om et solsystem fanget i en endeløs tidssløjfe. Et af de mest roste udforskningsspil nogensinde.</p>
+                <div class="history-links">
+                  <a href="https://store.steampowered.com/app/753640/Outer_Wilds/" target="_blank" rel="noopener" class="history-link" onclick="event.stopPropagation()"><img src="img/steam_icon.png" alt=""> Steam</a>
+                  <a href="https://www.gog.com/game/outer_wilds" target="_blank" rel="noopener" class="history-link" onclick="event.stopPropagation()"><img src="img/gog_icon.svg" alt=""> GOG</a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="history-card" role="button" tabindex="0" aria-expanded="false">
+          <div class="history-card-top">
+            <span class="history-num">02</span>
+            <span class="history-name">Oxenfree</span>
+            <span class="history-genre">Adventure</span>
+            <span class="history-chevron">▼</span>
+          </div>
+          <div class="history-expand">
+            <div class="history-expand-inner">
+              <img src="https://cdn.akamai.steamstatic.com/steam/apps/388880/header.jpg" alt="Oxenfree" class="history-banner" loading="lazy">
+              <div class="history-expand-text">
+                <p class="history-desc">En overnaturlig thriller om venner der ved et uheld åbner en spøgelsesagtig rift. Dialogdrevet med forgreningsvalg.</p>
+                <div class="history-links">
+                  <a href="https://store.steampowered.com/app/388880/Oxenfree/" target="_blank" rel="noopener" class="history-link" onclick="event.stopPropagation()"><img src="img/steam_icon.png" alt=""> Steam</a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="history-card" role="button" tabindex="0" aria-expanded="false">
+          <div class="history-card-top">
+            <span class="history-num">03</span>
+            <span class="history-name">Little Nightmares</span>
+            <span class="history-genre">Horror</span>
+            <span class="history-chevron">▼</span>
+          </div>
+          <div class="history-expand">
+            <div class="history-expand-inner">
+              <img src="https://cdn.akamai.steamstatic.com/steam/apps/424840/header.jpg" alt="Little Nightmares" class="history-banner" loading="lazy">
+              <div class="history-expand-text">
+                <p class="history-desc">En mørk puzzle-platformer i et forvrænget fartøj kaldet The Maw. Stemningsfuld horror med en markant visuel stil.</p>
+                <div class="history-links">
+                  <a href="https://store.steampowered.com/app/424840/Little_Nightmares/" target="_blank" rel="noopener" class="history-link" onclick="event.stopPropagation()"><img src="img/steam_icon.png" alt=""> Steam</a>
+                  <a href="https://www.gog.com/game/little_nightmares" target="_blank" rel="noopener" class="history-link" onclick="event.stopPropagation()"><img src="img/gog_icon.svg" alt=""> GOG</a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="history-card" role="button" tabindex="0" aria-expanded="false">
+          <div class="history-card-top">
+            <span class="history-num">04</span>
+            <span class="history-name">Firewatch</span>
+            <span class="history-genre">Narrative</span>
+            <span class="history-chevron">▼</span>
+          </div>
+          <div class="history-expand">
+            <div class="history-expand-inner">
+              <img src="https://cdn.akamai.steamstatic.com/steam/apps/383870/header.jpg" alt="Firewatch" class="history-banner" loading="lazy">
+              <div class="history-expand-text">
+                <p class="history-desc">Et mysterium i Wyoming-vildmarken i 1989. Du spiller en brandvagt, hvis eneste kontakt er en stemme i en radio.</p>
+                <div class="history-links">
+                  <a href="https://store.steampowered.com/app/383870/Firewatch/" target="_blank" rel="noopener" class="history-link" onclick="event.stopPropagation()"><img src="img/steam_icon.png" alt=""> Steam</a>
+                  <a href="https://www.gog.com/game/firewatch" target="_blank" rel="noopener" class="history-link" onclick="event.stopPropagation()"><img src="img/gog_icon.svg" alt=""> GOG</a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="history-card" role="button" tabindex="0" aria-expanded="false">
+          <div class="history-card-top">
+            <span class="history-num">05</span>
+            <span class="history-name">Vampire Therapist</span>
+            <span class="history-genre">Visual Novel</span>
+            <span class="history-chevron">▼</span>
+          </div>
+          <div class="history-expand">
+            <div class="history-expand-inner">
+              <img src="https://cdn.akamai.steamstatic.com/steam/apps/2481020/header.jpg" alt="Vampire Therapist" class="history-banner" loading="lazy">
+              <div class="history-expand-text">
+                <p class="history-desc">En visual novel hvor du spiller en vampyr der lærer kognitiv adfærdsterapi for at hjælpe klienter. Sjovt og overraskende indsigtsfuldt.</p>
+                <div class="history-links">
+                  <a href="https://store.steampowered.com/app/2481020/Vampire_Therapist/" target="_blank" rel="noopener" class="history-link" onclick="event.stopPropagation()"><img src="img/steam_icon.png" alt=""> Steam</a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="history-card" role="button" tabindex="0" aria-expanded="false">
+          <div class="history-card-top">
+            <span class="history-num">06</span>
+            <span class="history-name">Neva</span>
+            <span class="history-genre">Action</span>
+            <span class="history-chevron">▼</span>
+          </div>
+          <div class="history-expand">
+            <div class="history-expand-inner">
+              <img src="https://cdn.akamai.steamstatic.com/steam/apps/2420660/header.jpg" alt="Neva" class="history-banner" loading="lazy">
+              <div class="history-expand-text">
+                <p class="history-desc">Et actionspil om en kvinde og hendes ulvekammerat der kæmper sig gennem en forfaldende verden. Betagende håndtegnede visuals.</p>
+                <div class="history-links">
+                  <a href="https://store.steampowered.com/app/2420660/Neva/" target="_blank" rel="noopener" class="history-link" onclick="event.stopPropagation()"><img src="img/steam_icon.png" alt=""> Steam</a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="history-card" role="button" tabindex="0" aria-expanded="false">
+          <div class="history-card-top">
+            <span class="history-num">07</span>
+            <span class="history-name">A Plague Tale: Innocence</span>
+            <span class="history-genre">Action-Adventure</span>
+            <span class="history-chevron">▼</span>
+          </div>
+          <div class="history-expand">
+            <div class="history-expand-inner">
+              <img src="https://cdn.akamai.steamstatic.com/steam/apps/752590/header.jpg" alt="A Plague Tale: Innocence" class="history-banner" loading="lazy">
+              <div class="history-expand-text">
+                <p class="history-desc">Et filmisk stealth-eventyr i 1300-tallets Frankrig under den sorte død. Hårdt, smukt og følelsesmæssigt stærkt.</p>
+                <div class="history-links">
+                  <a href="https://store.steampowered.com/app/752590/A_Plague_Tale_Innocence/" target="_blank" rel="noopener" class="history-link" onclick="event.stopPropagation()"><img src="img/steam_icon.png" alt=""> Steam</a>
+                  <a href="https://www.gog.com/game/a_plague_tale_innocence" target="_blank" rel="noopener" class="history-link" onclick="event.stopPropagation()"><img src="img/gog_icon.svg" alt=""> GOG</a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="history-card" role="button" tabindex="0" aria-expanded="false">
+          <div class="history-card-top">
+            <span class="history-num">08</span>
+            <span class="history-name">TUNIC</span>
+            <span class="history-genre">Adventure</span>
+            <span class="history-chevron">▼</span>
+          </div>
+          <div class="history-expand">
+            <div class="history-expand-inner">
+              <img src="https://cdn.akamai.steamstatic.com/steam/apps/553420/header.jpg" alt="TUNIC" class="history-banner" loading="lazy">
+              <div class="history-expand-text">
+                <p class="history-desc">Et isometrisk eventyr med en lille ræv i et farligt land. Bevidst mystisk — selve spilmanualen er en gåde.</p>
+                <div class="history-links">
+                  <a href="https://store.steampowered.com/app/553420/TUNIC/" target="_blank" rel="noopener" class="history-link" onclick="event.stopPropagation()"><img src="img/steam_icon.png" alt=""> Steam</a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="history-card" role="button" tabindex="0" aria-expanded="false">
+          <div class="history-card-top">
+            <span class="history-num">09</span>
+            <span class="history-name">The Forgotten City</span>
+            <span class="history-genre">RPG</span>
+            <span class="history-chevron">▼</span>
+          </div>
+          <div class="history-expand">
+            <div class="history-expand-inner">
+              <img src="https://cdn.akamai.steamstatic.com/steam/apps/874260/header.jpg" alt="The Forgotten City" class="history-banner" loading="lazy">
+              <div class="history-expand-text">
+                <p class="history-desc">Et tidssløjfe-mysterium i en skjult romersk by, hvor én synd fordømmer alle. Startede som et Skyrim-mod, nu et prisbelønnet spil.</p>
+                <div class="history-links">
+                  <a href="https://store.steampowered.com/app/874260/The_Forgotten_City/" target="_blank" rel="noopener" class="history-link" onclick="event.stopPropagation()"><img src="img/steam_icon.png" alt=""> Steam</a>
+                  <a href="https://www.gog.com/game/the_forgotten_city" target="_blank" rel="noopener" class="history-link" onclick="event.stopPropagation()"><img src="img/gog_icon.svg" alt=""> GOG</a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="history-card" role="button" tabindex="0" aria-expanded="false">
+          <div class="history-card-top">
+            <span class="history-num">10</span>
+            <span class="history-name">The Stanley Parable</span>
+            <span class="history-genre">Narrative</span>
+            <span class="history-chevron">▼</span>
+          </div>
+          <div class="history-expand">
+            <div class="history-expand-inner">
+              <img src="https://cdn.akamai.steamstatic.com/steam/apps/1703340/header.jpg" alt="The Stanley Parable" class="history-banner" loading="lazy">
+              <div class="history-expand-text">
+                <p class="history-desc">Et meta-narrativt udforskningsspil om valg, frihed og fortællingens natur. Uendeligt overraskende og stille dybsindigt.</p>
+                <div class="history-links">
+                  <a href="https://store.steampowered.com/app/1703340/The_Stanley_Parable_Ultra_Deluxe/" target="_blank" rel="noopener" class="history-link" onclick="event.stopPropagation()"><img src="img/steam_icon.png" alt=""> Steam</a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="history-card" role="button" tabindex="0" aria-expanded="false">
+          <div class="history-card-top">
+            <span class="history-num">11</span>
+            <span class="history-name">Psychonauts</span>
+            <span class="history-genre">Platformer</span>
+            <span class="history-chevron">▼</span>
+          </div>
+          <div class="history-expand">
+            <div class="history-expand-inner">
+              <img src="https://cdn.akamai.steamstatic.com/steam/apps/3830/header.jpg" alt="Psychonauts" class="history-banner" loading="lazy">
+              <div class="history-expand-text">
+                <p class="history-desc">En elsket platformer der foregår inde i eksentriske karakterers sind. Tim Schafer på sit mest opfindsomme og bizarre.</p>
+                <div class="history-links">
+                  <a href="https://store.steampowered.com/app/3830/Psychonauts/" target="_blank" rel="noopener" class="history-link" onclick="event.stopPropagation()"><img src="img/steam_icon.png" alt=""> Steam</a>
+                  <a href="https://www.gog.com/game/psychonauts" target="_blank" rel="noopener" class="history-link" onclick="event.stopPropagation()"><img src="img/gog_icon.svg" alt=""> GOG</a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="history-card" role="button" tabindex="0" aria-expanded="false">
+          <div class="history-card-top">
+            <span class="history-num">12</span>
+            <span class="history-name">Lost in Random</span>
+            <span class="history-genre">Action-Adventure</span>
+            <span class="history-chevron">▼</span>
+          </div>
+          <div class="history-expand">
+            <div class="history-expand-inner">
+              <img src="https://cdn.akamai.steamstatic.com/steam/apps/1462570/header.jpg" alt="Lost in Random" class="history-banner" loading="lazy">
+              <div class="history-expand-text">
+                <p class="history-desc">Et eventyrligt actionspil hvor terninger bestemmer din skæbne. Smuk stop-motion-æstetik med en overraskende følelsesladet historie.</p>
+                <div class="history-links">
+                  <a href="https://store.steampowered.com/app/1462570/Lost_in_Random/" target="_blank" rel="noopener" class="history-link" onclick="event.stopPropagation()"><img src="img/steam_icon.png" alt=""> Steam</a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="history-card" role="button" tabindex="0" aria-expanded="false">
+          <div class="history-card-top">
+            <span class="history-num">13</span>
+            <span class="history-name">Inscryption</span>
+            <span class="history-genre">Deckbuilder</span>
+            <span class="history-chevron">▼</span>
+          </div>
+          <div class="history-expand">
+            <div class="history-expand-inner">
+              <img src="https://cdn.akamai.steamstatic.com/steam/apps/1092790/header.jpg" alt="Inscryption" class="history-banner" loading="lazy">
+              <div class="history-expand-text">
+                <p class="history-desc">Et kortspil-roguelike der udvikler sig til noget langt mere underligt. Et af de mest opfindsomme og foruroligende spil i nyere tid.</p>
+                <div class="history-links">
+                  <a href="https://store.steampowered.com/app/1092790/Inscryption/" target="_blank" rel="noopener" class="history-link" onclick="event.stopPropagation()"><img src="img/steam_icon.png" alt=""> Steam</a>
+                  <a href="https://www.gog.com/game/inscryption" target="_blank" rel="noopener" class="history-link" onclick="event.stopPropagation()"><img src="img/gog_icon.svg" alt=""> GOG</a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="history-card" role="button" tabindex="0" aria-expanded="false">
+          <div class="history-card-top">
+            <span class="history-num">14</span>
+            <span class="history-name">Tiny Bookshop</span>
+            <span class="history-genre">Simulation</span>
+            <span class="history-chevron">▼</span>
+          </div>
+          <div class="history-expand">
+            <div class="history-expand-inner">
+              <img src="https://cdn.akamai.steamstatic.com/steam/apps/2133760/header.jpg" alt="Tiny Bookshop" class="history-banner" loading="lazy">
+              <div class="history-expand-text">
+                <p class="history-desc">En hyggelig management-sim om at drive en lille boghandel ved havet. Afslappende, charmerende og overraskende meditativ.</p>
+                <div class="history-links">
+                  <a href="https://store.steampowered.com/app/2133760/Tiny_Bookshop/" target="_blank" rel="noopener" class="history-link" onclick="event.stopPropagation()"><img src="img/steam_icon.png" alt=""> Steam</a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
 </main>
 
-<footer class="site-footer">
+<footer class="gs-footer">
   <div class="wrap">
-    <p>© <span id="year"></span> Aarhus Gamestormers · <a href="https://discord.gg/N2h6DJxVDF" target="_blank" rel="noopener">Discord</a></p>
-    <p class="tiny">
-      Vores logo er designet af <strong>Julie Fey</strong> fra
-      <a href="https://dazestudio.dk/" target="_blank" rel="noopener">Daze Studio</a>.
-      Tak for at give klubben et stærkt visuelt udtryk!
-    </p>
+    <div class="footer-inner">
+      <p class="footer-copy">© <span id="year"></span> Aarhus Gamestormers · <a href="https://discord.gg/N2h6DJxVDF" target="_blank" rel="noopener">Discord</a></p>
+      <p class="footer-copy">Logo designet af Julie Fey fra <a href="https://dazestudio.dk/" target="_blank" rel="noopener">Daze Studio</a></p>
+      <img src="img/logo.png" alt="Aarhus Gamestormers" class="footer-logo" loading="lazy">
+    </div>
   </div>
 </footer>
 
 <script>
   document.getElementById('year').textContent = new Date().getFullYear();
+
+  document.querySelectorAll('.history-card').forEach(function(card) {
+    card.addEventListener('click', function() {
+      var isOpen = this.classList.contains('open');
+      document.querySelectorAll('.history-card').forEach(function(c) {
+        c.classList.remove('open');
+        c.setAttribute('aria-expanded', 'false');
+      });
+      if (!isOpen) {
+        this.classList.add('open');
+        this.setAttribute('aria-expanded', 'true');
+      }
+    });
+    card.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        this.click();
+      }
+    });
+  });
 </script>
+
 </body>
 </html>

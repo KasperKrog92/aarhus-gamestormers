@@ -8,20 +8,24 @@ A static HTML website for Aarhus Gamestormers, a monthly video game discussion c
 /
 ├── index.html          # Danish (primary) version
 ├── index_en.html       # English version
-├── css/style.css       # All styles (~514 lines)
+├── css/style.css       # All styles (v4)
 ├── img/
-│   ├── covers/         # Game cover images (one per upcoming event)
-│   └── ...             # Logos and store icons
+│   ├── logo.png        # Header/footer logo
+│   ├── logo_hero.png   # Large hero logo
+│   ├── web_logo.png    # Open Graph image
+│   ├── steam_icon.png  # Used in history store links
+│   └── gog_icon.svg    # Used in history store links
 ├── favicon/            # Favicon set + site.webmanifest
 ├── CNAME               # GitHub Pages custom domain
-├── .gitignore          # Excludes .claude/
+├── .gitignore          # Excludes .claude/ and design_handoff_gamestormers/
 └── .htaccess           # Kept for reference; not active on GitHub Pages
 ```
 
 ## Technology
 
 - **Pure static HTML/CSS** — no build tools, no npm, no frameworks
-- **Vanilla JS**: only one inline line to update the copyright year
+- **Google Fonts**: Barlow Condensed (headings) + DM Sans (body), loaded via `<link>` in `<head>`
+- **Vanilla JS**: copyright year update + history accordion toggle
 - **Hosted on GitHub Pages** at [www.gamestormers.dk](https://www.gamestormers.dk)
 - Repo: `github.com/KasperKrog92/aarhus-gamestormers` — push to `main` deploys automatically
 
@@ -33,50 +37,64 @@ A static HTML website for Aarhus Gamestormers, a monthly video game discussion c
 | `index_en.html` | English | For international Discord members |
 
 Both pages share the same layout:
-1. Sticky header — logo, nav links, language switcher
-2. Hero — branding, CTA button (Discord)
-3. How it works — 3-step visual (pick a game → play at home → meet & discuss)
-4. About (Om) — club description + practical info card (venue, frequency, Discord)
-5. Upcoming events — next 2 meetings with game cover image
-6. Past meetings — list of historical sessions
-6. Footer — copyright year (auto-updated via JS) + credits
+1. Sticky header — logo, nav links (Events → Om/About → Historik/History), language toggle, Discord button
+2. Hero — green background with curved bottom edge, two-column grid (text + logo)
+3. How it works — 3 white cards on cream background
+4. Upcoming events — 2 cards on purple background with Steam CDN banners
+5. About (Om) — club description + practical info card
+6. History — interactive accordion list with Steam CDN banners and store links
+7. Footer — copyright · credits · logo
 
 ## CSS Architecture (`css/style.css`)
 
 CSS custom properties defined on `:root`:
 
 ```css
---bg: #88B580          /* Primary green */
---bg-alt: #96C38D      /* Alternate green */
---panel: #ffffff       /* Card backgrounds */
---text: #1e1e1e        /* Primary text */
---brand: #2B2436       /* Deep purple */
---brand-2: #BC544B     /* Rust-red accent */
---header-h: 70px       /* 56px on mobile */
+--purple:     #2B2436  /* Header, footer, events bg, history bg */
+--green:      #96C38D  /* Hero bg, accents, step numbers, genre tags */
+--green-dark: #7aaa71  /* Info card labels, hover states */
+--green-light:#c2dbbe  /* Button hover states */
+--cream:      #F7F4EE  /* Main page background */
+--cream-dark: #EDE8DF  /* Card borders, info row separators */
+--text:       #1C1826  /* Primary text */
+--muted:      #5a5366  /* Secondary text */
+--white:      #ffffff  /* Card backgrounds */
+--shadow-sm/md/lg      /* Purple-tinted box shadows */
+--header-h:   72px     /* 60px on mobile */
+--radius:     16px     /* Card border radius */
 ```
 
-Responsive breakpoint: `max-width: 820px` (switches to single-column, hides nav links, adjusts header height).
+Responsive breakpoint: `max-width: 860px` (single-column, hides nav text links, adjusts spacing).
 
 Key component classes:
-- `.btn`, `.btn.primary`, `.btn.ghost` — button variants
-- `.grid-2` — two-column layout (1fr / 1.4fr–0.9fr split)
-- `.event-card` — upcoming game card with cover image
-- `.store-links` — Steam/GOG icon links with hover effects
-- `.lang-switcher` — globe-emoji language toggle (hidden on mobile)
+- `.btn-primary`, `.btn-ghost`, `.btn-green` — button variants
+- `.gs-hero`, `.gs-how`, `.gs-events`, `.gs-about`, `.gs-history`, `.gs-footer` — section wrappers
+- `.event-card`, `.event-cover`, `.event-body` — upcoming event cards
+- `.event-store-links a` — small green text pill store links (Steam/GOG)
+- `.history-card`, `.history-card.open` — accordion rows (JS toggles `.open`)
+- `.history-expand` — collapsible panel (max-height animation)
+- `.history-banner` — 280px wide Steam header image (desktop), full-width (mobile)
+- `.info-card`, `.info-row` — practical info card in About section
+- `.gs-lang a.active` — active language in DA/EN toggle
 
 ## Content Management
 
 All content is **hardcoded in HTML**. To update:
 
-- **Upcoming events**: Edit the events section in both `index.html` and `index_en.html`. Add/remove `.event` blocks with the game cover image, title, date, and description. Cover image goes in `img/covers/`.
-- **Past meetings**: Move the event block out and add an entry to the history list (`<ol class="ticks">`).
-- **Discord link**: Search for the existing invite URL and replace.
-- **Venue info**: In the "Om" / "About" section's info card.
+- **Upcoming events**: Edit the events section in both `index.html` and `index_en.html`. Use Steam CDN banners: `https://cdn.akamai.steamstatic.com/steam/apps/{STEAM_APP_ID}/header.jpg`. Update the event-num badge, event-date, event-title, event-time-venue, event-desc, and store link URLs. Always verify Steam app IDs — wrong IDs are common.
+- **Past meetings (history)**: Add a new `.history-card` block to the history grid in both files. Include the Steam app ID for the banner and store link, the genre tag, and both DA and EN descriptions (different per file). The accordion JS requires no changes.
+- **Discord link**: Search and replace the existing invite URL in both files.
+- **Venue info**: In the `.info-card` inside the About section.
 
 ## Images
 
-- **Game covers**: `img/covers/` — one file per upcoming event (e.g. `American.jpg`, `Dekker.jpg`)
-- **Store icons**: `img/steam_icon.png`, `img/gog_icon.svg`
+Game banners (both events and history) load from the **Steam CDN**:
+```
+https://cdn.akamai.steamstatic.com/steam/apps/{STEAM_APP_ID}/header.jpg
+```
+No local cover images are used or needed. Always verify the Steam app ID before using it — the ID in a game's store URL is authoritative.
+
+- **Store icons**: `img/steam_icon.png`, `img/gog_icon.svg` — used only in history store link buttons
 - **Brand assets**: `img/logo.png`, `img/logo_hero.png`, `img/web_logo.png` (also used for Open Graph)
 
 ## Deployment
@@ -87,4 +105,4 @@ HTTPS is handled by GitHub Pages natively. The `.htaccess` file is inert on GitH
 
 ## i18n
 
-Language switching is link-based: `index.html` ↔ `index_en.html`. Both files include `hreflang` meta tags for SEO. Keep content in sync between the two files when making changes.
+Language switching is link-based: `index.html` (DA) ↔ `index_en.html` (EN). Both files include `hreflang` meta tags for SEO. Keep content in sync between the two files when making changes — the history section in particular has language-specific game descriptions.
