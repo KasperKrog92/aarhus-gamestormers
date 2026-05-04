@@ -34,10 +34,11 @@ A static HTML website for Aarhus Gamestormers, a monthly video game discussion c
 
 Both pages share the same layout:
 1. Sticky header — logo, nav links, language switcher
-2. Hero — branding, CTA buttons (Discord + Facebook)
-3. About (Om) — club description + practical info card (venue, frequency, Discord)
-4. Upcoming events — next 2 meetings with game cover image
-5. Past meetings — list of historical sessions
+2. Hero — branding, CTA button (Discord)
+3. How it works — 3-step visual (pick a game → play at home → meet & discuss)
+4. About (Om) — club description + practical info card (venue, frequency, Discord)
+5. Upcoming events — next 2 meetings with game cover image
+6. Past meetings — list of historical sessions
 6. Footer — copyright year (auto-updated via JS) + credits
 
 ## CSS Architecture (`css/style.css`)
@@ -69,7 +70,7 @@ All content is **hardcoded in HTML**. To update:
 
 - **Upcoming events**: Edit the events section in both `index.html` and `index_en.html`. Add/remove `.event` blocks with the game cover image, title, date, and description. Cover image goes in `img/covers/`.
 - **Past meetings**: Move the event block out and add an entry to the history list (`<ol class="ticks">`).
-- **Discord/Facebook links**: Search for the existing invite URLs and replace.
+- **Discord link**: Search for the existing invite URL and replace.
 - **Venue info**: In the "Om" / "About" section's info card.
 
 ## Images
