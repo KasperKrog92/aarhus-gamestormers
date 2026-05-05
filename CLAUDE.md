@@ -47,7 +47,7 @@ Both pages share the same layout:
 4. Upcoming events: 2 cards on purple background with Steam CDN banners
 5. About (Om): club description + practical info card
 6. History: 4-column banner grid (desktop) / 2-column (mobile); each card shows the Steam banner upfront, clicking expands description + store links
-7. Footer: copyright, credits, logo
+7. Footer: logo + copyright/Discord grouped left, small logo credit right
 
 ## CSS Architecture (`css/style.css`)
 
@@ -84,15 +84,20 @@ Key component classes:
 - `.history-card-banner`: always-visible banner wrapper with `.history-num` badge overlay
 - `.history-expand`: collapsible panel (max-height animation)
 - `.history-banner`: full-width Steam header image (460/215 aspect ratio), zooms on hover
+- `.history-genre-row`: flex row of genre pills; used inside `.history-expand-inner` (history cards) and directly after `.event-title` (event cards)
+- `.history-genre`: individual green pill tag (uppercase, small); multiple per game are allowed
 - `.info-card`, `.info-row`: practical info card in About section
 - `.gs-lang a.active`: active language in DA/EN toggle
+- `.footer-left`: flex group containing the logo + copyright line
+- `.footer-copy`: copyright + Discord link text (left side of footer)
+- `.footer-credit`: small, dimmed logo attribution text (right side of footer)
 
 ## Content Management
 
 All content is **hardcoded in HTML**. To update:
 
-- **Upcoming events**: Edit the events section in both `index.html` and `index_en.html`. Use Steam CDN banners: `https://cdn.akamai.steamstatic.com/steam/apps/{STEAM_APP_ID}/header.jpg`. Update the event-num badge, event-title, `.event-details` date/time/venue tiles, event-desc, store link URLs, and the matching `add-to-calendar-button` attributes. Events start at 18:30 and use 21:00 as the estimated calendar end time; visible copy should communicate that the end is approximate, e.g. `18:30-~21:00`. Venue text in the cards links to Google Maps. Always verify Steam app IDs; wrong IDs are common. Also update the matching `Event` JSON-LD blocks in both files.
-- **Past meetings (history)**: Add a new `.history-card` block to the history grid in both files. Structure: `.history-card-banner` (img + `.history-num` badge) -> `.history-card-top` (name, genre, chevron) -> `.history-expand > .history-expand-inner` (desc + links). Include the Steam app ID for the banner and store link, the genre tag, and both DA and EN descriptions (different per file). The accordion JS requires no changes.
+- **Upcoming events**: Edit the events section in both `index.html` and `index_en.html`. Use Steam CDN banners: `https://cdn.akamai.steamstatic.com/steam/apps/{STEAM_APP_ID}/header.jpg`. Update the event-num badge, event-title, genre row (`.history-genre-row` with one or more `.history-genre` spans, placed directly after `<h3 class="event-title">`), `.event-details` date/time/venue tiles, event-desc, store link URLs, and the matching `add-to-calendar-button` attributes. Events start at 18:30 and use 21:00 as the estimated calendar end time; visible copy should communicate that the end is approximate, e.g. `18:30-~21:00`. Venue text in the cards links to Google Maps. Always verify Steam app IDs; wrong IDs are common. Also update the matching `Event` JSON-LD blocks in both files.
+- **Past meetings (history)**: Add a new `.history-card` block to the history grid in both files. Structure: `.history-card-banner` (img + `.history-num` badge) -> `.history-card-top` (name + chevron, no genre tag here) -> `.history-expand > .history-expand-inner` (`.history-genre-row` with genre pills, then desc, then links). Genre tags live inside the expanded panel, not the card top. Include the Steam app ID for the banner and store link, and both DA and EN descriptions (different per file). The accordion JS requires no changes.
 - **Discord link**: Search and replace the existing invite URL in both files and JSON-LD `sameAs` values.
 - **Venue info**: Update the `.info-card` inside the About section and the `Event` JSON-LD location/address blocks.
 - **Sitemap freshness**: When publishing meaningful page/content changes, update `lastmod` in `sitemap.xml`.
