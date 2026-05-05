@@ -11,6 +11,7 @@ A static HTML website for Aarhus Gamestormers, a monthly video game discussion c
 ├── robots.txt          # Crawl rules + sitemap reference
 ├── sitemap.xml         # XML sitemap with DA/EN hreflang alternates
 ├── css/style.css       # All styles (v5)
+├── js/script.js        # Shared JS: copyright year, calendar dropdown, history accordion
 ├── img/
 │   ├── logo.png        # Header/footer logo
 │   ├── logo_hero.png   # Large hero logo
@@ -28,8 +29,7 @@ A static HTML website for Aarhus Gamestormers, a monthly video game discussion c
 
 - **Pure static HTML/CSS**: no build tools, no npm, no frameworks
 - **Google Fonts**: Barlow Condensed (headings) + DM Sans (body), loaded via `<link>` in `<head>`
-- **Add to Calendar Button**: upcoming event cards use the `add-to-calendar-button` web component from jsDelivr
-- **Vanilla JS**: copyright year update + history accordion toggle
+- **Vanilla JS**: copyright year update + history accordion toggle + calendar dropdown
 - **Hosted on GitHub Pages** at [www.gamestormers.dk](https://www.gamestormers.dk)
 - Repo: `github.com/KasperKrog92/aarhus-gamestormers`; push to `main` deploys automatically
 
@@ -77,7 +77,6 @@ Key component classes:
 - `.event-details`, `.event-detail`, `.event-detail-label`, `.event-detail-value`: date/time/venue tiles inside event cards
 - `.event-detail-time`: keeps approximate time ranges such as `18:30-~21:00` on one line
 - `.event-venue-link`: linked venue text inside event cards
-- `.event-calendar`: bottom-aligned wrapper for the add-to-calendar web component
 - `.event-store-links a`: small green text pill store links (Steam/GOG)
 - `.history-grid`: CSS grid, 4 columns desktop / 2 columns mobile
 - `.history-card`, `.history-card.open`: banner-first grid cards (JS toggles `.open`)
@@ -86,6 +85,11 @@ Key component classes:
 - `.history-banner`: full-width Steam header image (460/215 aspect ratio), zooms on hover
 - `.history-genre-row`: flex row of genre pills; used inside `.history-expand-inner` (history cards) and directly after `.event-title` (event cards)
 - `.history-genre`: individual green pill tag (uppercase, small); multiple per game are allowed
+- `.cal-wrap`: calendar dropdown container; `align-self: flex-start` + `margin-top: auto` pins it to the bottom-left of each event card
+- `.cal-btn`: toggle button (ghost style, green-tinted border); `.cal-wrap.open .cal-btn` is the active state
+- `.cal-chevron`: chevron SVG inside the button; rotates 180° when open
+- `.cal-dropdown`: absolutely positioned list that appears below the button; `min-width: 190px`
+- `.cal-option`: individual option link/button inside the dropdown
 - `.info-card`, `.info-row`: practical info card in About section
 - `.gs-lang a.active`: active language in DA/EN toggle
 - `.footer-left`: flex group containing the logo + copyright line
@@ -96,7 +100,11 @@ Key component classes:
 
 All content is **hardcoded in HTML**. To update:
 
-- **Upcoming events**: Edit the events section in both `index.html` and `index_en.html`. Use Steam CDN banners: `https://cdn.akamai.steamstatic.com/steam/apps/{STEAM_APP_ID}/header.jpg`. Update the event-num badge, event-title, genre row (`.history-genre-row` with one or more `.history-genre` spans, placed directly after `<h3 class="event-title">`), `.event-details` date/time/venue tiles, event-desc, store link URLs, and the matching `add-to-calendar-button` attributes. Events start at 18:30 and use 21:00 as the estimated calendar end time; visible copy should communicate that the end is approximate, e.g. `18:30-~21:00`. Venue text in the cards links to Google Maps. Always verify Steam app IDs; wrong IDs are common. Also update the matching `Event` JSON-LD blocks in both files.
+- **Upcoming events**: Edit the events section in both `index.html` and `index_en.html`. Use Steam CDN banners: `https://cdn.akamai.steamstatic.com/steam/apps/{STEAM_APP_ID}/header.jpg`. Update the event-num badge, event-title, genre row (`.history-genre-row` with one or more `.history-genre` spans, placed directly after `<h3 class="event-title">`), `.event-details` date/time/venue tiles, event-desc, store link URLs, and the `.cal-dropdown` links. For each calendar option update:
+  - **Google**: the full `href` — change `text=`, `dates=` (format: `YYYYMMDDTHHmmSSZ/YYYYMMDDTHHmmSSZ` in UTC), and `details=`
+  - **Apple / ICS**: the `data-uid`, `data-start`, `data-end` (UTC, same format), `data-title`, `data-description`, and `data-filename` attributes on the `.cal-ics` link
+  - **Outlook**: the full `href` — change `subject=`, `startdt=`/`enddt=` (ISO 8601 with `+02:00` offset for CEST), and `body=`
+  - Events run 18:30–21:00 CEST = 16:30–19:00 UTC (`T163000Z`/`T190000Z`). Events start at 18:30 and use 21:00 as the estimated calendar end time; visible copy should communicate that the end is approximate, e.g. `18:30-~21:00`. Venue text in the cards links to Google Maps. Always verify Steam app IDs; wrong IDs are common. Also update the matching `Event` JSON-LD blocks in both files.
 - **Past meetings (history)**: Add a new `.history-card` block to the history grid in both files. Structure: `.history-card-banner` (img + `.history-num` badge) -> `.history-card-top` (name + chevron, no genre tag here) -> `.history-expand > .history-expand-inner` (`.history-genre-row` with genre pills, then desc, then links). Genre tags live inside the expanded panel, not the card top. Include the Steam app ID for the banner and store link, and both DA and EN descriptions (different per file). The accordion JS requires no changes.
 - **Discord link**: Search and replace the existing invite URL in both files and JSON-LD `sameAs` values.
 - **Venue info**: Update the `.info-card` inside the About section and the `Event` JSON-LD location/address blocks.
