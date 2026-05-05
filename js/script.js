@@ -37,6 +37,9 @@ document.querySelectorAll('.cal-ics').forEach(function(link) {
   link.addEventListener('click', function(e) {
     e.preventDefault();
     var d = this.dataset;
+    function esc(s) {
+      return s.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
+    }
     var ics = [
       'BEGIN:VCALENDAR',
       'VERSION:2.0',
@@ -47,9 +50,9 @@ document.querySelectorAll('.cal-ics').forEach(function(link) {
       'UID:' + d.uid,
       'DTSTART:' + d.start,
       'DTEND:' + d.end,
-      'SUMMARY:' + d.title,
-      'DESCRIPTION:' + d.description,
-      'LOCATION:' + d.location,
+      'SUMMARY:' + esc(d.title),
+      'DESCRIPTION:' + esc(d.description),
+      'LOCATION:' + esc(d.location),
       'URL:' + window.location.href,
       'END:VEVENT',
       'END:VCALENDAR'
