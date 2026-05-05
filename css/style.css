@@ -306,7 +306,6 @@ img { display: block; max-width: 100%; }
   background: rgba(247,244,238,0.055);
   border: 1px solid rgba(150,195,141,0.2);
   border-radius: var(--radius);
-  overflow: hidden;
   transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
 }
 .event-card:hover {
@@ -320,6 +319,7 @@ img { display: block; max-width: 100%; }
   object-fit: cover;
   object-position: center center;
   display: block;
+  border-radius: var(--radius) var(--radius) 0 0;
 }
 .event-body {
   display: flex;
@@ -424,12 +424,6 @@ img { display: block; max-width: 100%; }
   font-size: 0.9rem;
   color: rgba(247,244,238,0.65);
   line-height: 1.6;
-}
-.event-calendar {
-  display: flex;
-  align-items: flex-start;
-  margin-top: auto;
-  padding-top: 18px;
 }
 .events-footer {
   display: flex;
