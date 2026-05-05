@@ -101,7 +101,7 @@ Key component classes:
 All content is **hardcoded in HTML**. To update:
 
 - **Upcoming events**: Edit the events section in both `index.html` and `index_en.html`. Use Steam CDN banners: `https://cdn.akamai.steamstatic.com/steam/apps/{STEAM_APP_ID}/header.jpg`. Update the event-num badge, event-title, genre row (`.history-genre-row` with one or more `.history-genre` spans, placed directly after `<h3 class="event-title">`), `.event-details` date/time/venue tiles, event-desc, store link URLs, and the `.cal-dropdown` links. For each calendar option update:
-  - **Google**: the full `href` — change `text=`, `dates=` (format: `YYYYMMDDTHHmmSSZ/YYYYMMDDTHHmmSSZ` in UTC), and `details=`
+  - **Google**: the full `href` — use `https://calendar.google.com/calendar/render?action=TEMPLATE&` (not `r/eventedit` — the render format works on mobile); change `text=`, `dates=` (format: `YYYYMMDDTHHmmSSZ/YYYYMMDDTHHmmSSZ` in UTC), and `details=`
   - **Apple / ICS**: the `data-uid`, `data-start`, `data-end` (UTC, same format), `data-title`, `data-description`, and `data-filename` attributes on the `.cal-ics` link
   - **Outlook**: the full `href` — change `subject=`, `startdt=`/`enddt=` (ISO 8601 with `+02:00` offset for CEST), and `body=`
   - Events run 18:30–21:00 CEST = 16:30–19:00 UTC (`T163000Z`/`T190000Z`). Events start at 18:30 and use 21:00 as the estimated calendar end time; visible copy should communicate that the end is approximate, e.g. `18:30-~21:00`. Venue text in the cards links to Google Maps. Always verify Steam app IDs; wrong IDs are common. Also update the matching `Event` JSON-LD blocks in both files.
