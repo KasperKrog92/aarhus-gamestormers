@@ -40,13 +40,15 @@ document.querySelectorAll('.cal-ics').forEach(function(link) {
     function esc(s) {
       return s.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
     }
+    var stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '');
     var ics = [
       'BEGIN:VCALENDAR',
       'VERSION:2.0',
-      'PRODID:-//Aarhus Gamestormers//',
+      'PRODID:-//Aarhus Gamestormers//gamestormers.dk//DA',
       'CALSCALE:GREGORIAN',
       'METHOD:PUBLISH',
       'BEGIN:VEVENT',
+      'DTSTAMP:' + stamp,
       'UID:' + d.uid,
       'DTSTART:' + d.start,
       'DTEND:' + d.end,
