@@ -422,8 +422,14 @@ img { display: block; max-width: 100%; }
 }
 .event-desc {
   font-size: 0.9rem;
-  color: rgba(247,244,238,0.65);
+  color: rgba(255,255,255,0.9);
   line-height: 1.6;
+  text-align: justify;
+  hyphens: auto;
+  -webkit-hyphens: auto;
+}
+.event-desc p + p {
+  margin-top: 0.65em;
 }
 .cal-wrap {
   position: relative;
@@ -600,6 +606,7 @@ img { display: block; max-width: 100%; }
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 12px;
+  align-items: start;
 }
 .history-card {
   background: rgba(247,244,238,0.04);
@@ -703,9 +710,12 @@ img { display: block; max-width: 100%; }
 }
 .history-desc {
   font-size: 0.82rem;
-  color: rgba(247,244,238,0.6);
+  color: rgba(255,255,255,0.88);
   line-height: 1.55;
   margin-bottom: 10px;
+  text-align: justify;
+  hyphens: auto;
+  -webkit-hyphens: auto;
 }
 .history-links { display: flex; gap: 8px; flex-wrap: wrap; }
 .history-link {
