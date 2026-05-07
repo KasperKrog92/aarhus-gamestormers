@@ -21,7 +21,8 @@ A static HTML website for Aarhus Gamestormers, a monthly video game discussion c
 │   ├── OG_image_en.jpg # English Open Graph/Twitter image (1200x630)
 │   ├── steam_icon.png  # Used in history store links
 │   └── gog_icon.svg    # Used in history store links
-├── favicon/            # Favicon set + site.webmanifest
+├── favicon/
+│   └── favicon.png     # 192×192 favicon (green tornado, no text)
 ├── CNAME               # GitHub Pages custom domain
 ├── .gitignore          # Excludes .claude/ and design_handoff_gamestormers/
 └── .htaccess           # Kept for reference; not active on GitHub Pages
