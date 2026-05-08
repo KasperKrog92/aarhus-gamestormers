@@ -177,6 +177,15 @@
             <a href="https://discord.gg/N2h6DJxVDF" target="_blank" rel="noopener noreferrer" class="btn-primary">Join us on Discord</a>
             <a href="#events" class="btn-ghost">See upcoming events</a>
           </div>
+          <div class="hero-countdown" id="gs-countdown" data-today="Meeting is today!">
+            <span class="countdown-label">Next meeting in</span>
+            <div class="countdown-units">
+              <div class="countdown-unit"><b class="countdown-num cd-d">--</b><span class="countdown-unit-lbl">days</span></div>
+              <div class="countdown-unit"><b class="countdown-num cd-h">--</b><span class="countdown-unit-lbl">hours</span></div>
+              <div class="countdown-unit"><b class="countdown-num cd-m">--</b><span class="countdown-unit-lbl">min</span></div>
+              <div class="countdown-unit"><b class="countdown-num cd-s">--</b><span class="countdown-unit-lbl">sec</span></div>
+            </div>
+          </div>
         </div>
         <div class="hero-logo-wrap">
           <img src="/img/logo_hero.png" alt="Aarhus Gamestormers logo" class="hero-logo-img" loading="lazy" decoding="async">
@@ -400,7 +409,7 @@
   <section id="history" class="gs-history">
     <div class="wrap">
       <h2 class="section-title">We've played...</h2>
-      <p class="history-sub">14 meetings, 14 games. Here's everything we've played and discussed together so far.</p>
+      <p class="history-sub" data-count-template="{n} meetings, {n} games. Here's everything we've played and discussed together so far.">14 meetings, 14 games. Here's everything we've played and discussed together so far.</p>
       <div class="history-grid">
 
         <div class="history-card" role="button" tabindex="0" aria-expanded="false">
@@ -437,7 +446,7 @@
           <div class="history-expand">
             <div class="history-expand-inner">
               <div class="history-genre-row"><span class="history-genre">Adventure</span><span class="history-genre">Narrative</span><span class="history-genre">Supernatural</span></div>
-              <p class="history-desc">A supernatural thriller about a group of friends who accidentally open an eerie rift to something beyond. Dialogue drives the story, and your choices shape the mood.</p>
+              <p class="history-desc">A supernatural thriller about friends who accidentally open an eerie rift to something beyond. Dialogue drives the story and your choices shape the mood.</p>
               <div class="history-links">
                 <a href="https://store.steampowered.com/app/388880/Oxenfree/" target="_blank" rel="noopener" class="history-link" onclick="event.stopPropagation()">Steam</a>
                 <a href="https://store.epicgames.com/en-US/p/oxenfree" target="_blank" rel="noopener" class="history-link" onclick="event.stopPropagation()">Epic</a>
@@ -502,7 +511,7 @@
           <div class="history-expand">
             <div class="history-expand-inner">
               <div class="history-genre-row"><span class="history-genre">Visual Novel</span><span class="history-genre">Comedy</span></div>
-              <p class="history-desc">A visual novel where you play a vampire learning cognitive behavioral therapy to help other immortals with their thought patterns. Funny, odd and surprisingly insightful.</p>
+              <p class="history-desc">A visual novel where you play a vampire learning cognitive behavioral therapy to help other immortals. Funny, odd and surprisingly insightful.</p>
               <div class="history-links">
                 <a href="https://store.steampowered.com/app/2481020/Vampire_Therapist/" target="_blank" rel="noopener" class="history-link" onclick="event.stopPropagation()">Steam</a>
                 <a href="https://www.xbox.com/en-US/games/store/vampire-therapist/9phx2nf7bvcb" target="_blank" rel="noopener" class="history-link" onclick="event.stopPropagation()">Xbox</a>
@@ -703,6 +712,27 @@
               <div class="history-links">
                 <a href="https://store.steampowered.com/app/2133760/Tiny_Bookshop/" target="_blank" rel="noopener" class="history-link" onclick="event.stopPropagation()">Steam</a>
                 <a href="https://www.xbox.com/en-US/games/store/tiny-bookshop/9ND19JDMBS3R" target="_blank" rel="noopener" class="history-link" onclick="event.stopPropagation()">Xbox</a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="history-card" role="button" tabindex="0" aria-expanded="false" hidden data-reveal="20260511T190000Z">
+          <div class="history-card-banner">
+            <img src="https://cdn.akamai.steamstatic.com/steam/apps/1249040/header.jpg" alt="American Arcadia" class="history-banner" loading="lazy">
+            <span class="history-num">15</span>
+          </div>
+          <div class="history-card-top">
+            <span class="history-name">American Arcadia</span>
+            <span class="history-chevron">▼</span>
+          </div>
+          <div class="history-expand">
+            <div class="history-expand-inner">
+              <div class="history-genre-row"><span class="history-genre">Puzzle-Adventure</span><span class="history-genre">Stealth</span><span class="history-genre">Narrative</span></div>
+              <p class="history-desc">A cinematic puzzle-adventure set in Arcadia — a retro-futuristic city where citizens live in luxury, unaware their lives are broadcast as reality TV.</p>
+              <div class="history-links">
+                <a href="https://store.steampowered.com/app/1249040/American_Arcadia/" target="_blank" rel="noopener" class="history-link" onclick="event.stopPropagation()">Steam</a>
+                <a href="https://www.xbox.com/en-US/games/store/american-arcadia/9PKLV32PSTGM" target="_blank" rel="noopener" class="history-link" onclick="event.stopPropagation()">Xbox</a>
               </div>
             </div>
           </div>

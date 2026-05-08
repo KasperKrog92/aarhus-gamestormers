@@ -176,6 +176,58 @@ img { display: block; max-width: 100%; }
   gap: 12px;
   flex-wrap: wrap;
 }
+.hero-countdown {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 28px;
+  flex-wrap: wrap;
+}
+.countdown-label {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--purple);
+  opacity: 0.65;
+}
+.countdown-units {
+  display: flex;
+  gap: 6px;
+}
+.countdown-unit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: rgba(255,255,255,0.35);
+  border-radius: 8px;
+  padding: 5px 9px;
+  min-width: 46px;
+}
+.countdown-num {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 1.55rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--purple);
+}
+.countdown-unit-lbl {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--purple);
+  opacity: 0.55;
+  margin-top: 3px;
+}
+.countdown-today {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--purple);
+}
 .btn-primary {
   display: inline-flex;
   align-items: center;
@@ -682,7 +734,8 @@ img { display: block; max-width: 100%; }
 }
 .history-genre-row {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow: hidden;
   gap: 4px;
   margin-bottom: 8px;
 }
@@ -716,7 +769,7 @@ img { display: block; max-width: 100%; }
   hyphens: auto;
   -webkit-hyphens: auto;
 }
-.history-links { display: flex; gap: 8px; flex-wrap: wrap; }
+.history-links { display: flex; gap: 8px; flex-wrap: nowrap; overflow: hidden; }
 .history-link {
   display: inline-flex;
   align-items: center;
