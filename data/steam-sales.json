@@ -2,34 +2,6 @@
   "updatedAt": "2026-05-14T14:16:54.438Z",
   "country": "DK",
   "apps": {
-    "3830": {
-      "onSale": false,
-      "discountPercent": 0,
-      "initialFormatted": "",
-      "finalFormatted": "9,99€",
-      "currency": "EUR"
-    },
-    "383870": {
-      "onSale": false,
-      "discountPercent": 0,
-      "initialFormatted": "",
-      "finalFormatted": "19,50€",
-      "currency": "EUR"
-    },
-    "388880": {
-      "onSale": false,
-      "discountPercent": 0,
-      "initialFormatted": "",
-      "finalFormatted": "9,75€",
-      "currency": "EUR"
-    },
-    "424840": {
-      "onSale": false,
-      "discountPercent": 0,
-      "initialFormatted": "",
-      "finalFormatted": "19,99€",
-      "currency": "EUR"
-    },
     "545540": {
       "onSale": true,
       "discountPercent": 70,
@@ -37,88 +9,11 @@
       "finalFormatted": "2,69€",
       "currency": "EUR"
     },
-    "553420": {
-      "onSale": false,
-      "discountPercent": 0,
-      "initialFormatted": "",
-      "finalFormatted": "28,99€",
-      "currency": "EUR"
-    },
-    "752590": {
-      "onSale": false,
-      "discountPercent": 0,
-      "initialFormatted": "",
-      "finalFormatted": "39,99€",
-      "currency": "EUR"
-    },
-    "753640": {
-      "onSale": false,
-      "discountPercent": 0,
-      "initialFormatted": "",
-      "finalFormatted": "22,99€",
-      "currency": "EUR"
-    },
-    "874260": {
-      "onSale": false,
-      "discountPercent": 0,
-      "initialFormatted": "",
-      "finalFormatted": "24,99€",
-      "currency": "EUR"
-    },
-    "1092790": {
-      "onSale": false,
-      "discountPercent": 0,
-      "initialFormatted": "",
-      "finalFormatted": "19,99€",
-      "currency": "EUR"
-    },
-    "1249040": {
-      "onSale": false,
-      "discountPercent": 0,
-      "initialFormatted": "",
-      "finalFormatted": "19,50€",
-      "currency": "EUR"
-    },
-    "1462570": {
-      "onSale": false,
-      "discountPercent": 0,
-      "initialFormatted": "",
-      "finalFormatted": "29,99€",
-      "currency": "EUR"
-    },
     "1569580": {
       "onSale": false,
       "discountPercent": 0,
       "initialFormatted": "",
       "finalFormatted": "29,99€",
-      "currency": "EUR"
-    },
-    "1703340": {
-      "onSale": false,
-      "discountPercent": 0,
-      "initialFormatted": "",
-      "finalFormatted": "21,99€",
-      "currency": "EUR"
-    },
-    "2133760": {
-      "onSale": true,
-      "discountPercent": 25,
-      "initialFormatted": "19,99€",
-      "finalFormatted": "14,99€",
-      "currency": "EUR"
-    },
-    "2420660": {
-      "onSale": false,
-      "discountPercent": 0,
-      "initialFormatted": "",
-      "finalFormatted": "19,99€",
-      "currency": "EUR"
-    },
-    "2481020": {
-      "onSale": false,
-      "discountPercent": 0,
-      "initialFormatted": "",
-      "finalFormatted": "14,79€",
       "currency": "EUR"
     }
   }

@@ -237,22 +237,20 @@ document.querySelectorAll('.event-card').forEach(function(card) {
   setInterval(tick, 1000);
 })();
 
-document.querySelectorAll('.history-card').forEach(function(card) {
-  card.addEventListener('click', function() {
-    var isOpen = this.classList.contains('open');
-    document.querySelectorAll('.history-card').forEach(function(c) {
+document.querySelectorAll('.history-toggle').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    var card = this.closest('.history-card');
+    var isOpen = card.classList.contains('open');
+
+    document.querySelectorAll('.history-card.open').forEach(function(c) {
       c.classList.remove('open');
-      c.setAttribute('aria-expanded', 'false');
+      var toggle = c.querySelector('.history-toggle');
+      if (toggle) toggle.setAttribute('aria-expanded', 'false');
     });
+
     if (!isOpen) {
-      this.classList.add('open');
+      card.classList.add('open');
       this.setAttribute('aria-expanded', 'true');
-    }
-  });
-  card.addEventListener('keydown', function(e) {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      this.click();
     }
   });
 });

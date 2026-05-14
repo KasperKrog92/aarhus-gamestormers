@@ -30,16 +30,20 @@ jobs:
             const htmlFiles = ['index.html', 'en/index.html'];
             const steamAppIds = new Set();
             const gogProductIds = new Set();
+            const eventStoreLinksPattern = /<div class="event-store-links">([\s\S]*?)<\/div>/g;
             const steamLinkPattern = /store\.steampowered\.com\/app\/(\d+)/g;
             const gogIdPattern = /data-gog-id=["'](\d+)["']/g;
 
             for (const file of htmlFiles) {
               const html = await fs.readFile(file, 'utf8');
-              for (const match of html.matchAll(steamLinkPattern)) {
-                steamAppIds.add(match[1]);
-              }
-              for (const match of html.matchAll(gogIdPattern)) {
-                gogProductIds.add(match[1]);
+              for (const blockMatch of html.matchAll(eventStoreLinksPattern)) {
+                const block = blockMatch[1];
+                for (const match of block.matchAll(steamLinkPattern)) {
+                  steamAppIds.add(match[1]);
+                }
+                for (const match of block.matchAll(gogIdPattern)) {
+                  gogProductIds.add(match[1]);
+                }
               }
             }
 
