@@ -1,0 +1,172 @@
+name: Update store sale data
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "23 5 * * *"
+  push:
+    paths:
+      - "index.html"
+      - "en/index.html"
+      - ".github/workflows/update-steam-sales.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Fetch current store discounts
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require('fs/promises');
+            const path = require('path');
+
+            const htmlFiles = ['index.html', 'en/index.html'];
+            const steamAppIds = new Set();
+            const gogProductIds = new Set();
+            const steamLinkPattern = /store\.steampowered\.com\/app\/(\d+)/g;
+            const gogIdPattern = /data-gog-id=["'](\d+)["']/g;
+
+            for (const file of htmlFiles) {
+              const html = await fs.readFile(file, 'utf8');
+              for (const match of html.matchAll(steamLinkPattern)) {
+                steamAppIds.add(match[1]);
+              }
+              for (const match of html.matchAll(gogIdPattern)) {
+                gogProductIds.add(match[1]);
+              }
+            }
+
+            function sortNumericIds(ids) {
+              return [...ids].sort((a, b) => Number(a) - Number(b));
+            }
+
+            async function writeJson(file, data) {
+              await fs.mkdir(path.dirname(file), { recursive: true });
+              await fs.writeFile(file, JSON.stringify(data, null, 2) + '\n');
+            }
+
+            function minorUnitsToNumber(value) {
+              const match = String(value || '').match(/(\d+)/);
+              return match ? Number(match[1]) : 0;
+            }
+
+            function formatGogPrice(value, currency) {
+              const amount = minorUnitsToNumber(value);
+              if (!amount || !currency) return '';
+              return `${(amount / 100).toFixed(2)} ${currency}`;
+            }
+
+            async function fetchSteamSales(ids) {
+              const apps = {};
+
+              if (ids.length) {
+                const endpoint = new URL('https://store.steampowered.com/api/appdetails');
+                endpoint.searchParams.set('appids', ids.join(','));
+                endpoint.searchParams.set('filters', 'price_overview');
+                endpoint.searchParams.set('cc', 'dk');
+                endpoint.searchParams.set('l', 'english');
+
+                const response = await fetch(endpoint);
+                if (!response.ok) {
+                  throw new Error(`Steam returned ${response.status}`);
+                }
+
+                const payload = await response.json();
+                for (const appId of ids) {
+                  const overview = payload?.[appId]?.data?.price_overview;
+                  const discountPercent = Number(overview?.discount_percent || 0);
+
+                  apps[appId] = {
+                    onSale: discountPercent > 0,
+                    discountPercent,
+                    initialFormatted: overview?.initial_formatted || '',
+                    finalFormatted: overview?.final_formatted || '',
+                    currency: overview?.currency || ''
+                  };
+                }
+              }
+
+              return apps;
+            }
+
+            async function fetchGogSales(ids) {
+              const products = {};
+
+              for (const productId of ids) {
+                try {
+                  const endpoint = new URL(`https://api.gog.com/products/${productId}/prices`);
+                  endpoint.searchParams.set('countryCode', 'DK');
+
+                  const response = await fetch(endpoint);
+                  if (!response.ok) {
+                    throw new Error(`GOG returned ${response.status}`);
+                  }
+
+                  const payload = await response.json();
+                  const prices = payload?._embedded?.prices || [];
+                  const price = prices.find(item => item?.currency?.code === 'DKK') || prices[0] || {};
+                  const currency = price?.currency?.code || '';
+                  const base = minorUnitsToNumber(price.basePrice);
+                  const final = minorUnitsToNumber(price.finalPrice);
+                  const discountPercent = base > final && final > 0 ? Math.round((1 - final / base) * 100) : 0;
+
+                  products[productId] = {
+                    onSale: discountPercent > 0,
+                    discountPercent,
+                    initialFormatted: discountPercent > 0 ? formatGogPrice(price.basePrice, currency) : '',
+                    finalFormatted: discountPercent > 0 ? formatGogPrice(price.finalPrice, currency) : '',
+                    currency
+                  };
+                } catch (error) {
+                  core.warning(`Could not update GOG product ${productId}: ${error.message}`);
+                  products[productId] = {
+                    onSale: false,
+                    discountPercent: 0,
+                    initialFormatted: '',
+                    finalFormatted: '',
+                    currency: ''
+                  };
+                }
+              }
+
+              return products;
+            }
+
+            const steamIds = sortNumericIds(steamAppIds);
+            const gogIds = sortNumericIds(gogProductIds);
+
+            const steamData = {
+              updatedAt: new Date().toISOString(),
+              country: 'DK',
+              apps: await fetchSteamSales(steamIds)
+            };
+            const gogData = {
+              updatedAt: new Date().toISOString(),
+              country: 'DK',
+              products: await fetchGogSales(gogIds)
+            };
+
+            await writeJson(path.join('data', 'steam-sales.json'), steamData);
+            await writeJson(path.join('data', 'gog-sales.json'), gogData);
+
+            const diffExitCode = await exec.exec('git', ['diff', '--quiet', '--', 'data/steam-sales.json', 'data/gog-sales.json'], {
+              ignoreReturnCode: true
+            });
+
+            if (diffExitCode === 0) {
+              core.info('Store sale data is already current.');
+              return;
+            }
+
+            await exec.exec('git', ['config', 'user.name', 'github-actions[bot]']);
+            await exec.exec('git', ['config', 'user.email', '41898282+github-actions[bot]@users.noreply.github.com']);
+            await exec.exec('git', ['add', 'data/steam-sales.json', 'data/gog-sales.json']);
+            await exec.exec('git', ['commit', '-m', 'Update store sale data']);
+            await exec.exec('git', ['push']);

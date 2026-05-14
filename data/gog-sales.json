@@ -1,0 +1,13 @@
+{
+  "updatedAt": "2026-05-14T11:06:43.335Z",
+  "country": "DK",
+  "products": {
+    "1415624612": {
+      "onSale": false,
+      "discountPercent": 0,
+      "initialFormatted": "",
+      "finalFormatted": "",
+      "currency": "DKK"
+    }
+  }
+}

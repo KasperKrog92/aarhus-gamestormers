@@ -103,6 +103,86 @@ document.querySelectorAll('.event-card').forEach(function(card) {
   }
 });
 
+// Mark upcoming store links when the locally generated sale data says a game is discounted.
+(function() {
+  if (!window.fetch) return;
+
+  var stores = [
+    {
+      name: 'Steam',
+      dataUrl: '/data/steam-sales.json',
+      rootKey: 'apps',
+      selector: '.event-card:not([hidden]) .event-store-links a[href*="store.steampowered.com/app/"]',
+      idFromLink: function(link) {
+        var match = link.href.match(/store\.steampowered\.com\/app\/(\d+)/);
+        return match ? match[1] : null;
+      },
+      saleLabelDa: 'Steam er på tilbud',
+      saleLabelEn: 'Steam is on sale'
+    },
+    {
+      name: 'GOG',
+      dataUrl: '/data/gog-sales.json',
+      rootKey: 'products',
+      selector: '.event-card:not([hidden]) .event-store-links a[data-gog-id]',
+      idFromLink: function(link) {
+        return link.dataset.gogId || null;
+      },
+      saleLabelDa: 'GOG er på tilbud',
+      saleLabelEn: 'GOG is on sale'
+    }
+  ];
+
+  function applySaleBadges(store) {
+    var links = Array.prototype.slice.call(document.querySelectorAll(store.selector));
+    if (!links.length) return;
+
+    var linksById = {};
+    links.forEach(function(link) {
+      var id = store.idFromLink(link);
+      if (!id) return;
+      if (!linksById[id]) linksById[id] = [];
+      linksById[id].push(link);
+    });
+    if (!Object.keys(linksById).length) return;
+
+    fetch(store.dataUrl, { cache: 'no-store' })
+      .then(function(response) {
+        if (!response.ok) throw new Error('No ' + store.name + ' sale data');
+        return response.json();
+      })
+      .then(function(data) {
+        var sales = data && data[store.rootKey] ? data[store.rootKey] : {};
+        var isDanish = document.documentElement.lang === 'da';
+
+        Object.keys(linksById).forEach(function(id) {
+          var sale = sales[id];
+          var discount = sale && Number(sale.discountPercent);
+          if (!sale || !sale.onSale || !discount) return;
+
+          linksById[id].forEach(function(link) {
+            if (link.querySelector('.store-sale-tag')) return;
+            var price = sale.finalFormatted ? ' · ' + sale.finalFormatted : '';
+            var label = isDanish ? store.saleLabelDa : store.saleLabelEn;
+            var tag = document.createElement('span');
+
+            tag.className = 'store-sale-tag';
+            tag.textContent = '-' + discount + '%';
+            link.classList.add('store-link-on-sale');
+            link.appendChild(tag);
+            link.setAttribute('aria-label', label + ': -' + discount + '%' + price);
+            link.title = label + ': -' + discount + '%' + price;
+          });
+        });
+      })
+      .catch(function() {});
+  }
+
+  stores.forEach(function(store) {
+    applySaleBadges(store);
+  });
+})();
+
 // Countdown to next meeting — reads dates from existing .cal-ics data-start attributes
 (function() {
   var el = document.getElementById('gs-countdown');
