@@ -18,15 +18,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Fetch current Steam discounts
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const fs = require('fs/promises');
             const path = require('path');
-            const exec = require('@actions/exec');
 
             const htmlFiles = ['index.html', 'en/index.html'];
             const appIds = new Set();
