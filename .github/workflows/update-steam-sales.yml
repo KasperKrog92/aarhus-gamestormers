@@ -1,0 +1,94 @@
+name: Update Steam sale data
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "23 */6 * * *"
+  push:
+    paths:
+      - "index.html"
+      - "en/index.html"
+      - ".github/workflows/update-steam-sales.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch current Steam discounts
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs/promises');
+            const path = require('path');
+            const exec = require('@actions/exec');
+
+            const htmlFiles = ['index.html', 'en/index.html'];
+            const appIds = new Set();
+            const steamLinkPattern = /store\.steampowered\.com\/app\/(\d+)/g;
+
+            for (const file of htmlFiles) {
+              const html = await fs.readFile(file, 'utf8');
+              for (const match of html.matchAll(steamLinkPattern)) {
+                appIds.add(match[1]);
+              }
+            }
+
+            const ids = [...appIds].sort((a, b) => Number(a) - Number(b));
+            const apps = {};
+
+            if (ids.length) {
+              const endpoint = new URL('https://store.steampowered.com/api/appdetails');
+              endpoint.searchParams.set('appids', ids.join(','));
+              endpoint.searchParams.set('filters', 'price_overview');
+              endpoint.searchParams.set('cc', 'dk');
+              endpoint.searchParams.set('l', 'english');
+
+              const response = await fetch(endpoint);
+              if (!response.ok) {
+                throw new Error(`Steam returned ${response.status}`);
+              }
+
+              const payload = await response.json();
+              for (const appId of ids) {
+                const overview = payload?.[appId]?.data?.price_overview;
+                const discountPercent = Number(overview?.discount_percent || 0);
+
+                apps[appId] = {
+                  onSale: discountPercent > 0,
+                  discountPercent,
+                  initialFormatted: overview?.initial_formatted || '',
+                  finalFormatted: overview?.final_formatted || '',
+                  currency: overview?.currency || ''
+                };
+              }
+            }
+
+            const data = {
+              updatedAt: new Date().toISOString(),
+              country: 'DK',
+              apps
+            };
+
+            await fs.mkdir('data', { recursive: true });
+            await fs.writeFile(path.join('data', 'steam-sales.json'), JSON.stringify(data, null, 2) + '\n');
+
+            const diffExitCode = await exec.exec('git', ['diff', '--quiet', '--', 'data/steam-sales.json'], {
+              ignoreReturnCode: true
+            });
+
+            if (diffExitCode === 0) {
+              core.info('Steam sale data is already current.');
+              return;
+            }
+
+            await exec.exec('git', ['config', 'user.name', 'github-actions[bot]']);
+            await exec.exec('git', ['config', 'user.email', '41898282+github-actions[bot]@users.noreply.github.com']);
+            await exec.exec('git', ['add', 'data/steam-sales.json']);
+            await exec.exec('git', ['commit', '-m', 'Update Steam sale data']);
+            await exec.exec('git', ['push']);

@@ -103,6 +103,59 @@ document.querySelectorAll('.event-card').forEach(function(card) {
   }
 });
 
+// Mark upcoming Steam links when the locally generated sale data says a game is discounted.
+(function() {
+  if (!window.fetch) return;
+
+  var steamLinks = Array.prototype.slice.call(document.querySelectorAll('.event-card:not([hidden]) .event-store-links a[href*="store.steampowered.com/app/"]'));
+  if (!steamLinks.length) return;
+
+  function steamAppId(href) {
+    var match = href.match(/store\.steampowered\.com\/app\/(\d+)/);
+    return match ? match[1] : null;
+  }
+
+  var linksByApp = {};
+  steamLinks.forEach(function(link) {
+    var appId = steamAppId(link.href);
+    if (!appId) return;
+    if (!linksByApp[appId]) linksByApp[appId] = [];
+    linksByApp[appId].push(link);
+  });
+  if (!Object.keys(linksByApp).length) return;
+
+  fetch('/data/steam-sales.json', { cache: 'no-store' })
+    .then(function(response) {
+      if (!response.ok) throw new Error('No Steam sale data');
+      return response.json();
+    })
+    .then(function(data) {
+      var apps = data && data.apps ? data.apps : {};
+      var isDanish = document.documentElement.lang === 'da';
+
+      Object.keys(linksByApp).forEach(function(appId) {
+        var sale = apps[appId];
+        var discount = sale && Number(sale.discountPercent);
+        if (!sale || !sale.onSale || !discount) return;
+
+        linksByApp[appId].forEach(function(link) {
+          if (link.querySelector('.steam-sale-tag')) return;
+          var price = sale.finalFormatted ? ' · ' + sale.finalFormatted : '';
+          var label = isDanish ? 'Steam er på tilbud' : 'Steam is on sale';
+          var tag = document.createElement('span');
+
+          tag.className = 'steam-sale-tag';
+          tag.textContent = '-' + discount + '%';
+          link.classList.add('steam-link-on-sale');
+          link.appendChild(tag);
+          link.setAttribute('aria-label', label + ': -' + discount + '%' + price);
+          link.title = label + ': -' + discount + '%' + price;
+        });
+      });
+    })
+    .catch(function() {});
+})();
+
 // Countdown to next meeting — reads dates from existing .cal-ics data-start attributes
 (function() {
   var el = document.getElementById('gs-countdown');

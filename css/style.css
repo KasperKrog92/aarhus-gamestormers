@@ -424,6 +424,28 @@ img { display: block; max-width: 100%; }
 .event-store-links a:hover {
   background: rgba(150,195,141,0.22);
 }
+.event-store-links a.steam-link-on-sale {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--purple);
+  background: var(--green);
+}
+.event-store-links a.steam-link-on-sale:hover {
+  background: var(--green-light);
+}
+.steam-sale-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--purple);
+  color: var(--cream);
+  font-size: 0.66rem;
+  line-height: 1.2;
+}
 .event-title {
   font-family: 'Barlow Condensed', sans-serif;
   font-size: 1.38rem;

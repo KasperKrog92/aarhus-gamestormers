@@ -6,14 +6,19 @@ A static HTML website for Aarhus Gamestormers, a monthly video game discussion c
 
 ```
 /
+├── AGENTS.md           # Lightweight pointer for Codex/agent instructions; detailed guide is this file
 ├── index.html          # Danish (primary) version
 ├── index_en.html       # Redirect → /en/ (kept for old links/bookmarks)
 ├── en/
 │   └── index.html      # English version
 ├── robots.txt          # Crawl rules + sitemap reference
 ├── sitemap.xml         # XML sitemap with DA/EN hreflang alternates
-├── css/style.css       # All styles (v5)
+├── css/style.css       # All styles (v6)
 ├── js/script.js        # Shared JS: copyright year, calendar dropdown, history accordion
+├── data/
+│   └── steam-sales.json # Generated Steam sale data consumed by upcoming event links
+├── .github/workflows/
+│   └── update-steam-sales.yml # Refreshes Steam sale data on schedule
 ├── img/
 │   ├── logo.png        # Header/footer logo
 │   ├── logo_hero.png   # Large hero logo
@@ -32,9 +37,13 @@ A static HTML website for Aarhus Gamestormers, a monthly video game discussion c
 
 - **Pure static HTML/CSS**: no build tools, no npm, no frameworks
 - **Google Fonts**: Barlow Condensed (headings) + DM Sans (body), loaded via `<link>` in `<head>`
-- **Vanilla JS**: copyright year update + history accordion toggle + calendar dropdown + countdown timer + auto-hide past event cards + auto-reveal scheduled history cards
+- **Vanilla JS**: copyright year update + history accordion toggle + calendar dropdown + countdown timer + auto-hide past event cards + auto-reveal scheduled history cards + Steam sale badges from `data/steam-sales.json`
 - **Hosted on GitHub Pages** at [www.gamestormers.dk](https://www.gamestormers.dk)
 - Repo: `github.com/KasperKrog92/aarhus-gamestormers`; push to `main` deploys automatically
+
+## Agent Guide
+
+`AGENTS.md` is intentionally a short pointer for Codex-style tools. Keep this `CLAUDE.md` file as the canonical, detailed project overview and update it whenever workflows, content rules, or deployment assumptions change.
 
 ## Pages
 
@@ -114,6 +123,7 @@ All content is **hardcoded in HTML**. To update:
   - **Outlook**: the full `href` — change `subject=`, `startdt=`/`enddt=` (ISO 8601 with `+02:00` offset for CEST), and `body=`
   - Events run 18:30–21:00 CEST = 16:30–19:00 UTC (`T163000Z`/`T190000Z`). Events start at 18:30 and use 21:00 as the estimated calendar end time; visible copy should communicate that the end is approximate, e.g. `18:30-~21:00`. Venue text in the cards links to Google Maps. Always verify Steam app IDs; wrong IDs are common. Also update the matching `Event` JSON-LD blocks in both files.
   - **Auto-hide**: event cards are automatically hidden at page load once their `.cal-ics` `data-end` time has passed — no manual removal needed immediately after a meeting. The countdown timer in the hero also reads `data-start` from these same elements to target the nearest future event; keeping `data-start`/`data-end` accurate is therefore important for both features.
+  - **Steam sale badges**: upcoming-event Steam links are matched by app ID against `data/steam-sales.json`. `.github/workflows/update-steam-sales.yml` refreshes that JSON from Steam's `appdetails` endpoint every 6 hours and on relevant pushes. If the action has not run yet, the JSON can be manually edited with `onSale`, `discountPercent`, and optional formatted prices.
 - **Past meetings (history)**: Add a new `.history-card` block to the history grid in both files. Structure: `.history-card-banner` (img + `.history-num` badge) -> `.history-card-top` (name + chevron, no genre tag here) -> `.history-expand > .history-expand-inner` (`.history-genre-row` with genre pills, then `<p class="history-desc">` — near-white, justified, hyphenated — then links). Genre tags live inside the expanded panel, not the card top. Include the Steam app ID for the banner and store link, and both DA and EN descriptions (different per file). The accordion JS requires no changes. Store links use `class="history-link"` with `onclick="event.stopPropagation()"` and are **text-only** (no icon images). Check Steam, GOG, Epic Games Store, Xbox, itch.io, and EA App for availability; only add links that are confirmed. **`history-desc` must stay under ~160 characters** — one or two short sentences that capture the premise, no plot details. Existing cards average ~140 characters; use them as a benchmark. Genre tags and store links are `flex-wrap: nowrap` — they must fit on one line; trim tags or links if needed.
   - **Pre-publishing a card before the meeting**: add `hidden` and `data-reveal="YYYYMMDDTHHmmSSZ"` (UTC end time of the meeting, matching the event card's `data-end`) to the `.history-card` element. JS removes `hidden` automatically once that time passes. The `.history-sub` paragraph already has `data-count-template` set — the JS uses it to update the meeting count automatically when the card reveals; no changes needed there. Once you do a proper manual update, remove `hidden` and `data-reveal` from the card.- **Discord link**: Search and replace the existing invite URL in both files and JSON-LD `sameAs` values.
 - **Venue info**: Update the `.info-card` inside the About section and the `Event` JSON-LD location/address blocks.
