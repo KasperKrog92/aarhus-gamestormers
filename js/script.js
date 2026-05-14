@@ -103,57 +103,84 @@ document.querySelectorAll('.event-card').forEach(function(card) {
   }
 });
 
-// Mark upcoming Steam links when the locally generated sale data says a game is discounted.
+// Mark upcoming store links when the locally generated sale data says a game is discounted.
 (function() {
   if (!window.fetch) return;
 
-  var steamLinks = Array.prototype.slice.call(document.querySelectorAll('.event-card:not([hidden]) .event-store-links a[href*="store.steampowered.com/app/"]'));
-  if (!steamLinks.length) return;
+  var stores = [
+    {
+      name: 'Steam',
+      dataUrl: '/data/steam-sales.json',
+      rootKey: 'apps',
+      selector: '.event-card:not([hidden]) .event-store-links a[href*="store.steampowered.com/app/"]',
+      idFromLink: function(link) {
+        var match = link.href.match(/store\.steampowered\.com\/app\/(\d+)/);
+        return match ? match[1] : null;
+      },
+      saleLabelDa: 'Steam er på tilbud',
+      saleLabelEn: 'Steam is on sale'
+    },
+    {
+      name: 'GOG',
+      dataUrl: '/data/gog-sales.json',
+      rootKey: 'products',
+      selector: '.event-card:not([hidden]) .event-store-links a[data-gog-id]',
+      idFromLink: function(link) {
+        return link.dataset.gogId || null;
+      },
+      saleLabelDa: 'GOG er på tilbud',
+      saleLabelEn: 'GOG is on sale'
+    }
+  ];
 
-  function steamAppId(href) {
-    var match = href.match(/store\.steampowered\.com\/app\/(\d+)/);
-    return match ? match[1] : null;
+  function applySaleBadges(store) {
+    var links = Array.prototype.slice.call(document.querySelectorAll(store.selector));
+    if (!links.length) return;
+
+    var linksById = {};
+    links.forEach(function(link) {
+      var id = store.idFromLink(link);
+      if (!id) return;
+      if (!linksById[id]) linksById[id] = [];
+      linksById[id].push(link);
+    });
+    if (!Object.keys(linksById).length) return;
+
+    fetch(store.dataUrl, { cache: 'no-store' })
+      .then(function(response) {
+        if (!response.ok) throw new Error('No ' + store.name + ' sale data');
+        return response.json();
+      })
+      .then(function(data) {
+        var sales = data && data[store.rootKey] ? data[store.rootKey] : {};
+        var isDanish = document.documentElement.lang === 'da';
+
+        Object.keys(linksById).forEach(function(id) {
+          var sale = sales[id];
+          var discount = sale && Number(sale.discountPercent);
+          if (!sale || !sale.onSale || !discount) return;
+
+          linksById[id].forEach(function(link) {
+            if (link.querySelector('.store-sale-tag')) return;
+            var price = sale.finalFormatted ? ' · ' + sale.finalFormatted : '';
+            var label = isDanish ? store.saleLabelDa : store.saleLabelEn;
+            var tag = document.createElement('span');
+
+            tag.className = 'store-sale-tag';
+            tag.textContent = '-' + discount + '%';
+            link.classList.add('store-link-on-sale');
+            link.appendChild(tag);
+            link.setAttribute('aria-label', label + ': -' + discount + '%' + price);
+            link.title = label + ': -' + discount + '%' + price;
+          });
+        });
+      })
+      .catch(function() {});
   }
 
-  var linksByApp = {};
-  steamLinks.forEach(function(link) {
-    var appId = steamAppId(link.href);
-    if (!appId) return;
-    if (!linksByApp[appId]) linksByApp[appId] = [];
-    linksByApp[appId].push(link);
+  stores.forEach(function(store) {
+    applySaleBadges(store);
   });
-  if (!Object.keys(linksByApp).length) return;
-
-  fetch('/data/steam-sales.json', { cache: 'no-store' })
-    .then(function(response) {
-      if (!response.ok) throw new Error('No Steam sale data');
-      return response.json();
-    })
-    .then(function(data) {
-      var apps = data && data.apps ? data.apps : {};
-      var isDanish = document.documentElement.lang === 'da';
-
-      Object.keys(linksByApp).forEach(function(appId) {
-        var sale = apps[appId];
-        var discount = sale && Number(sale.discountPercent);
-        if (!sale || !sale.onSale || !discount) return;
-
-        linksByApp[appId].forEach(function(link) {
-          if (link.querySelector('.steam-sale-tag')) return;
-          var price = sale.finalFormatted ? ' · ' + sale.finalFormatted : '';
-          var label = isDanish ? 'Steam er på tilbud' : 'Steam is on sale';
-          var tag = document.createElement('span');
-
-          tag.className = 'steam-sale-tag';
-          tag.textContent = '-' + discount + '%';
-          link.classList.add('steam-link-on-sale');
-          link.appendChild(tag);
-          link.setAttribute('aria-label', label + ': -' + discount + '%' + price);
-          link.title = label + ': -' + discount + '%' + price;
-        });
-      });
-    })
-    .catch(function() {});
 })();
 
 // Countdown to next meeting — reads dates from existing .cal-ics data-start attributes

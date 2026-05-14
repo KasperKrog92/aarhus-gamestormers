@@ -424,17 +424,17 @@ img { display: block; max-width: 100%; }
 .event-store-links a:hover {
   background: rgba(150,195,141,0.22);
 }
-.event-store-links a.steam-link-on-sale {
+.event-store-links a.store-link-on-sale {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   color: var(--purple);
   background: var(--green);
 }
-.event-store-links a.steam-link-on-sale:hover {
+.event-store-links a.store-link-on-sale:hover {
   background: var(--green-light);
 }
-.steam-sale-tag {
+.store-sale-tag {
   display: inline-flex;
   align-items: center;
   justify-content: center;
