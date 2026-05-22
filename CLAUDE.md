@@ -13,7 +13,7 @@ A static HTML website for Aarhus Gamestormers, a monthly video game discussion c
 │   └── index.html      # English version
 ├── robots.txt          # Crawl rules + sitemap reference
 ├── sitemap.xml         # XML sitemap with DA/EN hreflang alternates
-├── css/style.css       # All styles (v7)
+├── css/style.css       # All styles (v8)
 ├── js/script.js        # Shared JS: copyright year, calendar dropdown, history accordion
 ├── data/
 │   ├── steam-sales.json # Generated Steam sale data consumed by upcoming event links
@@ -21,8 +21,8 @@ A static HTML website for Aarhus Gamestormers, a monthly video game discussion c
 ├── .github/workflows/
 │   └── update-steam-sales.yml # Refreshes store sale data on schedule
 ├── img/
-│   ├── logo.png        # Header/footer logo
-│   ├── logo_hero.png   # Large hero logo
+│   ├── logo.webp       # Header/footer logo (served; PNG source kept as logo.png)
+│   ├── logo_hero.webp  # Large hero logo, LCP image (served; PNG source kept as logo_hero.png)
 │   ├── OG_image_da.jpg # Danish Open Graph/Twitter image (1200x630)
 │   ├── OG_image_en.jpg # English Open Graph/Twitter image (1200x630)
 │   ├── steam_icon.png  # (removed — store links are now text-only)
