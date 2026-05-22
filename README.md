@@ -1,46 +1,43 @@
 # Aarhus Gamestormers Website
 
-Website for [Aarhus Gamestormers](https://www.gamestormers.dk) — a monthly video game discussion club in Aarhus, Denmark. Like a book club, but for games.
+Website for [Aarhus Gamestormers](https://www.gamestormers.dk), a monthly video game discussion club in Aarhus, Denmark. Like a book club, but for games.
 
-## Live site
+## Live Site
 
 **[www.gamestormers.dk](https://www.gamestormers.dk)**
 
-Hosted on GitHub Pages. Changes pushed to `main` go live automatically.
+Hosted on GitHub Pages. Changes pushed to `main` deploy automatically.
 
 ## Structure
 
 ```
 /
 ├── index.html          # Danish version (primary)
-├── index_en.html       # English version
+├── en/index.html       # English version
+├── index_en.html       # Redirect to /en/ for old links
 ├── css/style.css       # All styles
-├── img/
-│   ├── covers/         # Game cover images (one per upcoming event)
-│   └── ...             # Logos and store icons
-└── favicon/            # Favicon set
+├── js/script.js        # Calendar dropdowns, countdown, history, sale badges
+├── data/               # Generated Steam/GOG sale data for upcoming events
+├── img/                # Logos and social images
+├── favicon/            # Favicon image
+├── robots.txt
+└── sitemap.xml
 ```
 
-## Making changes
+## Making Changes
 
-All content is hardcoded in HTML — there is no build step or CMS.
+All content is hardcoded in HTML. There is no build step or CMS. The detailed maintenance guide lives in [CLAUDE.md](CLAUDE.md); read that before changing events, history cards, SEO metadata, or deployment details.
 
-### Adding a new upcoming event
+Common updates:
 
-1. Add the game cover image to `img/covers/`
-2. Copy an existing `<li class="event">` block in both `index.html` and `index_en.html`
-3. Update the date, title, store links, description, and image path
-4. Commit and push — the site updates automatically
+1. Edit upcoming events in both `index.html` and `en/index.html`.
+2. Keep event cards, calendar links, ICS attributes, and JSON-LD `Event` blocks in sync.
+3. Add past meetings to the history grid in both languages.
+4. Update `sitemap.xml` `lastmod` for meaningful content changes.
 
-### Moving an event to history
+## Automation
 
-1. Remove the `<li class="event">` block from the events section
-2. Add a new `<li>` entry to the history list (`<ol class="ticks">`)
-3. Update both `index.html` and `index_en.html`
-
-### Updating text or links
-
-Edit the relevant section directly in `index.html` (Danish) and `index_en.html` (English). Keep both files in sync.
+The GitHub Actions workflow in `.github/workflows/update-steam-sales.yml` refreshes Steam and GOG discount data for upcoming event store links and writes JSON files in `data/`.
 
 ## Deployment
 

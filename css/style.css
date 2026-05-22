@@ -1,5 +1,5 @@
 /* ===============================
-   Aarhus Gamestormers – style.css v4
+   Aarhus Gamestormers - style.css v7
    Design tokens:
    --purple:     #2B2436
    --green:      #96C38D
@@ -42,7 +42,7 @@ body {
 }
 
 a { color: inherit; text-decoration: none; }
-img { display: block; max-width: 100%; }
+img { display: block; max-width: 100%; height: auto; }
 
 /* ─── Layout ─────────────────────────────────────────────────────────────────── */
 .wrap {
@@ -411,13 +411,18 @@ img { display: block; max-width: 100%; }
   align-items: center;
 }
 .event-store-links a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 26px;
   font-family: 'DM Sans', sans-serif;
   font-size: 0.72rem;
   font-weight: 700;
+  line-height: 1;
   letter-spacing: 0.04em;
   color: var(--green);
   background: rgba(150,195,141,0.12);
-  padding: 3px 9px;
+  padding: 0 9px;
   border-radius: 6px;
   transition: background 0.15s;
 }
@@ -425,8 +430,6 @@ img { display: block; max-width: 100%; }
   background: rgba(150,195,141,0.22);
 }
 .event-store-links a.store-link-on-sale {
-  display: inline-flex;
-  align-items: center;
   gap: 6px;
   color: var(--purple);
   background: var(--green);
@@ -438,13 +441,14 @@ img { display: block; max-width: 100%; }
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  min-height: 18px;
   min-width: 32px;
-  padding: 1px 5px;
+  padding: 0 5px;
   border-radius: 4px;
   background: var(--purple);
   color: var(--cream);
   font-size: 0.66rem;
-  line-height: 1.2;
+  line-height: 1;
 }
 .event-title {
   font-family: 'Barlow Condensed', sans-serif;
@@ -461,15 +465,19 @@ img { display: block; max-width: 100%; }
   margin-bottom: 18px;
 }
 .event-detail {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
   min-width: 0;
   background: rgba(247,244,238,0.045);
   border: 1px solid rgba(247,244,238,0.075);
   border-radius: 8px;
-  padding: 9px 10px;
+  padding: 10px 11px;
 }
 .event-detail-label {
   display: block;
-  margin-bottom: 3px;
+  margin-bottom: 0;
   font-family: 'Barlow Condensed', sans-serif;
   font-size: 0.68rem;
   font-weight: 700;
@@ -483,17 +491,29 @@ img { display: block; max-width: 100%; }
   overflow-wrap: anywhere;
   font-size: 0.82rem;
   font-weight: 700;
-  line-height: 1.25;
+  line-height: 1.15;
   color: rgba(247,244,238,0.78);
 }
 .event-detail-time {
   white-space: nowrap;
 }
 .event-venue-link {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  gap: 4px;
   transition: color 0.15s;
 }
 .event-venue-link:hover {
   color: var(--green);
+}
+.event-venue-link::after {
+  content: "↗";
+  display: inline-block;
+  font-size: 0.66rem;
+  line-height: 1;
+  opacity: 0.72;
+  transform: translateY(-0.04em);
 }
 .event-desc {
   font-size: 0.9rem;
@@ -709,7 +729,6 @@ img { display: block; max-width: 100%; }
   border: 1px solid rgba(150,195,141,0.12);
   border-radius: 12px;
   overflow: hidden;
-  cursor: pointer;
   transition: background 0.15s, border-color 0.15s;
   outline: none;
 }
@@ -721,7 +740,7 @@ img { display: block; max-width: 100%; }
   background: rgba(150,195,141,0.12);
   border-color: rgba(150,195,141,0.3);
 }
-.history-card:focus-visible {
+.history-toggle:focus-visible {
   outline: 2px solid rgba(150,195,141,0.5);
   outline-offset: -2px;
 }
@@ -755,7 +774,13 @@ img { display: block; max-width: 100%; }
   display: flex;
   align-items: center;
   gap: 8px;
+  width: 100%;
   padding: 10px 12px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
 }
 .history-name {
   font-family: 'Barlow Condensed', sans-serif;
@@ -766,34 +791,62 @@ img { display: block; max-width: 100%; }
   flex: 1;
 }
 .history-genre {
+  display: inline-flex;
+  align-items: center;
   font-size: 0.58rem;
   font-weight: 600;
+  line-height: 1;
   letter-spacing: 0.07em;
   text-transform: uppercase;
   color: var(--green);
   background: rgba(150,195,141,0.12);
-  padding: 2px 6px;
+  min-height: 18px;
+  padding: 0 7px;
   border-radius: 20px;
   white-space: nowrap;
   flex-shrink: 0;
 }
 .history-genre-row {
   display: flex;
+  align-items: center;
   flex-wrap: nowrap;
   overflow: hidden;
   gap: 4px;
   margin-bottom: 8px;
 }
 .event-playtime {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   margin-left: auto;
   flex-shrink: 0;
-  padding-left: 8px;
+  min-height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
   font-size: 0.75rem;
-  font-weight: 500;
-  color: rgba(247,244,238,0.72);
+  font-weight: 600;
+  color: rgba(247,244,238,0.82);
+  background: rgba(247,244,238,0.08);
+  border: 1px solid rgba(247,244,238,0.12);
+  text-decoration: none;
+  line-height: 1;
   white-space: nowrap;
   letter-spacing: 0.01em;
   align-self: center;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.event-playtime:hover {
+  background: rgba(150,195,141,0.14);
+  border-color: rgba(150,195,141,0.35);
+  color: var(--cream);
+}
+.event-playtime::after {
+  content: "↗";
+  display: inline-block;
+  font-size: 0.62rem;
+  line-height: 1;
+  opacity: 0.72;
+  transform: translateY(-0.04em);
 }
 .history-chevron {
   font-size: 0.55rem;
@@ -862,7 +915,7 @@ img { display: block; max-width: 100%; }
   align-items: center;
   gap: 12px;
 }
-.footer-logo { height: 26px; opacity: 0.7; }
+.footer-logo { height: 26px; width: auto; opacity: 0.7; }
 .footer-copy {
   font-size: 0.83rem;
   color: rgba(247,244,238,0.5);
