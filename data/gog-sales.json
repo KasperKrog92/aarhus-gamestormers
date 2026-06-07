@@ -1,12 +1,12 @@
 {
-  "updatedAt": "2026-06-06T08:04:22.820Z",
+  "updatedAt": "2026-06-07T08:30:54.684Z",
   "country": "DK",
   "products": {
     "1415624612": {
-      "onSale": false,
-      "discountPercent": 0,
-      "initialFormatted": "",
-      "finalFormatted": "",
+      "onSale": true,
+      "discountPercent": 70,
+      "initialFormatted": "67.00 DKK",
+      "finalFormatted": "20.00 DKK",
       "currency": "DKK"
     }
   }
