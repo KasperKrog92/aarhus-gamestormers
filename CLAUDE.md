@@ -7,6 +7,7 @@ A static HTML website for Aarhus Gamestormers, a monthly video game discussion c
 ```
 /
 ├── AGENTS.md           # Lightweight pointer for Codex/agent instructions; detailed guide is this file
+├── MEETING_WORKFLOW.md # Step-by-step runbook for "a new game has been chosen for a meeting"
 ├── index.html          # Danish (primary) version
 ├── index_en.html       # Redirect → /en/ (kept for old links/bookmarks)
 ├── en/
@@ -115,6 +116,11 @@ Key component classes:
 - `.footer-credit`: small, dimmed logo attribution text (right side of footer)
 
 ## Content Management
+
+> **Recurring task — "a new game has been chosen for meeting #N"?** Follow the end-to-end checklist in
+> [`MEETING_WORKFLOW.md`](MEETING_WORKFLOW.md). It covers verifying the Steam app ID, **asking the maintainer
+> for the HowLongToBeat link**, adding the event card + JSON-LD + pre-published history card in both language
+> files, finalizing the meeting that just passed (incl. the `.history-sub` count bump), and updating the sitemap.
 
 All content is **hardcoded in HTML**. To update:
 
