@@ -15,6 +15,10 @@ test('suggestion form is a closed disclosure tied to the current meeting', async
   assert.match(source, /form\.hidden = true/);
   assert.match(source, /Foresl[aå] nyt spil/);
   assert.match(source, /Suggest new game/);
+  assert.doesNotMatch(source, /sendt til godkendelse/);
+  assert.doesNotMatch(source, /sent for approval/);
+  assert.match(source, /tilf[oø]jet til forslagene/);
+  assert.match(source, /added to the suggestions/);
   assert.match(source, /renderVoting[\s\S]*meetingBadge\(data\.round\)/);
   assert.match(source, /renderRevealed[\s\S]*meetingBadge\(data\.round\)/);
 
