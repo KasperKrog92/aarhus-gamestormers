@@ -1059,6 +1059,50 @@ img { display: block; max-width: 100%; height: auto; }
   padding: 1px 7px;
   border-radius: 5px;
 }
+.vote-meeting {
+  display: inline-flex;
+  align-items: center;
+  margin: 0 0 14px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: rgba(247,244,238,0.08);
+  border: 1px solid rgba(150,195,141,0.2);
+  color: var(--cream);
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+.vote-disclosure-wrap {
+  max-width: 620px;
+  margin-bottom: 32px;
+}
+.vote-disclosure {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 210px;
+  min-height: 44px;
+  margin-bottom: 12px;
+  padding: 0 16px;
+  border: 1px solid rgba(150,195,141,0.34);
+  border-radius: 8px;
+  background: rgba(150,195,141,0.16);
+  color: var(--cream);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+.vote-disclosure:hover {
+  background: rgba(150,195,141,0.24);
+}
+.vote-disclosure-chevron {
+  font-size: 0.78rem;
+  transition: transform 0.15s;
+}
+.vote-disclosure[aria-expanded="true"] .vote-disclosure-chevron {
+  transform: rotate(180deg);
+}
 
 /* Form panel (suggestion form + storm code) */
 .vote-panel {

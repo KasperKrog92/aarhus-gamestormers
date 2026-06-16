@@ -14,7 +14,10 @@ var STRINGS = {
     introVoting:
       'Sæt flueben ved <b>alle</b> de spil, du gerne vil spille — det med flest stemmer vinder. Du skal bruge mødets kode fra Discord.',
     introRevealed: 'Tak til alle der stemte! Her er resultatet — vinderen bliver næste mødes spil.',
+    meetingFor: 'Forslag til {meeting}',
     formTitle: 'Foreslå et spil',
+    suggestToggle: 'Foreslå nyt spil',
+    hideSuggest: 'Skjul formular',
     labelSteam: 'Steam-link',
     hintSteam: 'Fx https://store.steampowered.com/app/753640/Outer_Wilds/',
     labelPitch: 'Din pitch (valgfri)',
@@ -53,7 +56,10 @@ var STRINGS = {
     introVoting:
       'Tick <b>every</b> game you’d be happy to play — the one with the most ticks wins. You’ll need the meeting code from Discord.',
     introRevealed: 'Thanks to everyone who voted! Here’s the result — the winner becomes the next meeting’s game.',
+    meetingFor: 'Suggestions for {meeting}',
     formTitle: 'Suggest a game',
+    suggestToggle: 'Suggest new game',
+    hideSuggest: 'Hide form',
     labelSteam: 'Steam link',
     hintSteam: 'e.g. https://store.steampowered.com/app/753640/Outer_Wilds/',
     labelPitch: 'Your pitch (optional)',
@@ -128,6 +134,16 @@ var STRINGS = {
   }
 
   function votedKey(roundId) { return 'gs-voted-r' + roundId; }
+
+  function roundLabel(round) {
+    var label = (lang === 'en' ? 'Meeting ' : 'Møde ') + round.id;
+    var title = String(round.title || '').trim();
+    var normalized = title.toLowerCase();
+    if (title && normalized !== ('meeting ' + round.id).toLowerCase() && normalized !== ('møde ' + round.id).toLowerCase()) {
+      label += ' · ' + title;
+    }
+    return label;
+  }
 
   // ── Turnstile (explicit render so it survives dynamic DOM) ─────────────────
   function mountTurnstile(container) {
@@ -226,6 +242,10 @@ var STRINGS = {
     return el('span', { class: 'vote-status', text: text });
   }
 
+  function meetingBadge(round) {
+    return el('p', { class: 'vote-meeting', text: T.meetingFor.replace('{meeting}', roundLabel(round)) });
+  }
+
   function msgBox() {
     return el('div', { class: 'vote-msg', role: 'status', hidden: 'hidden' });
   }
@@ -245,6 +265,7 @@ var STRINGS = {
   function renderSuggesting(data) {
     clear(app);
     app.appendChild(status(T.statusSuggesting));
+    app.appendChild(meetingBadge(data.round));
     app.appendChild(el('p', { class: 'vote-intro', html: T.introSuggesting }));
 
     var steam = el('input', { class: 'vote-input', type: 'url', placeholder: 'https://store.steampowered.com/app/…' });
@@ -254,6 +275,12 @@ var STRINGS = {
     var tsBox = el('div');
     var box = msgBox();
     var btn = el('button', { class: 'btn-green', type: 'submit', text: T.btnSuggest });
+    var disclosureText = el('span', { text: T.suggestToggle });
+    var disclosureChevron = el('span', { class: 'vote-disclosure-chevron', text: 'v', 'aria-hidden': 'true' });
+    var disclosureBtn = el('button', { class: 'vote-disclosure', type: 'button', 'aria-expanded': 'false' }, [
+      disclosureText,
+      disclosureChevron,
+    ]);
 
     var form = el('form', { class: 'vote-panel' }, [
       el('h2', { class: 'vote-panel-title', text: T.formTitle }),
@@ -265,6 +292,19 @@ var STRINGS = {
       el('div', { class: 'vote-actions' }, [btn]),
       box,
     ]);
+    form.hidden = true;
+
+    var turnstileMounted = false;
+    disclosureBtn.addEventListener('click', function () {
+      var opening = form.hidden;
+      form.hidden = !opening;
+      disclosureBtn.setAttribute('aria-expanded', opening ? 'true' : 'false');
+      disclosureText.textContent = opening ? T.hideSuggest : T.suggestToggle;
+      if (opening && !turnstileMounted) {
+        mountTurnstile(tsBox);
+        turnstileMounted = true;
+      }
+    });
 
     form.addEventListener('submit', function (e) {
       e.preventDefault();
@@ -289,8 +329,7 @@ var STRINGS = {
         .finally(function () { btn.disabled = false; });
     });
 
-    app.appendChild(form);
-    mountTurnstile(tsBox);
+    app.appendChild(el('div', { class: 'vote-disclosure-wrap' }, [disclosureBtn, form]));
 
     // Already-approved suggestions appear below the form (read-only).
     if (data.suggestions.length) {
@@ -302,6 +341,7 @@ var STRINGS = {
   function renderVoting(data) {
     clear(app);
     app.appendChild(status(T.statusVoting));
+    app.appendChild(meetingBadge(data.round));
     app.appendChild(el('p', { class: 'vote-intro', html: T.introVoting }));
 
     if (!data.suggestions.length) {
@@ -362,6 +402,7 @@ var STRINGS = {
   function renderRevealed(data) {
     clear(app);
     app.appendChild(status(T.statusRevealed));
+    app.appendChild(meetingBadge(data.round));
     app.appendChild(el('p', { class: 'vote-intro', text: T.introRevealed }));
 
     if (!data.suggestions.length) {
