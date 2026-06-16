@@ -39,7 +39,13 @@ body {
   color: var(--text);
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
+
+/* Push the footer to the bottom of the viewport when content is short */
+body > main { flex: 1 0 auto; }
 
 a { color: inherit; text-decoration: none; }
 img { display: block; max-width: 100%; height: auto; }
@@ -1432,13 +1438,29 @@ img { display: block; max-width: 100%; height: auto; }
 .admin-msg { font-size: 0.88rem; margin: 10px 0; padding: 10px 14px; border-radius: 8px; }
 .admin-msg.ok { background: #d8ecd3; color: #3c6b34; }
 .admin-msg.err { background: #ecd9d9; color: #8a3030; }
-.admin-section-title {
+.admin-section { margin-bottom: 4px; }
+.admin-section-summary {
   font-family: 'Barlow Condensed', sans-serif;
   font-size: 1.5rem;
   font-weight: 800;
   color: var(--purple);
-  margin: 28px 0 14px;
+  margin: 20px 0 10px;
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  user-select: none;
 }
+.admin-section-summary::-webkit-details-marker { display: none; }
+.admin-section-summary::before {
+  content: '›';
+  font-size: 1.6rem;
+  line-height: 1;
+  transition: transform 0.15s;
+  transform: rotate(0deg);
+}
+details[open] > .admin-section-summary::before { transform: rotate(90deg); }
 .admin-votes { font-weight: 800; color: var(--green-dark); }
 
 @media (max-width: 860px) {

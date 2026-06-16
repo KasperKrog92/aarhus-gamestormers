@@ -40,40 +40,49 @@
     </div>
 
     <div id="admin-body" hidden>
-      <div id="round-area"></div>
+      <details class="admin-section">
+        <summary class="admin-section-summary">Current round</summary>
+        <div id="round-area"></div>
+      </details>
 
-      <div class="admin-card" id="new-round-card">
-        <h2>Open a new round</h2>
-        <p class="admin-meta">Creates the next round and makes it the current one (phase: suggesting).</p>
-        <div class="admin-grid">
-          <div>
-            <label class="admin-field-label" for="nr-id">Meeting number</label>
-            <input class="admin-input" id="nr-id" type="number" min="1" placeholder="19">
+      <details class="admin-section">
+        <summary class="admin-section-summary">Open a new round</summary>
+        <div class="admin-card" id="new-round-card">
+          <p class="admin-meta">Creates the next round and makes it the current one (phase: suggesting).</p>
+          <div class="admin-grid">
+            <div>
+              <label class="admin-field-label" for="nr-id">Meeting number</label>
+              <input class="admin-input" id="nr-id" type="number" min="1" placeholder="19">
+            </div>
+            <div>
+              <label class="admin-field-label" for="nr-code">Storm code</label>
+              <input class="admin-input" id="nr-code" type="text" placeholder="storm19">
+            </div>
+            <div>
+              <label class="admin-field-label" for="nr-title">Title (optional)</label>
+              <input class="admin-input" id="nr-title" type="text" placeholder="Meeting 19">
+            </div>
+            <div>
+              <label class="admin-field-label" for="nr-closes">Voting closes (optional)</label>
+              <input class="admin-input" id="nr-closes" type="text" placeholder="2026-09-01">
+            </div>
           </div>
-          <div>
-            <label class="admin-field-label" for="nr-code">Storm code</label>
-            <input class="admin-input" id="nr-code" type="text" placeholder="storm19">
+          <div class="admin-actions">
+            <button class="admin-btn primary" id="open-round">Open round</button>
           </div>
-          <div>
-            <label class="admin-field-label" for="nr-title">Title (optional)</label>
-            <input class="admin-input" id="nr-title" type="text" placeholder="Meeting 19">
-          </div>
-          <div>
-            <label class="admin-field-label" for="nr-closes">Voting closes (optional)</label>
-            <input class="admin-input" id="nr-closes" type="text" placeholder="2026-09-01">
-          </div>
+          <div class="admin-msg" id="new-round-msg" hidden></div>
         </div>
-        <div class="admin-actions">
-          <button class="admin-btn primary" id="open-round">Open round</button>
-        </div>
-        <div class="admin-msg" id="new-round-msg" hidden></div>
-      </div>
+      </details>
 
-      <h2 class="admin-section-title">Suggestions</h2>
-      <div id="suggestions"></div>
+      <details class="admin-section">
+        <summary class="admin-section-summary">Suggestions</summary>
+        <div id="suggestions"></div>
+      </details>
 
-      <h2 class="admin-section-title">Votes</h2>
-      <div id="ballots"></div>
+      <details class="admin-section">
+        <summary class="admin-section-summary">Votes</summary>
+        <div id="ballots"></div>
+      </details>
     </div>
   </div>
 </main>
