@@ -30,6 +30,7 @@ The repo is `github.com/KasperKrog92/aarhus-gamestormers`. The live site is `htt
 - For meaningful content changes, update `sitemap.xml` `lastmod` for both language URLs.
 - When changing `css/style.css`, bump its `?v=N` query string on affected pages.
 - Do not commit or push unless explicitly asked. Pushing to `main` deploys the live site.
+- When asked to "commit and push" (or to commit), first update any Markdown docs affected by the change (`CLAUDE.md`, `docs/*.md`, `MEETING_WORKFLOW.md`, `README`, etc.) so documentation lands in the same commit as the code.
 
 ## Local Preview
 

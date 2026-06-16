@@ -40,7 +40,7 @@ If `/api/*` fails with a missing-table error, apply the local D1 schema once:
 wrangler d1 execute gamestormers --local --file=./schema.sql
 ```
 
-`.dev.vars` must include `TURNSTILE_SECRET` and `ADMIN_TOKEN`.
+`.dev.vars` must include `TURNSTILE_SECRET` and `ADMIN_TOKEN`. `DISCORD_SUGGESTIONS_WEBHOOK_URL` is optional and enables new-suggestion notifications.
 
 Local preview uses Cloudflare's always-pass Turnstile test sitekey automatically. If the local admin token or Turnstile secret changes, restart the dev server so Wrangler reloads `.dev.vars`.
 
@@ -51,6 +51,7 @@ Local preview uses Cloudflare's always-pass Turnstile test sitekey automatically
 - Pages build output directory: `.`
 - D1 binding: `DB`
 - Required encrypted environment variables: `TURNSTILE_SECRET`, `ADMIN_TOKEN`
+- Optional encrypted environment variable: `DISCORD_SUGGESTIONS_WEBHOOK_URL` (enables new-suggestion Discord notifications; distinct from the sales workflow's GitHub Actions secret `DISCORD_WEBHOOK_URL`)
 
 Before production deployment, replace any placeholder D1 `database_id` in `wrangler.toml`.
 
