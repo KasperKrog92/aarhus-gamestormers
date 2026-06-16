@@ -459,8 +459,17 @@ img { display: block; max-width: 100%; height: auto; }
   color: rgba(247,244,238,0.62);
   fill: currentColor;
 }
-.suggestion-tags .platform-icons {
-  margin-left: auto;
+/* Suggestion card title row: game title on the left, platform icons and store
+   links pinned to the right, sharing one line. */
+.suggestion-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.suggestion-head .suggestion-store-links {
+  flex-shrink: 0;
 }
 .store-sale-tag {
   display: inline-flex;
@@ -1356,7 +1365,7 @@ img { display: block; max-width: 100%; height: auto; }
   font-weight: 800;
   color: var(--cream);
   line-height: 1.1;
-  margin-bottom: 10px;
+  margin-bottom: 0;
 }
 .suggestion-copy {
   margin-bottom: 14px;
@@ -1400,6 +1409,7 @@ img { display: block; max-width: 100%; height: auto; }
 .suggestion-store-links {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 7px;
   margin-bottom: 0;
 }

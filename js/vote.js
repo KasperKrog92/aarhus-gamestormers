@@ -295,15 +295,21 @@ var STRINGS = {
       tags.push(el('span', { class: 'history-genre', text: g }));
     });
     if (s.playtimeHours) tags.push(el('span', { class: 'history-genre', text: playtimeText(s.playtimeHours) }));
-    var platforms = platformIcons(s.platforms);
-    if (platforms) tags.push(platforms);
 
+    // Title row: game title on the left, platform icons and store links on the
+    // right, sharing one line (the cards have no left-side badge like the event
+    // cards do, so the title fills that space).
     var storeLinks = [];
+    var platforms = platformIcons(s.platforms);
+    if (platforms) storeLinks.push(platforms);
     if (s.storeUrl) storeLinks.push(el('a', { href: s.storeUrl, target: '_blank', rel: 'noopener noreferrer', text: 'Steam' }));
     if (s.gogUrl) storeLinks.push(el('a', { href: s.gogUrl, target: '_blank', rel: 'noopener noreferrer', text: 'GOG' }));
 
     var body = [
-      el('h3', { class: 'suggestion-title', text: s.title }),
+      el('div', { class: 'suggestion-head' }, [
+        el('h3', { class: 'suggestion-title', text: s.title }),
+        storeLinks.length ? el('div', { class: 'suggestion-store-links' }, storeLinks) : null,
+      ]),
       tags.length ? el('div', { class: 'suggestion-tags' }, tags) : null,
       description ? el('div', { class: 'suggestion-copy suggestion-copy-description' }, [
         el('span', { class: 'suggestion-copy-label', text: T.gameDescription }),
@@ -314,7 +320,6 @@ var STRINGS = {
         el('p', { class: 'suggestion-pitch', text: s.pitch }),
       ]) : null,
       s.suggestedBy ? el('p', { class: 'suggestion-by', html: T.by + ' <b>' + escapeHtml(s.suggestedBy) + '</b>' }) : null,
-      storeLinks.length ? el('div', { class: 'suggestion-store-links' }, storeLinks) : null,
     ];
 
     var classes = 'suggestion-card';
