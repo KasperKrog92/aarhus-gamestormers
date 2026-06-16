@@ -1,0 +1,57 @@
+$ORIGIN gamestormers.dk.
+$TTL 14400
+
+; Cloudflare DNS import file for gamestormers.dk.
+; Format: BIND zone file. Import in Cloudflare under DNS > Records > Import and Export.
+; Transcribed from screenshots provided on 2026-06-16.
+
+; Website / hosting
+@                         14400 IN A      185.199.108.153
+@                         14400 IN A      185.199.109.153
+@                         14400 IN A      185.199.110.153
+@                         14400 IN A      185.199.111.153
+www                       14400 IN CNAME  kasperkrog92.github.io.
+solis                     14400 IN CNAME  kasperkrog92.github.io.
+xp                        14400 IN CNAME  kasperkrog92.github.io.
+turkis                    14400 IN CNAME  9f6bc2df992fb5fc.vercel-dns-017.com.
+folk                      14400 IN CNAME  5151cb2415c45627.vercel-dns-017.com.
+
+; cPanel / mail host records
+mail                      14400 IN A      195.242.130.94
+ftp                       14400 IN A      195.242.130.94
+autoconfig                14400 IN A      195.242.130.94
+cpcalendars               14400 IN A      195.242.130.94
+autodiscover              14400 IN A      195.242.130.94
+webmail                   14400 IN A      195.242.130.94
+webdisk                   14400 IN A      195.242.130.94
+cpanel                    14400 IN A      195.242.130.94
+cpcontacts                14400 IN A      195.242.130.94
+whm                       14400 IN A      195.242.130.94
+
+; Mail routing
+@                          3600 IN MX     10 mx4.spamfri.dk.
+@                          3600 IN MX     20 mx2.spamfri.dk.
+@                          3600 IN MX     30 mx3.spamfri.dk.
+@                          3600 IN MX     40 mx1.spamfri.dk.
+send                      14400 IN MX     10 feedback-smtp.eu-west-1.amazonses.com.
+
+; SPF / DMARC / DKIM / validation
+@                         14400 IN TXT    "v=spf1 +a +mx +ip4:195.242.130.94 include:_spf.e-studio.dk ~all"
+_dmarc                    14400 IN TXT    "v=DMARC1; p=none;"
+send                      14400 IN TXT    "v=spf1 include:amazonses.com ~all"
+_cpanel-dcv-test-record   14400 IN TXT    "_cpanel-dcv-test-record=9Z0fpgOHtySqhg215VuOZQ_fP41Cac0Bjt2P58bWrc69Os6Wp_YbC7KdbJV0wJws"
+_acme-challenge           14400 IN TXT    "dvue5LvZNbZN4bfGmK20ZFtd3meL8zcNlCjR7eHvG0I"
+resend._domainkey         14400 IN TXT    "p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDatQzfxOWGYq83Ku98uoPUP5HLB8mwB6C3irxxWFlpJJ03m2QRKd1F6xVWL+WiPyuugSA7l7VxUZdEMmWzCxNs2saAV4wzbCthcaEejBxUCVFtlvkqXODYL5CZcz0LtT0+NDngAoUguVagBFN+HBv55u+I4+67MRPpDrv6vM8gQIDAQAB"
+default._domainkey        14400 IN TXT    ( "v=DKIM1; k=rsa; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAq+S3lQkuXg/EcxLbKJ2L+0GUuHYjbR6ukMBEnqhrDYgU4XBkv0oe8wjP9WyIrcIHWleinchbpExJuMQnRofNdy1oRur2SC59FdFn9Xs05/eFZHymSlU3/2fpGIlzV7j6LKB56LhrKAtNzSTQacSW8SqqhFYz54tMpuxsjVeIYvmXeo8OQOFgCbnj+w1CMDyl"
+                                    "tnrph52UjJYXOSIvQElJg0o1hfdwTAs1A2J4+ugpekPYEDX6C45F8TkF0mJ33WCMArsM35rVjf6K05QXiOW17sd4ZlhocdiHlxcf4YVnmqnaYqLu8Rmg19ThaIUycBjHIMicOQwgOrcjzAhyIdwIDAQAB;" )
+
+; CalDAV / CardDAV / autodiscovery
+_autodiscover._tcp        14400 IN SRV    0 0 443 cpanelemaildiscovery.cpanel.net.
+_caldav._tcp              14400 IN SRV    0 0 2079 gamestormers.dk.
+_caldav._tcp              14400 IN TXT    "path=/"
+_carddavs._tcp            14400 IN SRV    0 0 2080 gamestormers.dk.
+_carddavs._tcp            14400 IN TXT    "path=/"
+_caldavs._tcp             14400 IN SRV    0 0 2080 gamestormers.dk.
+_caldavs._tcp             14400 IN TXT    "path=/"
+_carddav._tcp             14400 IN SRV    0 0 2079 gamestormers.dk.
+_carddav._tcp             14400 IN TXT    "path=/"

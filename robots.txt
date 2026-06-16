@@ -1,4 +1,5 @@
 User-agent: *
 Allow: /
+Disallow: /vote-admin
 
 Sitemap: https://www.gamestormers.dk/sitemap.xml

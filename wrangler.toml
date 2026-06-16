@@ -1,0 +1,24 @@
+# Cloudflare Pages + Functions config for Aarhus Gamestormers.
+#
+# The static site is the repo root; Pages Functions live in /functions and run
+# same-origin under /api/*. Local dev:
+#
+#   wrangler d1 create gamestormers          # once; paste the id below
+#   wrangler d1 execute gamestormers --local --file=./schema.sql
+#   wrangler pages dev                        # serves site + functions + local D1
+#
+# Secrets for local dev go in .dev.vars (gitignored), NOT here:
+#   TURNSTILE_SECRET="1x0000000000000000000000000000000AA"   # Turnstile test secret
+#   ADMIN_TOKEN="choose-a-long-random-string"
+#
+# In production set TURNSTILE_SECRET and ADMIN_TOKEN as encrypted env vars and
+# bind the D1 database (binding name DB) in the Cloudflare Pages project settings.
+
+name = "aarhus-gamestormers-site"
+compatibility_date = "2024-11-01"
+pages_build_output_dir = "."
+
+[[d1_databases]]
+binding = "DB"
+database_name = "gamestormers"
+database_id = "8616a74f-99ee-450e-bd0b-1f91feb08bfb"

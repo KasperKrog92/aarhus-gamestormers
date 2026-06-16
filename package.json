@@ -1,0 +1,12 @@
+{
+  "name": "aarhus-gamestormers",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Static website and Cloudflare Pages Functions for Aarhus Gamestormers.",
+  "scripts": {
+    "dev": "npx --yes wrangler pages dev .",
+    "test": "node --test",
+    "prepare:deploy-pages": "node scripts/prepare-pages-deploy.mjs",
+    "deploy": "npm run prepare:deploy-pages && npx --yes wrangler pages deploy .deploy/pages --project-name aarhus-gamestormers-site --branch main"
+  }
+}

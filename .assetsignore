@@ -1,0 +1,13 @@
+# Files that must NOT be served as public static assets by Cloudflare Pages.
+.dev.vars
+.wrangler
+.git
+.claude
+.deploy
+*.md
+schema.sql
+wrangler.toml
+package.json
+package-lock.json
+.htaccess
+cloudflare-dns-import.zone

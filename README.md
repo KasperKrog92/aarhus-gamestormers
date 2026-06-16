@@ -6,7 +6,7 @@ Website for [Aarhus Gamestormers](https://www.gamestormers.dk), a monthly video 
 
 **[www.gamestormers.dk](https://www.gamestormers.dk)**
 
-Hosted on GitHub Pages. Changes pushed to `main` deploy automatically.
+Hosted on Cloudflare Pages. Changes pushed to `main` deploy automatically.
 
 ## Structure
 
@@ -41,4 +41,4 @@ The GitHub Actions workflow in `.github/workflows/update-steam-sales.yml` refres
 
 ## Deployment
 
-No build process. Push to `main` and GitHub Pages deploys automatically.
+No app build process. Push to `main` and Cloudflare Pages deploys automatically. For a manual direct upload, use `npm run deploy`; it prepares a clean `.deploy/pages` artifact so local secrets and project notes are not uploaded as public assets.

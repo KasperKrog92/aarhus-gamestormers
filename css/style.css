@@ -1,5 +1,5 @@
 /* ===============================
-   Aarhus Gamestormers - style.css v7
+   Aarhus Gamestormers - style.css v9
    Design tokens:
    --purple:     #2B2436
    --green:      #96C38D
@@ -1008,4 +1008,398 @@ img { display: block; max-width: 100%; height: auto; }
   .history-banner,
   .history-chevron { transition: none; }
   .history-expand { transition: none; }
+  .suggestion-card,
+  .suggestion-cover,
+  .vote-bar-fill { transition: none; }
+}
+
+/* ─── Voting page (vote.html / en/vote.html) ───────────────────────────────── */
+.gs-vote {
+  padding: 56px 0 72px;
+  background: var(--purple);
+  min-height: 60vh;
+}
+.gs-vote .section-title { color: var(--cream); }
+.vote-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.8rem;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(150,195,141,0.14);
+  border: 1px solid rgba(150,195,141,0.22);
+  color: var(--green);
+  margin-bottom: 16px;
+}
+.vote-status::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--green);
+}
+.vote-intro {
+  font-size: 1.02rem;
+  color: rgba(247,244,238,0.7);
+  line-height: 1.65;
+  max-width: 620px;
+  margin-bottom: 28px;
+}
+.vote-intro code {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--green);
+  background: rgba(150,195,141,0.12);
+  padding: 1px 7px;
+  border-radius: 5px;
+}
+
+/* Form panel (suggestion form + storm code) */
+.vote-panel {
+  background: rgba(247,244,238,0.05);
+  border: 1px solid rgba(150,195,141,0.2);
+  border-radius: var(--radius);
+  padding: 26px 28px;
+  margin-bottom: 32px;
+  max-width: 620px;
+}
+.vote-panel-title {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--cream);
+  margin-bottom: 16px;
+}
+.vote-field { margin-bottom: 16px; }
+.vote-label {
+  display: block;
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(247,244,238,0.6);
+  margin-bottom: 6px;
+}
+.vote-input,
+.vote-textarea {
+  width: 100%;
+  background: rgba(0,0,0,0.18);
+  border: 1px solid rgba(150,195,141,0.25);
+  border-radius: 10px;
+  padding: 11px 14px;
+  color: var(--cream);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  transition: border-color 0.15s;
+}
+.vote-input::placeholder,
+.vote-textarea::placeholder { color: rgba(247,244,238,0.35); }
+.vote-input:focus,
+.vote-textarea:focus { outline: none; border-color: var(--green); }
+.vote-textarea { resize: vertical; min-height: 84px; }
+.vote-hint {
+  font-size: 0.82rem;
+  color: rgba(247,244,238,0.5);
+  margin-top: 6px;
+  line-height: 1.5;
+}
+.cf-turnstile { margin: 6px 0 16px; }
+.vote-actions { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+.vote-msg {
+  border-radius: 10px;
+  padding: 12px 16px;
+  font-size: 0.9rem;
+  margin-top: 16px;
+  line-height: 1.5;
+}
+.vote-msg.ok {
+  background: rgba(150,195,141,0.16);
+  color: var(--cream);
+  border: 1px solid rgba(150,195,141,0.3);
+}
+.vote-msg.err {
+  background: rgba(214,96,96,0.14);
+  color: #f1c7c7;
+  border: 1px solid rgba(214,96,96,0.32);
+}
+.vote-empty {
+  color: rgba(247,244,238,0.55);
+  font-size: 1rem;
+  padding: 8px 0;
+}
+
+/* Suggestion cards (reuse the visual language of .event-card) */
+.suggestion-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 26px;
+  margin-bottom: 32px;
+}
+.suggestion-card {
+  display: flex;
+  flex-direction: column;
+  background: rgba(247,244,238,0.055);
+  border: 1px solid rgba(150,195,141,0.2);
+  border-radius: var(--radius);
+  overflow: hidden;
+  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+}
+.suggestion-card.is-selectable { cursor: pointer; }
+.suggestion-card.is-selectable:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 16px 48px rgba(0,0,0,0.28);
+  border-color: rgba(150,195,141,0.4);
+}
+.suggestion-card.selected {
+  border-color: var(--green);
+  background: rgba(150,195,141,0.13);
+}
+.suggestion-card.winner {
+  border-color: var(--green);
+  box-shadow: 0 0 0 2px var(--green), 0 16px 48px rgba(0,0,0,0.3);
+}
+.suggestion-cover {
+  width: 100%;
+  aspect-ratio: 460/215;
+  object-fit: cover;
+  display: block;
+}
+.suggestion-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  padding: 18px 24px 22px;
+}
+.suggestion-title {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: var(--cream);
+  line-height: 1.1;
+  margin-bottom: 10px;
+}
+.suggestion-pitch {
+  font-size: 0.9rem;
+  color: rgba(255,255,255,0.88);
+  line-height: 1.6;
+  margin-bottom: 12px;
+}
+.suggestion-by {
+  font-size: 0.8rem;
+  color: rgba(247,244,238,0.55);
+  margin-bottom: 14px;
+}
+.suggestion-by b { color: rgba(247,244,238,0.78); font-weight: 600; }
+.suggestion-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.suggestion-store-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-bottom: 14px;
+}
+.suggestion-store-links a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--green);
+  background: rgba(150,195,141,0.12);
+  padding: 0 9px;
+  border-radius: 6px;
+  transition: background 0.15s;
+}
+.suggestion-store-links a:hover { background: rgba(150,195,141,0.22); }
+
+/* Approval checkbox row (voting phase) */
+.vote-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: auto;
+  padding-top: 14px;
+  border-top: 1px solid rgba(150,195,141,0.12);
+}
+.vote-toggle input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--green);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.vote-toggle-label {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: rgba(247,244,238,0.85);
+}
+
+/* Results phase (vote bars) */
+.vote-result {
+  margin-top: auto;
+  padding-top: 14px;
+  border-top: 1px solid rgba(150,195,141,0.12);
+}
+.vote-result-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 7px;
+}
+.vote-count {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 800;
+  font-size: 1.05rem;
+  color: var(--green);
+}
+.vote-winner-tag {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--purple);
+  background: var(--green);
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+.vote-bar-track {
+  height: 8px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.vote-bar-fill {
+  height: 100%;
+  background: var(--green);
+  border-radius: 999px;
+  transition: width 0.5s ease;
+}
+
+/* ─── Admin curation page (vote-admin.html) ────────────────────────────────── */
+.gs-admin {
+  background: var(--cream);
+  min-height: 100vh;
+  padding: 28px 0 64px;
+}
+.admin-card {
+  background: var(--white);
+  border: 1px solid var(--cream-dark);
+  border-radius: 12px;
+  padding: 20px 22px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow-sm);
+}
+.admin-card h2 {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: var(--purple);
+  margin-bottom: 14px;
+}
+.admin-row { display: flex; gap: 16px; align-items: flex-start; }
+.admin-thumb {
+  width: 150px;
+  aspect-ratio: 460/215;
+  object-fit: cover;
+  border-radius: 8px;
+  flex-shrink: 0;
+  background: var(--cream-dark);
+}
+.admin-fields { flex: 1; min-width: 0; }
+.admin-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px 14px;
+  margin-bottom: 12px;
+}
+.admin-field-label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--green-dark);
+  margin-bottom: 4px;
+}
+.admin-input,
+.admin-textarea,
+.admin-select {
+  width: 100%;
+  border: 1px solid var(--cream-dark);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.9rem;
+  background: #fff;
+  color: var(--text);
+}
+.admin-input:focus,
+.admin-textarea:focus,
+.admin-select:focus { outline: none; border-color: var(--green-dark); }
+.admin-textarea { resize: vertical; min-height: 60px; }
+.admin-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.admin-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 700;
+  font-size: 0.85rem;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+}
+.admin-btn:hover { transform: translateY(-1px); }
+.admin-btn.primary { background: var(--green); color: var(--purple); }
+.admin-btn.primary:hover { background: var(--green-dark); }
+.admin-btn.ghost { background: transparent; border-color: var(--cream-dark); color: var(--muted); }
+.admin-btn.ghost:hover { border-color: var(--muted); }
+.admin-btn.danger { background: #e7d3d3; color: #8a2f2f; }
+.admin-btn.danger:hover { background: #dcc0c0; }
+.admin-badge {
+  display: inline-block;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 3px 9px;
+  border-radius: 999px;
+}
+.admin-badge.pending  { background: #f3ead2; color: #8a6d1f; }
+.admin-badge.approved { background: #d8ecd3; color: #3c6b34; }
+.admin-badge.rejected { background: #ecd9d9; color: #8a3030; }
+.admin-meta { font-size: 0.82rem; color: var(--muted); margin-bottom: 10px; }
+.admin-msg { font-size: 0.88rem; margin: 10px 0; padding: 10px 14px; border-radius: 8px; }
+.admin-msg.ok { background: #d8ecd3; color: #3c6b34; }
+.admin-msg.err { background: #ecd9d9; color: #8a3030; }
+.admin-section-title {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--purple);
+  margin: 28px 0 14px;
+}
+.admin-votes { font-weight: 800; color: var(--green-dark); }
+
+@media (max-width: 860px) {
+  .suggestion-grid { grid-template-columns: 1fr; }
+  .admin-row { flex-direction: column; }
+  .admin-thumb { width: 100%; }
+  .admin-grid { grid-template-columns: 1fr; }
 }

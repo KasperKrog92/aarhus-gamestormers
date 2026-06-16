@@ -10,12 +10,26 @@ A static HTML website for Aarhus Gamestormers, a monthly video game discussion c
 ├── MEETING_WORKFLOW.md # Step-by-step runbook for "a new game has been chosen for a meeting"
 ├── index.html          # Danish (primary) version
 ├── index_en.html       # Redirect → /en/ (kept for old links/bookmarks)
+├── vote.html           # Danish suggestion + voting page (calls same-origin /api/*)
+├── vote-admin.html     # Maintainer curation page (noindex, unlinked, ADMIN_TOKEN-gated)
+├── scripts/
+│   └── prepare-pages-deploy.mjs # Builds the safe direct-upload Pages artifact
 ├── en/
-│   └── index.html      # English version
-├── robots.txt          # Crawl rules + sitemap reference
+│   ├── index.html      # English version
+│   └── vote.html       # English suggestion + voting page
+├── robots.txt          # Crawl rules + sitemap reference (disallows /vote-admin.html)
 ├── sitemap.xml         # XML sitemap with DA/EN hreflang alternates
-├── css/style.css       # All styles (v8)
-├── js/script.js        # Shared JS: copyright year, calendar dropdown, history accordion
+├── package.json        # Minimal npm manifest for Cloudflare's install/deploy phase
+├── package-lock.json   # Synced lockfile; no application dependencies
+├── css/style.css       # All styles (v9)
+├── js/
+│   ├── script.js       # Shared JS: copyright year, calendar dropdown, history accordion
+│   └── vote.js         # Voting front end: phase-aware suggest/vote/result UI (bilingual)
+├── functions/          # Cloudflare Pages Functions (same-origin /api/*) — voting backend
+│   ├── _lib/           # Shared helpers: db, steam, turnstile, auth, http
+│   └── api/            # round/current, suggest, vote, admin/[[route]]
+├── schema.sql          # D1 (SQLite) schema: rounds, suggestions, votes
+├── wrangler.toml       # Cloudflare Pages/Functions config + D1 binding (local dev)
 ├── data/
 │   ├── steam-sales.json # Generated Steam sale data consumed by upcoming event links
 │   └── gog-sales.json   # Generated GOG sale data consumed by upcoming event links
@@ -29,17 +43,19 @@ A static HTML website for Aarhus Gamestormers, a monthly video game discussion c
 │   └── logo_square.png # Square logo used by structured data
 ├── favicon/
 │   └── favicon.png     # 192×192 favicon (green tornado, no text)
-├── CNAME               # GitHub Pages custom domain
-├── .gitignore          # Excludes .claude/ and design_handoff_gamestormers/
+├── CNAME               # GitHub Pages custom domain (inert on Cloudflare Pages)
+├── .gitignore          # Excludes .claude/, design_handoff_gamestormers/, .wrangler/, .dev.vars, .deploy/
 └── .htaccess           # Kept for reference; not active on GitHub Pages
 ```
 
 ## Technology
 
-- **Pure static HTML/CSS**: no build tools, no npm, no frameworks
+- **Static HTML/CSS** for the marketing pages: no build step, bundler, or framework
+- **Minimal npm metadata**: `package.json`/`package-lock.json` exist so Cloudflare Pages can complete `npm clean-install`; the app itself has no npm dependencies
 - **Google Fonts**: Barlow Condensed (headings) + DM Sans (body), loaded via `<link>` in `<head>`
 - **Vanilla JS**: copyright year update + history accordion toggle + calendar dropdown + countdown timer + auto-hide past event cards + auto-reveal scheduled history cards + store sale badges from `data/steam-sales.json` and `data/gog-sales.json`
-- **Hosted on GitHub Pages** at [www.gamestormers.dk](https://www.gamestormers.dk)
+- **Voting system (the only dynamic part)**: a members-driven suggestion + approval-voting feature backed by **Cloudflare Pages Functions** (`functions/`, same-origin `/api/*`) and a **Cloudflare D1** database. See *Game suggestion & voting system* below.
+- **Hosting**: the site is moving from GitHub Pages to **Cloudflare Pages** (`www.gamestormers.dk`) so the voting backend can run same-origin as Pages Functions. The static pages behave identically on either host; only the voting feature requires Cloudflare.
 - Repo: `github.com/KasperKrog92/aarhus-gamestormers`; push to `main` deploys automatically
 
 ## Agent Guide
@@ -52,6 +68,9 @@ A static HTML website for Aarhus Gamestormers, a monthly video game discussion c
 |------|----------|---------|
 | `index.html` | Danish | Primary landing page |
 | `en/index.html` | English | For international Discord members |
+| `vote.html` | Danish | Game suggestion + voting page |
+| `en/vote.html` | English | Game suggestion + voting page |
+| `vote-admin.html` | English | Maintainer curation tool (unlisted, `noindex`) |
 
 Both pages share the same layout:
 1. Sticky header: logo, nav links (Events -> Om/About -> Historik/History), language toggle, Discord button
@@ -167,11 +186,85 @@ No local cover images are used or needed. Always verify the Steam app ID before 
 - **Store icons**: `img/steam_icon.png` and `img/gog_icon.svg` have been removed — all store links are text-only pills
 - **Brand assets**: `img/logo.png`, `img/logo_hero.png`
 
+## Game suggestion & voting system
+
+A members-driven flow for choosing the next meeting's game:
+**suggestions open → maintainer curates → voting opens (approval voting) → result revealed**. This is the
+only dynamic part of the site and the reason hosting moved to Cloudflare Pages. Everything is first-party;
+**no third-party cookies and no stored IPs**.
+
+**Architecture**
+- **Frontend**: `vote.html` (DA) + `en/vote.html` (EN), driven by `js/vote.js` (bilingual via
+  `STRINGS[lang]`). The page is phase-aware: it renders a suggestion form, an approval ballot, or results
+  depending on the current round's `phase`. Reuses the site's card styling (`.suggestion-card`, etc.).
+- **Backend**: Cloudflare Pages Functions in `functions/api/*`, served same-origin under `/api/*`
+  (no CORS). Shared helpers in `functions/_lib/` (`db`, `steam`, `turnstile`, `auth`, `http`).
+- **Storage**: Cloudflare **D1** (SQLite), schema in `schema.sql` — `rounds`, `suggestions`, `votes` (the latter carries an optional self-reported `voter_name`).
+- **Admin**: `vote-admin.html` — unlisted, `noindex`, gated by a Bearer `ADMIN_TOKEN`.
+
+**API** (`functions/api`)
+| Route | Method | Purpose |
+|---|---|---|
+| `/api/round/current` | GET | Current round + approved cards (tallies only when `revealed`; never exposes the storm code). |
+| `/api/suggest` | POST | Submit a suggestion; imports the game from Steam server-side; **auto-approved** (visible immediately). |
+| `/api/vote` | POST | Cast an approval ballot (one `votes` row per ticked game); optional self-reported `voterName`. |
+| `/api/admin/round` | GET/POST/PATCH | Read full round (incl. per-ballot list + live tallies); open a new round; change phase / winner / code. |
+| `/api/admin/suggestion/:id` | PATCH/DELETE | Approve / reject / edit or delete a suggestion. |
+| `/api/admin/ballot/:ballotId` | DELETE | Remove a single ballot (all its votes) — for pruning funky behaviour. |
+
+**Phases** (`rounds.phase`): `suggesting` → `voting` → `revealed` → `closed`. The current round is the one
+with the highest `id` (= meeting number). The maintainer advances phases in `vote-admin.html`.
+
+**Vote integrity (deliberately lightweight, privacy-first)**: a per-round **storm code** (soft Discord
+gate) + **Cloudflare Turnstile** (bot check). **No IP is stored and no cookie is used.** A random
+`ballot_id` is echoed to the client and kept in `localStorage` only for "you already voted" UX — it is
+*not* enforced server-side. This deters casual abuse, not a determined attacker; that trade-off was chosen
+on purpose to stay cookie-free and PII-free. True one-vote-per-person would need identity (e.g. Discord
+login), which was explicitly out of scope.
+
+**Curation & moderation**: suggestions are **auto-approved** — they appear on the board as soon as they're
+submitted; the maintainer can still edit, reject (hide), or delete them in `vote-admin.html`. Voting is
+intentionally low-friction, so to compensate the admin sees the **full per-ballot breakdown at any phase**
+(optional voter name, which games each ballot approved, and timestamp) plus live tallies, and can **delete
+any ballot** (`/api/admin/ballot/:ballotId`) if a vote looks suspicious. Ballot names are rendered with
+`textContent` (never `innerHTML`) in the admin tool so a crafted name can't XSS the maintainer.
+
+**Steam import**: `functions/_lib/steam.js` parses the app id from a store URL and calls
+`store.steampowered.com/api/appdetails` (same endpoint as the sales Action) for title, banner, genres,
+platforms and price. **HowLongToBeat has no API** — `playtime_hours` is filled by the maintainer during
+curation, consistent with `MEETING_WORKFLOW.md`.
+
+**Turnstile site key**: `vote.html` / `en/vote.html` carry `data-turnstile-sitekey` on `#vote-app`. The
+committed value is Cloudflare's **always-pass test key** (`1x00000000000000000000AA`) — **replace it with
+the production site key before going live**, and set the matching `TURNSTILE_SECRET` server-side (see
+*Deployment*).
+
+**Local development**
+```
+wrangler d1 create gamestormers                              # once; paste the id into wrangler.toml
+wrangler d1 execute gamestormers --local --file=./schema.sql
+# create .dev.vars with TURNSTILE_SECRET (Turnstile test secret) and ADMIN_TOKEN
+wrangler pages dev                                           # (or npm run dev) serves site + /api/* + local D1
+```
+Open `/vote.html` and `/vote-admin.html`; use the admin page to open a round, approve suggestions, and flip
+phases. Apply the schema to production with `wrangler d1 execute gamestormers --remote --file=./schema.sql`.
+
+**Phase 2 (planned, not built)**: a scheduler (Cloudflare Cron Trigger or a GitHub Action like the sales
+one) that advances phases from a list of meeting dates, posts Discord announcements via a webhook, and
+generates the event-card + pre-published history-card values for the winner per `MEETING_WORKFLOW.md`
+(playtime stays manual). The existing date-driven JS then handles event/history transitions unchanged.
+
 ## Deployment
 
-Push to `main`; GitHub Pages deploys automatically. No build step required.
+Push to `main`; Cloudflare Pages deploys automatically. No build step is required.
 
-HTTPS is handled by GitHub Pages natively. The `.htaccess` file is inert on GitHub Pages but kept in the repo.
+For Cloudflare Pages, keep the project root set to `/`, leave the build command empty, and use `pages_build_output_dir = "."` in `wrangler.toml` for local Pages development. For manual direct uploads, run `npm run deploy`: it first builds `.deploy/pages` with only public static assets plus `functions/`, then runs `wrangler pages deploy .deploy/pages --project-name aarhus-gamestormers-site --branch main`. Do not deploy the repo root with `wrangler pages deploy .`, because local-only files such as `.dev.vars` can be uploaded as public assets. Do not use plain `wrangler deploy`; that command targets Workers, not Pages.
+
+Cloudflare's install phase runs `npm clean-install`, so `package.json` and `package-lock.json` must stay in sync even though there are no application dependencies. Local Pages Functions development can use `npm run dev`.
+
+Before production Cloudflare deploys, replace the placeholder D1 `database_id` in `wrangler.toml`, bind the D1 database as `DB`, and set `TURNSTILE_SECRET` and `ADMIN_TOKEN` as encrypted environment variables in the Cloudflare Pages project settings.
+
+The previous GitHub Pages setup required no build step; `CNAME` and `.htaccess` are inert on Cloudflare Pages but kept for reference/history.
 
 ## i18n
 

@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Vote admin – Aarhus Gamestormers</title>
+  <link rel="icon" type="image/png" href="/favicon/favicon.png">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=DM+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css?v=9">
+  <meta name="theme-color" content="#2B2436">
+</head>
+
+<body>
+
+<header class="gs-header">
+  <div class="wrap">
+    <a href="/" aria-label="Aarhus Gamestormers">
+      <img src="/img/logo.webp" alt="Aarhus Gamestormers logo" class="gs-logo" width="160" height="85">
+    </a>
+    <nav class="gs-nav" aria-label="Admin">
+      <span class="nav-text" style="color:rgba(247,244,238,0.75)">Vote admin</span>
+    </nav>
+  </div>
+</header>
+
+<main class="gs-admin">
+  <div class="wrap">
+    <h1 class="section-title">Vote admin</h1>
+
+    <!-- Token gate -->
+    <div class="admin-card" id="auth-card">
+      <h2>Connect</h2>
+      <p class="admin-meta">Enter the admin token (the <code>ADMIN_TOKEN</code> secret). It is kept only in this tab's sessionStorage and sent as a Bearer header over HTTPS.</p>
+      <div class="admin-actions">
+        <input class="admin-input" id="token" type="password" placeholder="Admin token" autocomplete="off" style="max-width:340px">
+        <button class="admin-btn primary" id="connect">Connect</button>
+      </div>
+      <div class="admin-msg err" id="auth-msg" hidden></div>
+    </div>
+
+    <div id="admin-body" hidden>
+      <div id="round-area"></div>
+
+      <div class="admin-card" id="new-round-card">
+        <h2>Open a new round</h2>
+        <p class="admin-meta">Creates the next round and makes it the current one (phase: suggesting).</p>
+        <div class="admin-grid">
+          <div>
+            <label class="admin-field-label" for="nr-id">Meeting number</label>
+            <input class="admin-input" id="nr-id" type="number" min="1" placeholder="19">
+          </div>
+          <div>
+            <label class="admin-field-label" for="nr-code">Storm code</label>
+            <input class="admin-input" id="nr-code" type="text" placeholder="storm19">
+          </div>
+          <div>
+            <label class="admin-field-label" for="nr-title">Title (optional)</label>
+            <input class="admin-input" id="nr-title" type="text" placeholder="Meeting 19">
+          </div>
+          <div>
+            <label class="admin-field-label" for="nr-closes">Voting closes (optional)</label>
+            <input class="admin-input" id="nr-closes" type="text" placeholder="2026-09-01">
+          </div>
+        </div>
+        <div class="admin-actions">
+          <button class="admin-btn primary" id="open-round">Open round</button>
+        </div>
+        <div class="admin-msg" id="new-round-msg" hidden></div>
+      </div>
+
+      <h2 class="admin-section-title">Suggestions</h2>
+      <div id="suggestions"></div>
+
+      <h2 class="admin-section-title">Votes</h2>
+      <div id="ballots"></div>
+    </div>
+  </div>
+</main>
+
+<script>
+(function () {
+  var API = '/api/admin';
+  var TOKEN_KEY = 'gs-admin-token';
+  var token = sessionStorage.getItem(TOKEN_KEY) || '';
+
+  var $ = function (id) { return document.getElementById(id); };
+  var PHASES = ['suggesting', 'voting', 'revealed', 'closed'];
+
+  function h(tag, attrs, kids) {
+    var n = document.createElement(tag);
+    if (attrs) Object.keys(attrs).forEach(function (k) {
+      if (k === 'class') n.className = attrs[k];
+      else if (k === 'text') n.textContent = attrs[k];
+      else if (k.slice(0, 2) === 'on' && typeof attrs[k] === 'function') n.addEventListener(k.slice(2), attrs[k]);
+      else if (attrs[k] != null) n.setAttribute(k, attrs[k]);
+    });
+    (kids || []).forEach(function (c) {
+      if (c == null) return;
+      n.appendChild(typeof c === 'string' ? document.createTextNode(c) : c);
+    });
+    return n;
+  }
+
+  function authedFetch(path, opts) {
+    opts = opts || {};
+    opts.headers = Object.assign({ Authorization: 'Bearer ' + token }, opts.headers || {});
+    if (opts.body) opts.headers['content-type'] = 'application/json';
+    return fetch(API + path, opts).then(function (res) {
+      return res.json().then(function (data) {
+        if (!res.ok) throw new Error(data && data.error ? data.error : 'HTTP ' + res.status);
+        return data;
+      });
+    });
+  }
+
+  function showMsg(node, text, ok) {
+    node.className = 'admin-msg ' + (ok ? 'ok' : 'err');
+    node.textContent = text;
+    node.hidden = false;
+  }
+
+  function connect() {
+    token = $('token').value.trim();
+    if (!token) return;
+    sessionStorage.setItem(TOKEN_KEY, token);
+    load();
+  }
+
+  function load() {
+    authedFetch('/round')
+      .then(function (data) {
+        $('auth-msg').hidden = true;
+        $('admin-body').hidden = false;
+        $('auth-card').hidden = true;
+        renderRound(data.round, data.tallies || {});
+        renderSuggestions(data.suggestions || [], data.tallies || {});
+        renderBallots(data.ballots || [], data.suggestions || []);
+      })
+      .catch(function (err) {
+        $('admin-body').hidden = true;
+        $('auth-card').hidden = false;
+        showMsg($('auth-msg'), err.message, false);
+      });
+  }
+
+  // ── current round ──────────────────────────────────────────────────────────
+  function renderRound(round, tallies) {
+    var area = $('round-area');
+    area.innerHTML = '';
+    if (!round) {
+      area.appendChild(h('div', { class: 'admin-card' }, [
+        h('h2', { text: 'No active round' }),
+        h('p', { class: 'admin-meta', text: 'Open a round below to start a cycle.' }),
+      ]));
+      return;
+    }
+
+    var titleInput = h('input', { class: 'admin-input', type: 'text', value: round.title || '' });
+    var codeInput = h('input', { class: 'admin-input', type: 'text', value: round.storm_code || '' });
+    var closesInput = h('input', { class: 'admin-input', type: 'text', value: round.voting_closes_at || '' });
+
+    var phaseSelect = h('select', { class: 'admin-select' }, PHASES.map(function (p) {
+      return h('option', { value: p, text: p, selected: p === round.phase ? 'selected' : null });
+    }));
+
+    var msg = h('div', { class: 'admin-msg', hidden: 'hidden' });
+
+    var saveBtn = h('button', { class: 'admin-btn primary', onclick: function () {
+      authedFetch('/round', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          title: titleInput.value,
+          stormCode: codeInput.value,
+          phase: phaseSelect.value,
+          votingClosesAt: closesInput.value,
+        }),
+      }).then(function () { showMsg(msg, 'Saved.', true); load(); })
+        .catch(function (e) { showMsg(msg, e.message, false); });
+    } }, ['Save round']);
+
+    area.appendChild(h('div', { class: 'admin-card' }, [
+      h('h2', { text: 'Round #' + round.id + (round.title ? ' — ' + round.title : '') }),
+      h('p', { class: 'admin-meta', html: 'Public URL: <a href="/vote" target="_blank" rel="noopener">/vote</a> · phase controls what visitors see (suggesting → voting → revealed).' }),
+      h('div', { class: 'admin-grid' }, [
+        h('div', null, [h('label', { class: 'admin-field-label', text: 'Title' }), titleInput]),
+        h('div', null, [h('label', { class: 'admin-field-label', text: 'Storm code' }), codeInput]),
+        h('div', null, [h('label', { class: 'admin-field-label', text: 'Phase' }), phaseSelect]),
+        h('div', null, [h('label', { class: 'admin-field-label', text: 'Voting closes (optional)' }), closesInput]),
+      ]),
+      h('div', { class: 'admin-actions' }, [saveBtn]),
+      msg,
+    ]));
+  }
+
+  // ── suggestions ──────────────────────────────────────────────────────────
+  function renderSuggestions(suggestions, tallies) {
+    var wrap = $('suggestions');
+    wrap.innerHTML = '';
+    if (!suggestions.length) {
+      wrap.appendChild(h('div', { class: 'admin-card' }, [h('p', { class: 'admin-meta', text: 'No suggestions yet.' })]));
+      return;
+    }
+    // pending first, then approved, then rejected
+    var order = { pending: 0, approved: 1, rejected: 2 };
+    suggestions.slice().sort(function (a, b) {
+      return (order[a.status] - order[b.status]) || (a.id - b.id);
+    }).forEach(function (s) {
+      wrap.appendChild(suggestionCard(s, tallies[s.id] || 0));
+    });
+  }
+
+  function field(label, control) {
+    return h('div', null, [h('label', { class: 'admin-field-label', text: label }), control]);
+  }
+
+  function suggestionCard(s, votes) {
+    var msg = h('div', { class: 'admin-msg', hidden: 'hidden' });
+
+    var inputs = {
+      title: h('input', { class: 'admin-input', type: 'text', value: s.title || '' }),
+      genres: h('input', { class: 'admin-input', type: 'text', value: s.genres || '' }),
+      price: h('input', { class: 'admin-input', type: 'text', value: s.price || '' }),
+      platforms: h('input', { class: 'admin-input', type: 'text', value: s.platforms || '' }),
+      playtimeHours: h('input', { class: 'admin-input', type: 'number', min: '0', value: s.playtime_hours != null ? s.playtime_hours : '' }),
+      gogUrl: h('input', { class: 'admin-input', type: 'url', value: s.gog_url || '' }),
+      suggestedBy: h('input', { class: 'admin-input', type: 'text', value: s.suggested_by || '' }),
+      pitch: h('textarea', { class: 'admin-textarea' }),
+    };
+    inputs.pitch.value = s.pitch || '';
+
+    function patch(body, okText) {
+      authedFetch('/suggestion/' + s.id, { method: 'PATCH', body: JSON.stringify(body) })
+        .then(function () { showMsg(msg, okText || 'Saved.', true); load(); })
+        .catch(function (e) { showMsg(msg, e.message, false); });
+    }
+
+    var actions = h('div', { class: 'admin-actions' }, [
+      h('button', { class: 'admin-btn primary', onclick: function () {
+        patch({
+          title: inputs.title.value,
+          genres: inputs.genres.value,
+          price: inputs.price.value,
+          platforms: inputs.platforms.value,
+          playtimeHours: inputs.playtimeHours.value,
+          gogUrl: inputs.gogUrl.value,
+          suggestedBy: inputs.suggestedBy.value,
+          pitch: inputs.pitch.value,
+        });
+      } }, ['Save']),
+      s.status !== 'approved' ? h('button', { class: 'admin-btn primary', onclick: function () { patch({ status: 'approved' }, 'Approved.'); } }, ['Approve']) : null,
+      s.status !== 'rejected' ? h('button', { class: 'admin-btn ghost', onclick: function () { patch({ status: 'rejected' }, 'Rejected.'); } }, ['Reject']) : null,
+      h('button', { class: 'admin-btn danger', onclick: function () {
+        if (!confirm('Delete this suggestion permanently?')) return;
+        authedFetch('/suggestion/' + s.id, { method: 'DELETE' })
+          .then(function () { load(); })
+          .catch(function (e) { showMsg(msg, e.message, false); });
+      } }, ['Delete']),
+    ]);
+
+    var header = h('div', { class: 'admin-actions', style: 'justify-content:space-between;margin-bottom:10px' }, [
+      h('span', { class: 'admin-badge ' + s.status, text: s.status }),
+      h('span', { class: 'admin-meta', style: 'margin:0', html: '#' + s.id + ' · <span class="admin-votes">' + votes + ' votes</span>' }),
+    ]);
+
+    var fields = h('div', { class: 'admin-grid' }, [
+      field('Title', inputs.title),
+      field('Genres (comma-separated)', inputs.genres),
+      field('Price', inputs.price),
+      field('Platforms', inputs.platforms),
+      field('Playtime (hours)', inputs.playtimeHours),
+      field('GOG URL', inputs.gogUrl),
+      field('Suggested by', inputs.suggestedBy),
+    ]);
+
+    return h('div', { class: 'admin-card' }, [
+      header,
+      h('div', { class: 'admin-row' }, [
+        h('img', { class: 'admin-thumb', src: s.header_image || '', alt: s.title || '' }),
+        h('div', { class: 'admin-fields' }, [
+          fields,
+          field('Pitch', inputs.pitch),
+          actions,
+          msg,
+        ]),
+      ]),
+    ]);
+  }
+
+  // ── votes / ballots (who voted for what; remove a ballot) ──────────────────
+  function renderBallots(ballots, suggestions) {
+    var wrap = $('ballots');
+    wrap.innerHTML = '';
+    var titles = {};
+    suggestions.forEach(function (s) { titles[s.id] = s.title; });
+
+    var totalApprovals = ballots.reduce(function (n, b) { return n + b.suggestionIds.length; }, 0);
+    wrap.appendChild(h('p', { class: 'admin-meta', text: ballots.length + ' ballots · ' + totalApprovals + ' total approvals' }));
+
+    if (!ballots.length) {
+      wrap.appendChild(h('div', { class: 'admin-card' }, [h('p', { class: 'admin-meta', text: 'No votes yet.' })]));
+      return;
+    }
+
+    ballots.forEach(function (b) {
+      // Titles come from Steam; voterName is self-reported. Render via textContent
+      // (h's `text`) — never innerHTML — so a crafted name can't XSS this admin view.
+      var games = b.suggestionIds.map(function (id) { return titles[id] || ('#' + id); }).join(', ');
+      var msg = h('div', { class: 'admin-msg', hidden: 'hidden' });
+
+      var del = h('button', { class: 'admin-btn danger', onclick: function () {
+        if (!confirm('Remove this ballot? Its votes will be deleted.')) return;
+        authedFetch('/ballot/' + encodeURIComponent(b.ballotId), { method: 'DELETE' })
+          .then(function () { load(); })
+          .catch(function (e) { showMsg(msg, e.message, false); });
+      } }, ['Remove ballot']);
+
+      var head = h('div', { class: 'admin-actions', style: 'justify-content:space-between;margin-bottom:6px' }, [
+        h('span', null, [
+          h('b', { text: b.voterName || 'anonymous' }),
+          h('span', { class: 'admin-meta', style: 'margin-left:8px', text: b.createdAt || '' }),
+        ]),
+        del,
+      ]);
+
+      wrap.appendChild(h('div', { class: 'admin-card' }, [
+        head,
+        h('p', { class: 'admin-meta', style: 'margin:0', text: 'Approved: ' + games }),
+        msg,
+      ]));
+    });
+  }
+
+  // ── open new round ─────────────────────────────────────────────────────────
+  $('open-round').addEventListener('click', function () {
+    var msg = $('new-round-msg');
+    authedFetch('/round', {
+      method: 'POST',
+      body: JSON.stringify({
+        id: $('nr-id').value,
+        stormCode: $('nr-code').value,
+        title: $('nr-title').value,
+        votingClosesAt: $('nr-closes').value,
+      }),
+    }).then(function () {
+      showMsg(msg, 'Round opened.', true);
+      $('nr-id').value = $('nr-code').value = $('nr-title').value = $('nr-closes').value = '';
+      load();
+    }).catch(function (e) { showMsg(msg, e.message, false); });
+  });
+
+  $('connect').addEventListener('click', connect);
+  $('token').addEventListener('keydown', function (e) { if (e.key === 'Enter') connect(); });
+
+  if (token) { $('token').value = token; load(); }
+})();
+</script>
+
+</body>
+</html>

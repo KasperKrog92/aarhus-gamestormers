@@ -1,3 +1,8 @@
 .claude/
 design_handoff_gamestormers/
 project documents/
+
+# Cloudflare Wrangler / Pages Functions
+.wrangler/
+.dev.vars
+.deploy/

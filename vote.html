@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="da">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Stem om næste spil – Aarhus Gamestormers</title>
+  <meta name="description" content="Foreslå spil og stem om, hvad Aarhus Gamestormers skal spille til næste møde.">
+  <link rel="canonical" href="https://www.gamestormers.dk/vote">
+
+  <!-- hreflang -->
+  <link rel="alternate" href="https://www.gamestormers.dk/vote" hreflang="da">
+  <link rel="alternate" href="https://www.gamestormers.dk/en/vote" hreflang="en">
+  <link rel="alternate" href="https://www.gamestormers.dk/vote" hreflang="x-default">
+
+  <link rel="icon" type="image/png" href="/favicon/favicon.png">
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=DM+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="/css/style.css?v=9">
+  <link rel="prefetch" href="/en/vote">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://www.gamestormers.dk/vote">
+  <meta property="og:title" content="Stem om næste spil – Aarhus Gamestormers">
+  <meta property="og:description" content="Foreslå spil og stem om, hvad Aarhus Gamestormers skal spille til næste møde.">
+  <meta property="og:image" content="https://www.gamestormers.dk/img/OG_image_da.jpg">
+  <meta property="og:site_name" content="Aarhus Gamestormers">
+  <meta property="og:locale" content="da_DK">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Stem om næste spil – Aarhus Gamestormers">
+  <meta name="twitter:description" content="Foreslå spil og stem om, hvad Aarhus Gamestormers skal spille til næste møde.">
+  <meta name="twitter:image" content="https://www.gamestormers.dk/img/OG_image_da.jpg">
+
+  <meta name="theme-color" content="#96C38D">
+</head>
+
+<body>
+
+<header class="gs-header">
+  <div class="wrap">
+    <a href="/" aria-label="Aarhus Gamestormers forside">
+      <img src="/img/logo.webp" alt="Aarhus Gamestormers logo" class="gs-logo" width="160" height="85">
+    </a>
+    <nav class="gs-nav" aria-label="Primær navigation">
+      <a href="/#events" class="nav-text">Events</a>
+      <a href="/#about" class="nav-text">Om</a>
+      <a href="/#history" class="nav-text">Historik</a>
+      <a href="/vote" class="nav-text" aria-current="page">Afstemning</a>
+      <div class="gs-lang" role="navigation" aria-label="Vælg sprog">
+        <a href="/vote" class="active" aria-current="page" title="Dansk">DA</a>
+        <a href="/en/vote" lang="en" title="English">EN</a>
+      </div>
+      <a href="https://discord.gg/N2h6DJxVDF" target="_blank" rel="noopener noreferrer" class="nav-discord">Tilmeld Discord</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <section class="gs-vote">
+    <div class="wrap">
+      <h1 class="section-title">Afstemning</h1>
+      <!-- data-turnstile-sitekey: replace the test key below with the production
+           Turnstile site key before going live. 1x00000000000000000000AA always passes. -->
+      <div id="vote-app" data-turnstile-sitekey="1x00000000000000000000AA"></div>
+    </div>
+  </section>
+</main>
+
+<footer class="gs-footer">
+  <div class="wrap">
+    <div class="footer-inner">
+      <div class="footer-left">
+        <img src="/img/logo.webp" alt="Aarhus Gamestormers" class="footer-logo" width="160" height="85" loading="lazy" decoding="async">
+        <p class="footer-copy">© <span id="year"></span> Aarhus Gamestormers · <a href="https://discord.gg/N2h6DJxVDF" target="_blank" rel="noopener">Discord</a></p>
+      </div>
+      <p class="footer-credit">Logo af <a href="https://dazestudio.dk/" target="_blank" rel="noopener">Julie Fey · Daze Studio</a></p>
+    </div>
+  </div>
+</footer>
+
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+<script src="/js/script.js?v=3"></script>
+<script src="/js/vote.js?v=1"></script>
+
+</body>
+</html>
