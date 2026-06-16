@@ -12,7 +12,10 @@ test('suggestion form is a closed disclosure tied to the current meeting', async
   assert.match(source, /vote-meeting/);
   assert.match(source, /vote-disclosure/);
   assert.match(source, /'aria-expanded': 'false'/);
-  assert.match(source, /form\.hidden = true/);
+  assert.match(source, /panel\.hidden = true/);
+  assert.match(source, /function renderSuggestionList/);
+  assert.match(source, /function addApprovedSuggestion/);
+  assert.match(source, /if \(!res\.pending\) addApprovedSuggestion\(res\.game\)/);
   assert.match(source, /Foresl[aå] nyt spil/);
   assert.match(source, /Suggest new game/);
   assert.doesNotMatch(source, /sendt til godkendelse/);

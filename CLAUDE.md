@@ -121,6 +121,7 @@ Key component classes:
 - `.history-banner`: full-width Steam header image (460/215 aspect ratio), zooms on hover
 - `.history-genre-row`: flex row of genre pills; used inside `.history-expand-inner` (history cards) and directly after `.event-title` (event cards); `flex-wrap: nowrap; overflow: hidden` — genre tags are always one line
 - `.history-genre`: individual green pill tag (uppercase, small); multiple per game are allowed. **History cards: total characters across all tags must not exceed ~30** (Little Nightmares — Horror + Puzzle-Platformer + Stealth — is the reference max). Remove the least-specific tag if needed.
+- `.suggestion-description`: Steam-imported short description on voting suggestion cards; rendered in Danish on `vote.html` and English on `en/vote.html`, with fallback if Steam lacks one language.
 - `.event-playtime`: muted HowLongToBeat link at the right end of the `.history-genre-row` on event cards (not history cards); shows approximate playtime as `⏱ ~X t.` (DA) / `⏱ ~X hrs.` (EN); uses `margin-left: auto` to pin right
 - `.hero-countdown`: countdown strip in the hero, below `.hero-cta`; contains `.countdown-label`, `.countdown-units` > `.countdown-unit` > `.countdown-num` + `.countdown-unit-lbl`. The `data-today` attribute holds the localised "meeting is today" string shown when the countdown reaches zero. Driven entirely by JS reading `.cal-ics[data-start]` — no separate date to maintain.
 - `.cal-wrap`: calendar dropdown container; `align-self: flex-start` + `margin-top: auto` pins it to the bottom-left of each event card
@@ -234,7 +235,9 @@ any ballot** (`/api/admin/ballot/:ballotId`) if a vote looks suspicious. Ballot 
 
 **Steam import**: `functions/_lib/steam.js` parses the app id from a store URL and calls
 `store.steampowered.com/api/appdetails` (same endpoint as the sales Action) for title, banner, genres,
-platforms and price. **HowLongToBeat has no API** — `playtime_hours` is filled by the maintainer during
+platforms, price, and Steam `short_description`. It fetches descriptions in both English and Danish and
+stores them as `description_en` / `description_da`; public suggestion cards render the localized version
+with fallback. **HowLongToBeat has no API** — `playtime_hours` is filled by the maintainer during
 curation, consistent with `MEETING_WORKFLOW.md`.
 
 **Turnstile site key**: `vote.html` / `en/vote.html` carry the public production `data-turnstile-sitekey`

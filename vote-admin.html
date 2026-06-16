@@ -298,8 +298,12 @@
       playtimeHours: h('input', { class: 'admin-input', type: 'number', min: '0', value: s.playtime_hours != null ? s.playtime_hours : '' }),
       gogUrl: h('input', { class: 'admin-input', type: 'url', value: s.gog_url || '' }),
       suggestedBy: h('input', { class: 'admin-input', type: 'text', value: s.suggested_by || '' }),
+      descriptionDa: h('textarea', { class: 'admin-textarea' }),
+      descriptionEn: h('textarea', { class: 'admin-textarea' }),
       pitch: h('textarea', { class: 'admin-textarea' }),
     };
+    inputs.descriptionDa.value = s.description_da || '';
+    inputs.descriptionEn.value = s.description_en || '';
     inputs.pitch.value = s.pitch || '';
 
     function patch(body, okText) {
@@ -320,6 +324,8 @@
           playtimeHours: inputs.playtimeHours.value,
           gogUrl: inputs.gogUrl.value,
           suggestedBy: inputs.suggestedBy.value,
+          descriptionDa: inputs.descriptionDa.value,
+          descriptionEn: inputs.descriptionEn.value,
           pitch: inputs.pitch.value,
         });
       } }, ['Save']),
@@ -359,6 +365,8 @@
         h('img', { class: 'admin-thumb', src: s.header_image || '', alt: s.title || '' }),
         h('div', { class: 'admin-fields' }, [
           fields,
+          field('Description (Danish)', inputs.descriptionDa),
+          field('Description (English)', inputs.descriptionEn),
           field('Pitch', inputs.pitch),
           actions,
           msg,

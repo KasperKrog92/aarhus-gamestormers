@@ -9,7 +9,15 @@
 //   DELETE /api/admin/ballot/:ballotId remove a single ballot (all its votes)
 import { json, fail, readJson, clean } from '../../_lib/http.js';
 import { isAdmin } from '../../_lib/auth.js';
-import { getCurrentRound, getRoundById, getSuggestions, getSuggestionById, getTallies, getBallots } from '../../_lib/db.js';
+import {
+  ensureSuggestionDescriptionColumns,
+  getCurrentRound,
+  getRoundById,
+  getSuggestions,
+  getSuggestionById,
+  getTallies,
+  getBallots,
+} from '../../_lib/db.js';
 
 const PHASES = ['suggesting', 'voting', 'revealed', 'closed'];
 const STATUSES = ['pending', 'approved', 'rejected'];
@@ -128,6 +136,7 @@ async function adminPatchRound(db, request, id) {
 
 async function adminPatchSuggestion(db, request, id) {
   if (!Number.isInteger(id)) return fail('Invalid id');
+  await ensureSuggestionDescriptionColumns(db);
   const body = await readJson(request);
   if (!body) return fail('Invalid body');
   if (!(await getSuggestionById(db, id))) return fail('Suggestion not found', 404);
@@ -148,6 +157,8 @@ async function adminPatchSuggestion(db, request, id) {
   if (body.genres !== undefined) put('genres', clean(body.genres, 200));
   if (body.price !== undefined) put('price', clean(body.price, 60));
   if (body.platforms !== undefined) put('platforms', clean(body.platforms, 120));
+  if (body.descriptionDa !== undefined) put('description_da', clean(body.descriptionDa, 1000));
+  if (body.descriptionEn !== undefined) put('description_en', clean(body.descriptionEn, 1000));
   if (body.pitch !== undefined) put('pitch', clean(body.pitch, 500));
   if (body.suggestedBy !== undefined) put('suggested_by', clean(body.suggestedBy, 80));
   if (body.gogUrl !== undefined) put('gog_url', clean(body.gogUrl, 300) || null);

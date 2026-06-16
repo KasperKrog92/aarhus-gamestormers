@@ -192,6 +192,7 @@ var STRINGS = {
   // ── card builder ───────────────────────────────────────────────────────────
   function card(s, mode, opts) {
     opts = opts || {};
+    var description = lang === 'en' ? (s.descriptionEn || s.descriptionDa) : (s.descriptionDa || s.descriptionEn);
     var tags = [];
     (s.genres || []).slice(0, 3).forEach(function (g) {
       tags.push(el('span', { class: 'history-genre', text: g }));
@@ -205,6 +206,7 @@ var STRINGS = {
     var body = [
       el('h3', { class: 'suggestion-title', text: s.title }),
       tags.length ? el('div', { class: 'suggestion-tags' }, tags) : null,
+      description ? el('p', { class: 'suggestion-description', text: description }) : null,
       s.pitch ? el('p', { class: 'suggestion-pitch', text: s.pitch }) : null,
       s.suggestedBy ? el('p', { class: 'suggestion-by', html: T.by + ' <b>' + escapeHtml(s.suggestedBy) + '</b>' }) : null,
       storeLinks.length ? el('div', { class: 'suggestion-store-links' }, storeLinks) : null,
@@ -291,6 +293,30 @@ var STRINGS = {
     app.appendChild(status(T.statusSuggesting));
     app.appendChild(meetingBadge(data.round));
     app.appendChild(el('p', { class: 'vote-intro', html: T.introSuggesting }));
+    var suggestionItems = data.suggestions.slice();
+    var suggestionHeading = el('h2', { class: 'admin-section-title', text: T.approvedSoFar, style: 'color:var(--cream)' });
+    var suggestionGrid = grid([]);
+    var suggestionListMounted = false;
+
+    function renderSuggestionList() {
+      clear(suggestionGrid);
+      suggestionItems.forEach(function (s) {
+        suggestionGrid.appendChild(card(s, 'list'));
+      });
+
+      if (!suggestionListMounted && suggestionItems.length) {
+        app.appendChild(suggestionHeading);
+        app.appendChild(suggestionGrid);
+        suggestionListMounted = true;
+      }
+    }
+
+    function addApprovedSuggestion(suggestion) {
+      if (!suggestion || suggestion.id == null) return;
+      var exists = suggestionItems.some(function (s) { return s.id === suggestion.id; });
+      if (!exists) suggestionItems.push(suggestion);
+      renderSuggestionList();
+    }
 
     // The disclosure reveals a container that walks through: a Steam yes/no
     // question → the matching form. Switching forms simply re-renders `panel`.
@@ -339,6 +365,7 @@ var STRINGS = {
         })
           .then(function (res) {
             showMsg(box, thanks.replace('{title}', res.game.title), true);
+            if (!res.pending) addApprovedSuggestion(res.game);
             clearInputs();
             if (window.turnstile && tsWidgetId !== null) window.turnstile.reset(tsWidgetId);
           })
@@ -439,10 +466,7 @@ var STRINGS = {
     app.appendChild(el('div', { class: 'vote-disclosure-wrap' }, [disclosureBtn, panel]));
 
     // Already-approved suggestions appear below the form (read-only).
-    if (data.suggestions.length) {
-      app.appendChild(el('h2', { class: 'admin-section-title', text: T.approvedSoFar, style: 'color:var(--cream)' }));
-      app.appendChild(grid(data.suggestions.map(function (s) { return card(s, 'list'); })));
-    }
+    renderSuggestionList();
   }
 
   function renderVoting(data) {

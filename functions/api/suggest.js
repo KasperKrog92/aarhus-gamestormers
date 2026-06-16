@@ -10,7 +10,7 @@
 // Body (non-Steam): { onSteam:false, title, storeUrl, genres, pitch, suggestedBy, stormCode, turnstileToken }
 // Gated by: phase === 'suggesting', correct storm code, Turnstile pass.
 import { json, fail, readJson, clean } from '../_lib/http.js';
-import { getCurrentRound } from '../_lib/db.js';
+import { ensureSuggestionDescriptionColumns, getCurrentRound, toCard } from '../_lib/db.js';
 import { parseSteamAppId, fetchSteamGame } from '../_lib/steam.js';
 import { verifyTurnstile } from '../_lib/turnstile.js';
 
@@ -49,6 +49,8 @@ export async function onRequestPost({ request, env }) {
 }
 
 async function suggestSteam(db, round, body) {
+  await ensureSuggestionDescriptionColumns(db);
+
   const appId = parseSteamAppId(clean(body.steamUrl, 500));
   if (!appId) return fail('Please paste a valid Steam store link (store.steampowered.com/app/...)');
 
@@ -66,11 +68,11 @@ async function suggestSteam(db, round, body) {
     .first();
   if (dup) return fail('That game has already been suggested for this round.', 409);
 
-  await db
+  const inserted = await db
     .prepare(
       `INSERT INTO suggestions
-         (round_id, steam_appid, title, header_image, store_url, genres, price, platforms, pitch, suggested_by, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'approved')`
+         (round_id, steam_appid, title, header_image, store_url, genres, price, platforms, description_da, description_en, pitch, suggested_by, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'approved')`
     )
     .bind(
       round.id,
@@ -81,12 +83,24 @@ async function suggestSteam(db, round, body) {
       game.genres.join(', '),
       game.price,
       game.platforms.join(', '),
+      clean(game.descriptionDa, 1000),
+      clean(game.descriptionEn, 1000),
       clean(body.pitch, 500),
       clean(body.suggestedBy, 80)
     )
     .run();
 
-  return json({ ok: true, pending: false, game: { title: game.title, image: game.image } }, 201);
+  const suggestionId = inserted.meta && inserted.meta.last_row_id;
+  const suggestion = suggestionId
+    ? await db.prepare('SELECT * FROM suggestions WHERE id = ?').bind(suggestionId).first()
+    : await db
+        .prepare('SELECT * FROM suggestions WHERE round_id = ? AND steam_appid = ? AND status = ? LIMIT 1')
+        .bind(round.id, game.steamAppId, 'approved')
+        .first();
+
+  if (!suggestion) return fail('Suggestion was saved but could not be loaded.', 500);
+
+  return json({ ok: true, pending: false, game: toCard(suggestion) }, 201);
 }
 
 async function suggestManual(db, round, body) {

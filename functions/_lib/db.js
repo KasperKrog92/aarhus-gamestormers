@@ -1,4 +1,26 @@
 // D1 query helpers + card shaping. `db` is the D1 binding (env.DB).
+let descriptionColumnsChecked = false;
+
+async function columnExists(db, table, column) {
+  const { results } = await db.prepare('PRAGMA table_info(' + table + ')').all();
+  return (results || []).some((row) => row.name === column);
+}
+
+async function addColumnIfMissing(db, table, column, definition) {
+  if (await columnExists(db, table, column)) return;
+  try {
+    await db.prepare('ALTER TABLE ' + table + ' ADD COLUMN ' + column + ' ' + definition).run();
+  } catch (err) {
+    if (!String(err && err.message).toLowerCase().includes('duplicate column')) throw err;
+  }
+}
+
+export async function ensureSuggestionDescriptionColumns(db) {
+  if (descriptionColumnsChecked) return;
+  await addColumnIfMissing(db, 'suggestions', 'description_da', 'TEXT');
+  await addColumnIfMissing(db, 'suggestions', 'description_en', 'TEXT');
+  descriptionColumnsChecked = true;
+}
 
 // The "current" round is simply the most recently opened one (highest id).
 export function getCurrentRound(db) {
@@ -70,6 +92,8 @@ export function toCard(s, votes) {
     platforms: splitList(s.platforms),
     price: s.price || null,
     playtimeHours: s.playtime_hours != null ? Number(s.playtime_hours) : null,
+    descriptionDa: s.description_da || null,
+    descriptionEn: s.description_en || null,
     pitch: s.pitch || null,
     suggestedBy: s.suggested_by || null,
     ...(votes != null ? { votes } : {}),
