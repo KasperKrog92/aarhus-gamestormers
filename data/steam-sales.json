@@ -17,9 +17,9 @@
       "currency": "EUR"
     },
     "2592160": {
-      "onSale": true,
-      "discountPercent": 20,
-      "initialFormatted": "28,99€",
+      "onSale": false,
+      "discountPercent": 0,
+      "initialFormatted": "",
       "finalFormatted": "23,19€",
       "currency": "EUR"
     }
