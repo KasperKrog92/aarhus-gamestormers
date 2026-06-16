@@ -101,7 +101,8 @@ The base reset includes `[hidden] { display: none !important; }`. Keep that rule
 - `.event-playtime`: HowLongToBeat link pinned to the right of the event-card genre row.
 - `.hero-countdown`: countdown strip. JS reads the nearest future `.cal-ics[data-start]`.
 - `.cal-wrap`, `.cal-btn`, `.cal-dropdown`, `.cal-option`: calendar dropdown components.
-- `.suggestion-description`: localized Steam-imported description on voting suggestion cards.
+- `.suggestion-description`: localized Steam-imported description on voting suggestion cards. It is wrapped in `.suggestion-copy` with a `.suggestion-copy-label` so it stays visually distinct from the suggester's pitch.
+- `.suggestion-pitch`: optional member pitch on voting suggestion cards. It is wrapped and labelled separately from the game description.
 
 When editing `css/style.css`, bump the `?v=N` query string on affected pages so local preview and browsers do not serve stale CSS.
 

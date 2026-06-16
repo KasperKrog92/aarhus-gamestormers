@@ -23,6 +23,7 @@ The repo is `github.com/KasperKrog92/aarhus-gamestormers`. The live site is `htt
 ## High-Priority Rules
 
 - Content is hardcoded in HTML. Keep `index.html` and `en/index.html` structurally synchronized.
+- Writing style: avoid em dashes in site copy and agent-authored prose. Keep wording plain and specific, not generic AI-sounding filler.
 - When a new game has been chosen, follow [`MEETING_WORKFLOW.md`](MEETING_WORKFLOW.md).
 - Always verify Steam app IDs from the canonical Steam store URL before using banners or links.
 - Ask the maintainer for the HowLongToBeat link and hours; this project does not fetch HLTB automatically.

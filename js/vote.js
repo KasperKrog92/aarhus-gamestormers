@@ -1,4 +1,4 @@
-/* Aarhus Gamestormers — game suggestion & approval-voting front end.
+/* Aarhus Gamestormers: game suggestion & approval-voting front end.
    Talks to the same-origin Pages Functions API (/api/*). Vanilla JS, no deps
    besides the Cloudflare Turnstile widget. Bilingual via STRINGS[lang]. */
 var STRINGS = {
@@ -10,10 +10,10 @@ var STRINGS = {
     statusRevealed: 'Resultatet er klar',
     introNone: 'Der er ingen aktiv runde lige nu. Hold øje med Discord for næste afstemning.',
     introSuggesting:
-      'Foreslå et spil til næste møde. Er det på Steam, henter vi titel, billede og genrer automatisk — ellers udfylder du det selv. Du skal bruge mødets kode fra Discord.',
+      'Foreslå et spil til næste møde. Er det på Steam, henter vi titel, billede, genrer og beskrivelse automatisk. Ellers udfylder du det selv. Du skal bruge mødets kode fra Discord.',
     introVoting:
-      'Sæt flueben ved <b>alle</b> de spil, du gerne vil spille — det med flest stemmer vinder. Du skal bruge mødets kode fra Discord.',
-    introRevealed: 'Tak til alle der stemte! Her er resultatet — vinderen bliver næste mødes spil.',
+      'Sæt flueben ved <b>alle</b> de spil, du gerne vil spille. Det med flest stemmer vinder. Du skal bruge mødets kode fra Discord.',
+    introRevealed: 'Tak til alle der stemte! Her er resultatet. Vinderen bliver næste mødes spil.',
     meetingFor: 'Forslag til {meeting}',
     formTitle: 'Foreslå et spil',
     suggestToggle: 'Foreslå nyt spil',
@@ -31,6 +31,8 @@ var STRINGS = {
     labelGenres: 'Genrer (valgfri)',
     genresPlaceholder: 'Kommasepareret, fx Puzzle, Horror',
     manualNote: 'Spil uden Steam-side bliver gennemset af en admin, før de vises på listen.',
+    gameDescription: 'Spilbeskrivelse',
+    suggestedPitch: 'Pitch fra forslagsstiller',
     labelPitch: 'Din pitch (valgfri)',
     pitchPlaceholder: 'Hvorfor skulle vi spille det? Et par linjer.',
     labelName: 'Dit navn (valgfri)',
@@ -45,7 +47,7 @@ var STRINGS = {
     castBallot: 'Afgiv din stemme',
     btnVote: 'Stem',
     btnVoted: 'Stemme afgivet ✓',
-    alreadyVoted: 'Det ser ud til, at du allerede har stemt i denne runde — du kan stemme igen, men kun den seneste tæller for dig.',
+    alreadyVoted: 'Det ser ud til, at du allerede har stemt i denne runde. Du kan stemme igen, men kun den seneste tæller for dig.',
     voteThanks: 'Tak for din stemme!',
     noGames: 'Der er ingen spil på stemmesedlen endnu.',
     by: 'Foreslået af',
@@ -64,10 +66,10 @@ var STRINGS = {
     statusRevealed: 'The result is in',
     introNone: 'There is no active round right now. Watch Discord for the next vote.',
     introSuggesting:
-      "Suggest a game for the next meeting. If it’s on Steam we’ll pull in the title, image and genres automatically — otherwise you fill it in yourself. You’ll need the meeting code from Discord.",
+      "Suggest a game for the next meeting. If it’s on Steam we’ll pull in the title, image, genres and description automatically. Otherwise you fill it in yourself. You’ll need the meeting code from Discord.",
     introVoting:
-      'Tick <b>every</b> game you’d be happy to play — the one with the most ticks wins. You’ll need the meeting code from Discord.',
-    introRevealed: 'Thanks to everyone who voted! Here’s the result — the winner becomes the next meeting’s game.',
+      'Tick <b>every</b> game you’d be happy to play. The one with the most ticks wins. You’ll need the meeting code from Discord.',
+    introRevealed: 'Thanks to everyone who voted! Here’s the result. The winner becomes the next meeting’s game.',
     meetingFor: 'Suggestions for {meeting}',
     formTitle: 'Suggest a game',
     suggestToggle: 'Suggest new game',
@@ -85,6 +87,8 @@ var STRINGS = {
     labelGenres: 'Genres (optional)',
     genresPlaceholder: 'Comma-separated, e.g. Puzzle, Horror',
     manualNote: 'Games without a Steam page are reviewed by an admin before they appear on the list.',
+    gameDescription: 'Game description',
+    suggestedPitch: 'Suggested pitch',
     labelPitch: 'Your pitch (optional)',
     pitchPlaceholder: 'Why should we play it? A couple of lines.',
     labelName: 'Your name (optional)',
@@ -99,7 +103,7 @@ var STRINGS = {
     castBallot: 'Cast your ballot',
     btnVote: 'Vote',
     btnVoted: 'Vote cast ✓',
-    alreadyVoted: 'Looks like you already voted in this round — you can vote again, but only your latest ballot counts for you.',
+    alreadyVoted: 'Looks like you already voted in this round. You can vote again, but only your latest ballot counts for you.',
     voteThanks: 'Thanks for voting!',
     noGames: 'There are no games on the ballot yet.',
     by: 'Suggested by',
@@ -206,8 +210,14 @@ var STRINGS = {
     var body = [
       el('h3', { class: 'suggestion-title', text: s.title }),
       tags.length ? el('div', { class: 'suggestion-tags' }, tags) : null,
-      description ? el('p', { class: 'suggestion-description', text: description }) : null,
-      s.pitch ? el('p', { class: 'suggestion-pitch', text: s.pitch }) : null,
+      description ? el('div', { class: 'suggestion-copy suggestion-copy-description' }, [
+        el('span', { class: 'suggestion-copy-label', text: T.gameDescription }),
+        el('p', { class: 'suggestion-description', text: description }),
+      ]) : null,
+      s.pitch ? el('div', { class: 'suggestion-copy suggestion-copy-pitch' }, [
+        el('span', { class: 'suggestion-copy-label', text: T.suggestedPitch }),
+        el('p', { class: 'suggestion-pitch', text: s.pitch }),
+      ]) : null,
       s.suggestedBy ? el('p', { class: 'suggestion-by', html: T.by + ' <b>' + escapeHtml(s.suggestedBy) + '</b>' }) : null,
       storeLinks.length ? el('div', { class: 'suggestion-store-links' }, storeLinks) : null,
     ];
@@ -218,7 +228,7 @@ var STRINGS = {
       classes += ' is-selectable';
       var checkbox = el('input', { type: 'checkbox', value: s.id, 'aria-label': T.approve });
       // Plain div (not a <label>) so the card-level click handler is the single
-      // source of truth for toggling — avoids a native+manual double toggle.
+      // source of truth for toggling, avoiding a native+manual double toggle.
       var toggle = el('div', { class: 'vote-toggle' }, [checkbox, el('span', { class: 'vote-toggle-label', text: T.approve })]);
       body.push(toggle);
     }

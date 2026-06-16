@@ -1278,11 +1278,18 @@ img { display: block; max-width: 100%; height: auto; }
   line-height: 1.1;
   margin-bottom: 10px;
 }
-.suggestion-pitch {
-  font-size: 0.9rem;
-  color: rgba(255,255,255,0.88);
-  line-height: 1.6;
-  margin-bottom: 12px;
+.suggestion-copy {
+  margin-bottom: 14px;
+}
+.suggestion-copy-label {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--green);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 1.2;
+  text-transform: uppercase;
 }
 .suggestion-description {
   display: -webkit-box;
@@ -1292,7 +1299,11 @@ img { display: block; max-width: 100%; height: auto; }
   font-size: 0.88rem;
   color: rgba(247,244,238,0.72);
   line-height: 1.55;
-  margin-bottom: 12px;
+}
+.suggestion-pitch {
+  font-size: 0.9rem;
+  color: rgba(255,255,255,0.9);
+  line-height: 1.6;
 }
 .suggestion-by {
   font-size: 0.8rem;
@@ -1398,7 +1409,7 @@ img { display: block; max-width: 100%; height: auto; }
   padding: 28px 0 64px;
 }
 /* main.gs-admin is a flex column; .wrap uses margin:0 auto, and auto margins on a
-   flex item suppress stretching — so the wrap would collapse to its content width.
+   flex item suppress stretching, so the wrap would collapse to its content width.
    Force it to fill (capped by .wrap's own max-width) so the admin uses the page. */
 .gs-admin .wrap { width: 100%; }
 .admin-card {
