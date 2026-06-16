@@ -234,10 +234,10 @@ any ballot** (`/api/admin/ballot/:ballotId`) if a vote looks suspicious. Ballot 
 platforms and price. **HowLongToBeat has no API** — `playtime_hours` is filled by the maintainer during
 curation, consistent with `MEETING_WORKFLOW.md`.
 
-**Turnstile site key**: `vote.html` / `en/vote.html` carry `data-turnstile-sitekey` on `#vote-app`. The
-committed value is Cloudflare's **always-pass test key** (`1x00000000000000000000AA`) — **replace it with
-the production site key before going live**, and set the matching `TURNSTILE_SECRET` server-side (see
-*Deployment*).
+**Turnstile site key**: `vote.html` / `en/vote.html` carry the public production `data-turnstile-sitekey`
+on `#vote-app`. Keep the matching Turnstile widget secret in the Cloudflare Pages `TURNSTILE_SECRET`
+environment variable; local development can still use Cloudflare's always-pass test key/secret in
+`.dev.vars`.
 
 **Local development**
 ```
