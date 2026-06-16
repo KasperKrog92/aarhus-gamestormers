@@ -2,6 +2,31 @@
 
 Created 2026-06-16 as a prerequisite for full voting automation.
 
+## Progress
+
+### 2026-06-16 Phase 1 Complete
+
+Implemented the data/API foundation as a reviewable first phase:
+
+- Added `meetings`, `games`, and `meeting_copy` to `schema.sql`.
+- Added migration/table helpers in `functions/_lib/db.js`.
+- Added DB helper functions for public meeting reads, meeting/game upserts, attaching a selected game, and localized meeting copy.
+- Added `GET /api/meetings/public`.
+- Added `node:test` coverage for public-safe output shaping and upcoming/history/planned grouping.
+- Applied the local schema with `npx --yes wrangler d1 execute gamestormers --local --file=./schema.sql`.
+- Ran `npm test`, passing 9/9 tests.
+- Smoke-tested `/api/meetings/public` through `wrangler pages dev`, returning `200 OK`.
+
+Deferred to later phases:
+
+- Admin UI and round-creation integration.
+- Homepage dynamic rendering.
+- Selected-game promotion flow.
+- Voting page next-round notice.
+- JSON-LD generation.
+- Sale workflow migration.
+- Documentation migration and D1 backfill.
+
 ## Goal
 
 Make meetings and selected games database-backed so the maintainer can create future rounds with known meeting numbers and dates, then let the site handle the public lifecycle:
@@ -135,23 +160,25 @@ Notes:
 
 ## Task 1: Add Meeting Content Schema
 
-- [ ] Add `meetings`, `games`, and `meeting_copy` to `schema.sql`.
-- [ ] Add migration helpers in `functions/_lib/db.js`.
-- [ ] Add DB helper functions:
+- [x] Add `meetings`, `games`, and `meeting_copy` to `schema.sql`.
+- [x] Add migration helpers in `functions/_lib/db.js`.
+- [x] Add DB helper functions:
   - `getPublicMeetings(db)`
   - `getMeetingById(db, id)`
   - `upsertMeeting(db, meeting)`
   - `upsertGame(db, game)`
   - `attachGameToMeeting(db, meetingId, gameId, suggestionId)`
   - `upsertMeetingCopy(db, meetingId, lang, copy)`
-- [ ] Add `node:test` coverage for data shaping and public-safe output.
-- [ ] Run local schema:
+- [x] Add `node:test` coverage for data shaping and public-safe output.
+- [x] Run local schema:
 
 ```powershell
 wrangler d1 execute gamestormers --local --file=./schema.sql
 ```
 
-- [ ] Run `npm test`.
+- [x] Run `npm test`.
+
+Note: local schema was applied with `npx --yes wrangler ...` because `wrangler` was not on PATH in the shell.
 
 ## Task 2: Connect Rounds To Meetings
 
@@ -165,27 +192,29 @@ wrangler d1 execute gamestormers --local --file=./schema.sql
 
 ## Task 3: Public Meetings API
 
-- [ ] Add `GET /api/meetings/public`.
-- [ ] Return:
+- [x] Add `GET /api/meetings/public`.
+- [x] Return:
   - future meetings with selected games as upcoming events
   - past meetings with selected games as history
   - planned meetings without a selected game as lightweight "next round" metadata
-- [ ] Do not expose storm codes, ballot data, admin notes, or pending/rejected suggestions.
-- [ ] Include enough data to render:
+- [x] Do not expose storm codes, ballot data, admin notes, or pending/rejected suggestions.
+- [x] Include enough data to render:
   - event cards
   - history cards
   - calendar links
   - countdown dates
   - store links and sale-badge attributes
   - JSON-LD event objects
-- [ ] Sort by meeting number and date.
-- [ ] Add tests for public output shape.
-- [ ] Verify locally with:
+- [x] Sort by meeting number and date.
+- [x] Add tests for public output shape.
+- [x] Verify locally with:
 
 ```powershell
 npm run dev
 Invoke-WebRequest http://127.0.0.1:8788/api/meetings/public
 ```
+
+Note: verified via `npx --yes wrangler pages dev . --port 8788`; the route returned `200 OK`.
 
 ## Task 4: Shared Frontend Renderers
 
@@ -302,4 +331,3 @@ npm run dev
 After this plan is implemented, update `2026-06-16-phase-b-voting-automation.md` so its reveal step promotes the winner into `meetings`/`games` instead of generating a Markdown handoff as the primary output.
 
 The handoff can remain as a fallback for missing manual fields, especially HowLongToBeat and localized descriptions.
-

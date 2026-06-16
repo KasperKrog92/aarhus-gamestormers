@@ -23,6 +23,54 @@ CREATE TABLE IF NOT EXISTS rounds (
   created_at           TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- Public meeting records are the source of truth for homepage event/history
+-- content. The id matches the meeting number and should match rounds.id when
+-- voting exists for the same meeting.
+CREATE TABLE IF NOT EXISTS meetings (
+  id                     INTEGER PRIMARY KEY,
+  meeting_date           TEXT NOT NULL,
+  starts_at_utc          TEXT NOT NULL,
+  ends_at_utc            TEXT NOT NULL,
+  timezone               TEXT NOT NULL DEFAULT 'Europe/Copenhagen',
+  venue_name             TEXT NOT NULL,
+  venue_address          TEXT,
+  discord_invite         TEXT,
+  status                 TEXT NOT NULL DEFAULT 'planned'
+                           CHECK (status IN ('planned','suggesting','voting','revealed','completed','cancelled')),
+  selected_suggestion_id INTEGER REFERENCES suggestions(id) ON DELETE SET NULL,
+  selected_game_id       INTEGER,
+  created_at             TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at             TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- Reusable selected-game metadata for public event and history cards.
+CREATE TABLE IF NOT EXISTS games (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  steam_appid     TEXT,
+  title           TEXT NOT NULL,
+  header_image    TEXT,
+  store_url       TEXT,
+  gog_url         TEXT,
+  gog_id          TEXT,
+  genres          TEXT,
+  platforms       TEXT,
+  price           TEXT,
+  playtime_hours  INTEGER,
+  hltb_url        TEXT,
+  description_da  TEXT,
+  description_en  TEXT,
+  created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS meeting_copy (
+  meeting_id          INTEGER NOT NULL REFERENCES meetings(id) ON DELETE CASCADE,
+  lang                TEXT NOT NULL CHECK (lang IN ('da','en')),
+  event_description   TEXT,
+  history_description TEXT,
+  PRIMARY KEY (meeting_id, lang)
+);
+
 -- One suggested game. New suggestions land as 'pending' for maintainer curation.
 CREATE TABLE IF NOT EXISTS suggestions (
   id             INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -64,3 +112,5 @@ CREATE TABLE IF NOT EXISTS votes (
 CREATE INDEX IF NOT EXISTS idx_suggestions_round ON suggestions(round_id, status);
 CREATE INDEX IF NOT EXISTS idx_votes_round       ON votes(round_id, suggestion_id);
 CREATE INDEX IF NOT EXISTS idx_votes_ballot      ON votes(round_id, ballot_id);
+CREATE INDEX IF NOT EXISTS idx_meetings_date     ON meetings(starts_at_utc, ends_at_utc);
+CREATE INDEX IF NOT EXISTS idx_meetings_status   ON meetings(status);
