@@ -45,7 +45,7 @@ body {
 }
 
 /* Push the footer to the bottom of the viewport when content is short */
-body > main { flex: 1 0 auto; }
+body > main { flex: 1 0 auto; display: flex; flex-direction: column; }
 
 a { color: inherit; text-decoration: none; }
 img { display: block; max-width: 100%; height: auto; }
@@ -1023,7 +1023,7 @@ img { display: block; max-width: 100%; height: auto; }
 .gs-vote {
   padding: 56px 0 72px;
   background: var(--purple);
-  min-height: 60vh;
+  flex: 1;
 }
 .gs-vote .section-title { color: var(--cream); }
 .vote-status {
