@@ -52,7 +52,7 @@ var STRINGS = {
     statusRevealed: 'The result is in',
     introNone: 'There is no active round right now. Watch Discord for the next vote.',
     introSuggesting:
-      ‘Suggest a game for the next meeting. Paste a Steam link and we’ll pull in the title, image and genres automatically. You’ll need the meeting code from Discord.’,
+      "Suggest a game for the next meeting. Paste a Steam link and we’ll pull in the title, image and genres automatically. You’ll need the meeting code from Discord.",
     introVoting:
       'Tick <b>every</b> game you’d be happy to play — the one with the most ticks wins. You’ll need the meeting code from Discord.',
     introRevealed: 'Thanks to everyone who voted! Here’s the result — the winner becomes the next meeting’s game.',
