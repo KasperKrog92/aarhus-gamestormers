@@ -164,6 +164,15 @@
     });
   }
 
+  function prefillNewRound(rounds) {
+    var nextId = rounds.length
+      ? Math.max.apply(null, rounds.map(function (r) { return r.id; })) + 1
+      : 1;
+    $('nr-id').value = nextId;
+    $('nr-code').value = 'storm' + nextId;
+    $('nr-title').value = 'Meeting ' + nextId;
+  }
+
   function applyData(data) {
     currentRoundId = data.round ? data.round.id : null;
     renderRound(data.round, data.tallies || {});
@@ -188,6 +197,7 @@
         $('auth-card').hidden = true;
         if (!currentRoundId && data.round) currentRoundId = data.round.id;
         renderRoundPicker(roundList, currentRoundId);
+        prefillNewRound(roundList);
         applyData(data);
       })
       .catch(function (err) {
