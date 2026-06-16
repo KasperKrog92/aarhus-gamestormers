@@ -41,6 +41,7 @@ jobs:
             const gogIdPattern = /data-gog-id=["'](\d+)["']/g;
             const gogAnchorPattern = /href="(https:\/\/www\.gog\.com\/[^"]*)"[^>]*data-gog-id=["'](\d+)["']/;
             const titleAfterPattern = /<h3 class="event-title">([\s\S]*?)<\/h3>/;
+            const eventDatePattern = /<span class="event-detail-label">(?:Dato|Date)<\/span>\s*<span class="event-detail-value">([\s\S]*?)<\/span>/;
 
             for (const file of htmlFiles) {
               const html = await fs.readFile(file, 'utf8');
@@ -50,13 +51,17 @@ jobs:
                 const after = html.slice(blockMatch.index + blockMatch[0].length);
                 const titleMatch = after.match(titleAfterPattern);
                 const title = titleMatch ? titleMatch[1].replace(/\s+/g, ' ').trim() : '';
+                // The meeting date is the first event-detail value after the block.
+                // en/index.html is scanned last, so the English date wins.
+                const dateMatch = after.match(eventDatePattern);
+                const date = dateMatch ? dateMatch[1].replace(/\s+/g, ' ').trim() : '';
 
                 for (const match of block.matchAll(steamLinkPattern)) {
                   steamAppIds.add(match[1]);
                 }
                 const steamHref = block.match(steamHrefPattern);
                 if (steamHref) {
-                  steamMeta[steamHref[2]] = { title, url: steamHref[1] };
+                  steamMeta[steamHref[2]] = { title, date, url: steamHref[1] };
                 }
 
                 for (const match of block.matchAll(gogIdPattern)) {
@@ -64,7 +69,7 @@ jobs:
                 }
                 const gogAnchor = block.match(gogAnchorPattern);
                 if (gogAnchor) {
-                  gogMeta[gogAnchor[2]] = { title, url: gogAnchor[1] };
+                  gogMeta[gogAnchor[2]] = { title, date, url: gogAnchor[1] };
                 }
               }
             }
@@ -230,9 +235,12 @@ jobs:
                     const dkk = eurToDkk(info.finalFormatted);
                     if (dkk) price += ` (≈${dkk})`;
                   }
+                  const meetingLine = game.date
+                    ? `Our game for the meeting on ${game.date}.`
+                    : 'Our next club game.';
                   // Bare URL on its own line so Discord unfurls a rich store embed.
                   const linkLine = game.url ? `\n${game.url}` : '';
-                  announcements.push(`🔥 **${title}** is now ${info.discountPercent}% off — ${price}${linkLine}`);
+                  announcements.push(`🔥 **${title}** is now ${info.discountPercent}% off!\n${meetingLine}\nPrice: ${price}${linkLine}`);
                 }
               }
 

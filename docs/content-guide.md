@@ -64,7 +64,7 @@ Timezone quick reference:
 - GOG event links need `data-gog-id="{GOG_PRODUCT_ID}"` and are matched against `data/gog-sales.json`.
 - `.github/workflows/update-steam-sales.yml` refreshes both JSON files by scanning upcoming event store-link blocks.
 - If the workflow has not run yet, the JSON can be manually updated with `onSale`, `discountPercent`, and optional formatted prices.
-- The same workflow posts a Discord message when a game newly goes on sale (an off-to-on transition versus the previous run, so it never spams while a sale lasts). It is gated on the repo secret `DISCORD_WEBHOOK_URL`; if the secret is unset, notification is skipped and sale data still updates.
+- The same workflow posts a Discord message when a game newly goes on sale (an off-to-on transition versus the previous run, so it never spams while a sale lasts). The message names the game's meeting date (read from the English event card) and links the store page. It is gated on the repo secret `DISCORD_WEBHOOK_URL`; if the secret is unset, notification is skipped and sale data still updates.
 - Steam prices Denmark in EUR, so the Discord message shows the EUR price plus an approximate DKK (fixed peg rate `7.46`). GOG already reports DKK and is shown as-is.
 
 ## Past Meetings
