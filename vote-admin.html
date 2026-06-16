@@ -7,7 +7,7 @@
   <title>Vote admin – Aarhus Gamestormers</title>
   <link rel="icon" type="image/png" href="/favicon/favicon.png">
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=DM+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/style.css?v=9">
+  <link rel="stylesheet" href="/css/style.css?v=10">
   <meta name="theme-color" content="#2B2436">
 </head>
 
@@ -42,41 +42,42 @@
     <div id="admin-body" hidden>
       <div class="admin-picker-row">
         <select class="admin-select" id="round-select"></select>
-        <button class="admin-btn primary" id="btn-new-round">+ New round</button>
+        <button class="admin-btn primary" id="btn-new-round" type="button" aria-expanded="false" aria-controls="new-round-panel">+ New round</button>
       </div>
 
-      <details class="admin-section">
+      <div class="admin-card admin-new-round" id="new-round-panel" hidden>
+        <div class="admin-new-round-head">
+          <h2>Open a new round</h2>
+          <button class="admin-btn ghost" id="nr-cancel" type="button">Cancel</button>
+        </div>
+        <p class="admin-meta">Creates the next round and makes it the current one (phase: suggesting).</p>
+        <div class="admin-grid">
+          <div>
+            <label class="admin-field-label" for="nr-id">Meeting number</label>
+            <input class="admin-input" id="nr-id" type="number" min="1" placeholder="19">
+          </div>
+          <div>
+            <label class="admin-field-label" for="nr-code">Storm code</label>
+            <input class="admin-input" id="nr-code" type="text" placeholder="storm19">
+          </div>
+          <div>
+            <label class="admin-field-label" for="nr-title">Title (optional)</label>
+            <input class="admin-input" id="nr-title" type="text" placeholder="Meeting 19">
+          </div>
+          <div>
+            <label class="admin-field-label" for="nr-closes">Voting closes (optional)</label>
+            <input class="admin-input" id="nr-closes" type="text" placeholder="2026-09-01">
+          </div>
+        </div>
+        <div class="admin-actions">
+          <button class="admin-btn primary" id="open-round">Open round</button>
+        </div>
+        <div class="admin-msg" id="new-round-msg" hidden></div>
+      </div>
+
+      <details class="admin-section" open>
         <summary class="admin-section-summary">Round</summary>
         <div id="round-area"></div>
-      </details>
-
-      <details class="admin-section" id="new-round-section">
-        <summary class="admin-section-summary">Open a new round</summary>
-        <div class="admin-card" id="new-round-card">
-          <p class="admin-meta">Creates the next round and makes it the current one (phase: suggesting).</p>
-          <div class="admin-grid">
-            <div>
-              <label class="admin-field-label" for="nr-id">Meeting number</label>
-              <input class="admin-input" id="nr-id" type="number" min="1" placeholder="19">
-            </div>
-            <div>
-              <label class="admin-field-label" for="nr-code">Storm code</label>
-              <input class="admin-input" id="nr-code" type="text" placeholder="storm19">
-            </div>
-            <div>
-              <label class="admin-field-label" for="nr-title">Title (optional)</label>
-              <input class="admin-input" id="nr-title" type="text" placeholder="Meeting 19">
-            </div>
-            <div>
-              <label class="admin-field-label" for="nr-closes">Voting closes (optional)</label>
-              <input class="admin-input" id="nr-closes" type="text" placeholder="2026-09-01">
-            </div>
-          </div>
-          <div class="admin-actions">
-            <button class="admin-btn primary" id="open-round">Open round</button>
-          </div>
-          <div class="admin-msg" id="new-round-msg" hidden></div>
-        </div>
       </details>
 
       <details class="admin-section">
@@ -415,7 +416,7 @@
     }).then(function () {
       showMsg(msg, 'Round opened.', true);
       $('nr-id').value = $('nr-code').value = $('nr-title').value = $('nr-closes').value = '';
-      $('new-round-section').open = false;
+      toggleNewRound(false);
       currentRoundId = null;
       load();
     }).catch(function (e) { showMsg(msg, e.message, false); });
@@ -426,11 +427,22 @@
     if (id) loadRound(id);
   });
 
-  $('btn-new-round').addEventListener('click', function () {
-    var sec = $('new-round-section');
-    sec.open = true;
-    sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  });
+  function toggleNewRound(show) {
+    var panel = $('new-round-panel');
+    var btn = $('btn-new-round');
+    var open = show != null ? show : panel.hidden;
+    panel.hidden = !open;
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    btn.classList.toggle('active', open);
+    if (open) {
+      $('new-round-msg').hidden = true;
+      panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      $('nr-id').focus();
+    }
+  }
+
+  $('btn-new-round').addEventListener('click', function () { toggleNewRound(); });
+  $('nr-cancel').addEventListener('click', function () { toggleNewRound(false); });
 
   $('connect').addEventListener('click', connect);
   $('token').addEventListener('keydown', function (e) { if (e.key === 'Enter') connect(); });

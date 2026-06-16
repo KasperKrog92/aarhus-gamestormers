@@ -1345,6 +1345,10 @@ img { display: block; max-width: 100%; height: auto; }
   min-height: 100vh;
   padding: 28px 0 64px;
 }
+/* main.gs-admin is a flex column; .wrap uses margin:0 auto, and auto margins on a
+   flex item suppress stretching — so the wrap would collapse to its content width.
+   Force it to fill (capped by .wrap's own max-width) so the admin uses the page. */
+.gs-admin .wrap { width: 100%; }
 .admin-card {
   background: var(--white);
   border: 1px solid var(--cream-dark);
@@ -1372,8 +1376,8 @@ img { display: block; max-width: 100%; height: auto; }
 .admin-fields { flex: 1; min-width: 0; }
 .admin-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 10px 14px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px 16px;
   margin-bottom: 12px;
 }
 .admin-field-label {
@@ -1450,6 +1454,24 @@ img { display: block; max-width: 100%; height: auto; }
   margin-bottom: 16px;
 }
 .admin-picker-row .admin-select { flex: 1; max-width: 360px; width: auto; }
+.admin-picker-row .admin-btn { flex-shrink: 0; }
+.admin-btn.primary.active { background: var(--green-dark); }
+.admin-new-round {
+  border-left: 3px solid var(--green);
+  animation: admin-nr-in 0.18s ease-out;
+}
+@keyframes admin-nr-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.admin-new-round-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+.admin-new-round-head h2 { margin-bottom: 0; }
 .admin-section { margin-bottom: 4px; }
 .admin-section-summary {
   font-family: 'Barlow Condensed', sans-serif;
