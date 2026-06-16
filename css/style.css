@@ -1065,6 +1065,40 @@ img { display: block; max-width: 100%; height: auto; }
   padding: 1px 7px;
   border-radius: 5px;
 }
+.vote-guidelines {
+  max-width: 620px;
+  margin: 0 0 12px;
+  padding: 16px 18px;
+  border: 1px solid rgba(150,195,141,0.2);
+  border-radius: 8px;
+  background: rgba(247,244,238,0.045);
+}
+.vote-guidelines-title {
+  margin-bottom: 10px;
+  color: var(--cream);
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 1.08rem;
+  font-weight: 800;
+  line-height: 1.15;
+}
+.vote-guidelines ul {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding-left: 20px;
+}
+.vote-guidelines li {
+  color: rgba(247,244,238,0.72);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+.vote-guidelines a {
+  color: var(--green);
+  font-weight: 700;
+}
+.vote-guidelines a:hover {
+  color: var(--green-light);
+}
 .vote-meeting {
   display: inline-flex;
   align-items: center;

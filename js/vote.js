@@ -18,6 +18,15 @@ var STRINGS = {
     formTitle: 'Foreslå et spil',
     suggestToggle: 'Foreslå nyt spil',
     hideSuggest: 'Skjul formular',
+    guidelinesTitle: 'Hvilke spil passer godt?',
+    guidelinesPc: 'Spillet skal kunne spilles på PC.',
+    guidelinesLength: 'Det bør som regel tage ca. 10 timer eller mindre at gennemføre.',
+    guidelinesLong: 'Længere spil og spil uden fast slutning er velkomne, bare skriv det tydeligt i din pitch.',
+    guidelinesCheckPrefix: 'Tjek ',
+    guidelinesUpcoming: 'kommende spil',
+    guidelinesCheckMiddle: ' og ',
+    guidelinesHistory: 'tidligere spil',
+    guidelinesCheckSuffix: ', før du foreslår noget.',
     steamQuestion: 'Er spillet på Steam?',
     steamYes: 'Ja, det er på Steam',
     steamNo: 'Nej / ikke på Steam',
@@ -34,7 +43,7 @@ var STRINGS = {
     gameDescription: 'Spilbeskrivelse',
     suggestedPitch: 'Pitch fra forslagsstiller',
     labelPitch: 'Din pitch (valgfri)',
-    pitchPlaceholder: 'Hvorfor skulle vi spille det? Et par linjer.',
+    pitchPlaceholder: 'Hvorfor skulle vi spille det? Skriv et par linjer på engelsk.',
     labelName: 'Dit navn (valgfri)',
     namePlaceholder: 'Vises på forslagskortet',
     labelCode: 'Mødekode',
@@ -74,6 +83,15 @@ var STRINGS = {
     formTitle: 'Suggest a game',
     suggestToggle: 'Suggest new game',
     hideSuggest: 'Hide form',
+    guidelinesTitle: 'What kind of game works well?',
+    guidelinesPc: 'The game must be playable on PC.',
+    guidelinesLength: 'It should usually take about 10 hours or less to finish.',
+    guidelinesLong: 'Longer games and never-ending games are welcome, just make that clear in your pitch.',
+    guidelinesCheckPrefix: 'Check ',
+    guidelinesUpcoming: 'upcoming games',
+    guidelinesCheckMiddle: ' and ',
+    guidelinesHistory: 'games already played',
+    guidelinesCheckSuffix: ' before suggesting.',
     steamQuestion: 'Is the game on Steam?',
     steamYes: 'Yes, it’s on Steam',
     steamNo: 'No / not on Steam',
@@ -90,7 +108,7 @@ var STRINGS = {
     gameDescription: 'Game description',
     suggestedPitch: 'Suggested pitch',
     labelPitch: 'Your pitch (optional)',
-    pitchPlaceholder: 'Why should we play it? A couple of lines.',
+    pitchPlaceholder: 'Why should we play it? Please write a couple of lines in English.',
     labelName: 'Your name (optional)',
     namePlaceholder: 'Shown on the suggestion card',
     labelCode: 'Meeting code',
@@ -120,8 +138,10 @@ var STRINGS = {
   var app = document.getElementById('vote-app');
   if (!app) return;
 
+  var TURNSTILE_TEST_SITEKEY = '1x00000000000000000000AA';
   var lang = document.documentElement.lang === 'en' ? 'en' : 'da';
-  var sitekey = app.getAttribute('data-turnstile-sitekey') || '';
+  var isLocalPreview = ['localhost', '127.0.0.1', '0.0.0.0'].includes(window.location.hostname);
+  var sitekey = isLocalPreview ? TURNSTILE_TEST_SITEKEY : (app.getAttribute('data-turnstile-sitekey') || '');
   var T = STRINGS[lang];
 
   var tsWidgetId = null;
@@ -282,6 +302,26 @@ var STRINGS = {
     return el('p', { class: 'vote-meeting', text: T.meetingFor.replace('{meeting}', roundLabel(round)) });
   }
 
+  function suggestionGuidelines() {
+    var eventsHref = lang === 'en' ? '/en/#events' : '/#events';
+    var historyHref = lang === 'en' ? '/en/#history' : '/#history';
+    return el('aside', { class: 'vote-guidelines' }, [
+      el('h2', { class: 'vote-guidelines-title', text: T.guidelinesTitle }),
+      el('ul', null, [
+        el('li', { text: T.guidelinesPc }),
+        el('li', { text: T.guidelinesLength }),
+        el('li', { text: T.guidelinesLong }),
+        el('li', null, [
+          T.guidelinesCheckPrefix,
+          el('a', { href: eventsHref, text: T.guidelinesUpcoming }),
+          T.guidelinesCheckMiddle,
+          el('a', { href: historyHref, text: T.guidelinesHistory }),
+          T.guidelinesCheckSuffix,
+        ]),
+      ]),
+    ]);
+  }
+
   function msgBox() {
     return el('div', { class: 'vote-msg', role: 'status', hidden: 'hidden' });
   }
@@ -357,6 +397,7 @@ var STRINGS = {
       clear(panel);
       var yesBtn = el('button', { class: 'btn-green', type: 'button', text: T.steamYes, onclick: showSteamForm });
       var noBtn = el('button', { class: 'vote-choice-alt', type: 'button', text: T.steamNo, onclick: showManualForm });
+      panel.appendChild(suggestionGuidelines());
       panel.appendChild(el('div', { class: 'vote-panel vote-choice' }, [
         el('h2', { class: 'vote-panel-title', text: T.steamQuestion }),
         el('div', { class: 'vote-choice-btns' }, [yesBtn, noBtn]),

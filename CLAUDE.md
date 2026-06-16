@@ -43,7 +43,7 @@ Open `http://127.0.0.1:8788/`.
 
 Use the dev server instead of a raw-file preview. Raw-file preview breaks absolute asset paths and cannot run `/api/*` Pages Functions.
 
-For `vote-admin.html`, use the `ADMIN_TOKEN` from `.dev.vars`; the local value is expected to be `local-admin-token`.
+For `vote-admin.html`, use the `ADMIN_TOKEN` from `.dev.vars`; the local value is expected to be `test`.
 
 If `/api/*` reports missing D1 tables, run:
 

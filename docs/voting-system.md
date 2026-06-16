@@ -64,6 +64,13 @@ Admin moderation compensates for the low-friction flow:
 
 ## Suggestion Curation
 
+Member-facing suggestion guidelines:
+
+- Games must be playable on PC.
+- The usual target is about 10 hours or less to finish.
+- Longer games and open-ended games are allowed when the pitch clearly says so.
+- The vote page links to upcoming games and the history section so members can avoid suggesting games already scheduled or played.
+
 Steam suggestions:
 
 - User submits a Steam store URL.
@@ -84,6 +91,8 @@ HowLongToBeat has no API in this project. `playtime_hours` is filled manually by
 
 `vote.html` and `en/vote.html` carry the public production `data-turnstile-sitekey` on `#vote-app`.
 
+`js/vote.js` overrides that sitekey on `localhost`, `127.0.0.1`, and `0.0.0.0` with Cloudflare's always-pass visible test sitekey, `1x00000000000000000000AA`.
+
 Keep the matching secret in Cloudflare Pages as `TURNSTILE_SECRET`. Local development can use Cloudflare's always-pass test secret in `.dev.vars`.
 
 ## Local Development
@@ -98,7 +107,7 @@ Create `.dev.vars` with:
 
 ```text
 TURNSTILE_SECRET=...
-ADMIN_TOKEN=local-admin-token
+ADMIN_TOKEN=test
 ```
 
 Open:
@@ -107,7 +116,7 @@ Open:
 - `http://127.0.0.1:8788/en/vote.html`
 - `http://127.0.0.1:8788/vote-admin.html`
 
-Use `local-admin-token` for the admin page when using the local `.dev.vars` value.
+Use `test` for the admin page when using the local `.dev.vars` value.
 
 Apply the schema to production only when intentionally changing production D1:
 

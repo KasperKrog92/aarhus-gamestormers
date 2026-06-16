@@ -24,7 +24,7 @@ The agent Preview panel renders the raw `.html` file directly. That breaks two t
 `wrangler pages dev` fixes both: it serves the static files, runs the Pages Functions under `/api/*`, and binds the **local** D1 database. Then:
 
 - Open `http://127.0.0.1:8788/` (or `/vote.html`, `/vote-admin.html`) in a browser to verify styling and behaviour.
-- For `vote-admin.html`, connect with the `ADMIN_TOKEN` from `.dev.vars` (local value is `local-admin-token`).
+- For `vote-admin.html`, connect with the `ADMIN_TOKEN` from `.dev.vars` (local value is `test`).
 - First-time setup (if `/api/*` errors with a missing-table error) needs the local D1 schema applied once:
   `wrangler d1 execute gamestormers --local --file=./schema.sql`. `.dev.vars` must hold `TURNSTILE_SECRET` (Turnstile test secret) and `ADMIN_TOKEN`.
 

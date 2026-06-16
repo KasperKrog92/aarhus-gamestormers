@@ -10,6 +10,8 @@ Use the Cloudflare Pages dev server when you need to see the rendered site or te
 npm run dev
 ```
 
+On Windows, you can also double-click `dev-preview.cmd` in the repo root. It starts the same dev server and opens `http://127.0.0.1:8788/` in your browser.
+
 This runs:
 
 ```powershell
@@ -30,7 +32,7 @@ Also useful:
 
 Do not rely on an IDE or agent raw-file preview for verification. Raw-file preview breaks absolute asset paths such as `/css/style.css` and cannot run the Pages Functions under `/api/*`.
 
-For `vote-admin.html`, use the local `ADMIN_TOKEN` from `.dev.vars`. The current local value is expected to be `local-admin-token`.
+For `vote-admin.html`, use the local `ADMIN_TOKEN` from `.dev.vars`. The current local value is expected to be `test`.
 
 If `/api/*` fails with a missing-table error, apply the local D1 schema once:
 
@@ -39,6 +41,8 @@ wrangler d1 execute gamestormers --local --file=./schema.sql
 ```
 
 `.dev.vars` must include `TURNSTILE_SECRET` and `ADMIN_TOKEN`.
+
+Local preview uses Cloudflare's always-pass Turnstile test sitekey automatically. If the local admin token or Turnstile secret changes, restart the dev server so Wrangler reloads `.dev.vars`.
 
 ## Cloudflare Pages Settings
 
