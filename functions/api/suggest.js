@@ -10,7 +10,8 @@
 // Body (non-Steam): { onSteam:false, title, storeUrl, genres, pitch, suggestedBy, stormCode, turnstileToken }
 // Gated by: phase === 'suggesting', correct storm code, Turnstile pass.
 import { json, fail, readJson, clean } from '../_lib/http.js';
-import { ensureSuggestionDescriptionColumns, getCurrentRound, toCard } from '../_lib/db.js';
+import { ensureRoundScheduleColumns, ensureSuggestionDescriptionColumns, getCurrentRound, toCard } from '../_lib/db.js';
+import { roundScheduleState } from '../_lib/schedule.js';
 import { parseSteamAppId, fetchSteamGame } from '../_lib/steam.js';
 import { verifyTurnstile } from '../_lib/turnstile.js';
 
@@ -32,9 +33,11 @@ export async function onRequestPost({ request, env }) {
   const body = await readJson(request);
   if (!body) return fail('Invalid request body');
 
+  await ensureRoundScheduleColumns(db);
   const round = await getCurrentRound(db);
   if (!round) return fail('No active round', 409);
   if (round.phase !== 'suggesting') return fail('Suggestions are closed for this round', 409);
+  if (!roundScheduleState(round).suggestionsAreOpen) return fail('Suggestions are not open yet', 409);
 
   if (clean(body.stormCode, 40) !== round.storm_code) return fail('Wrong code', 403);
 

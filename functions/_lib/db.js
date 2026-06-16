@@ -1,5 +1,6 @@
 // D1 query helpers + card shaping. `db` is the D1 binding (env.DB).
 let descriptionColumnsChecked = false;
+let roundScheduleColumnsChecked = false;
 
 async function columnExists(db, table, column) {
   const { results } = await db.prepare('PRAGMA table_info(' + table + ')').all();
@@ -20,6 +21,15 @@ export async function ensureSuggestionDescriptionColumns(db) {
   await addColumnIfMissing(db, 'suggestions', 'description_da', 'TEXT');
   await addColumnIfMissing(db, 'suggestions', 'description_en', 'TEXT');
   descriptionColumnsChecked = true;
+}
+
+export async function ensureRoundScheduleColumns(db) {
+  if (roundScheduleColumnsChecked) return;
+  await addColumnIfMissing(db, 'rounds', 'meeting_date', 'TEXT');
+  await addColumnIfMissing(db, 'rounds', 'suggestions_open_months_before', 'REAL DEFAULT 2.5');
+  await addColumnIfMissing(db, 'rounds', 'voting_closes_months_before', 'REAL DEFAULT 2');
+  await addColumnIfMissing(db, 'rounds', 'suggestions_open_at', 'TEXT');
+  roundScheduleColumnsChecked = true;
 }
 
 // The "current" round is simply the most recently opened one (highest id).

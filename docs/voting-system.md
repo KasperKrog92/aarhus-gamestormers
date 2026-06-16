@@ -20,7 +20,7 @@ It is the site's only dynamic feature. It runs on Cloudflare Pages Functions and
 
 ## D1 Tables
 
-- `rounds`: meeting round, phase, winner, and storm code.
+- `rounds`: meeting round, meeting date, schedule windows, phase, winner, and storm code.
 - `suggestions`: submitted games and imported metadata.
 - `votes`: approval-voting rows, one row per selected game, with optional self-reported `voter_name`.
 
@@ -31,7 +31,7 @@ It is the site's only dynamic feature. It runs on Cloudflare Pages Functions and
 | `/api/round/current` | GET | Current round and approved cards. Tallies are only exposed when revealed. The storm code is never exposed. |
 | `/api/suggest` | POST | Submit a suggestion. Steam suggestions are imported server-side and auto-approved. Non-Steam suggestions are pending until maintainer approval. |
 | `/api/vote` | POST | Cast an approval ballot with optional voter name. |
-| `/api/admin/round` | GET/POST/PATCH | Read full round, open a new round, change phase, winner, or code. |
+| `/api/admin/round` | GET/POST/PATCH | Read full round, open a new round, change phase, winner, code, meeting date, or schedule windows. |
 | `/api/admin/suggestion/:id` | PATCH/DELETE | Approve, reject, edit, or delete a suggestion. |
 | `/api/admin/ballot/:ballotId` | DELETE | Remove a single ballot and all its votes. |
 
@@ -44,6 +44,20 @@ suggesting -> voting -> revealed -> closed
 ```
 
 The current round is the row with the highest `id`, which also maps to the meeting number.
+
+## Round Schedule
+
+Each round can be attached to a `meeting_date` (`YYYY-MM-DD`). When the admin creates a round with a meeting date, the system defaults:
+
+- `suggestions_open_months_before`: `2.5`
+- `voting_closes_months_before`: `2`
+- `suggestions_open_at`: derived from the meeting date and suggestion lead time.
+- `voting_closes_at`: derived from the meeting date and voting close lead time.
+
+The month offsets and dates are shown on `vote.html` / `en/vote.html`; both the numbers and the resulting dates can be edited on `vote-admin.html`. Fractional months are converted as 30-day fractions, so `2.5` means two calendar months plus 15 days. The admin still controls the phase manually (`suggesting -> voting -> revealed -> closed`), but the API enforces the schedule boundaries:
+
+- Suggestions are rejected before `suggestions_open_at` when the round is in `suggesting`.
+- Votes are rejected after `voting_closes_at` when the round is in `voting`; the close date itself is inclusive for the whole day.
 
 ## Vote Integrity
 

@@ -7,7 +7,7 @@
   <title>Vote admin – Aarhus Gamestormers</title>
   <link rel="icon" type="image/png" href="/favicon/favicon.png">
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=DM+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/style.css?v=11">
+  <link rel="stylesheet" href="/css/style.css?v=12">
   <meta name="theme-color" content="#2B2436">
 </head>
 
@@ -65,8 +65,24 @@
             <input class="admin-input" id="nr-title" type="text" placeholder="Meeting 19">
           </div>
           <div>
-            <label class="admin-field-label" for="nr-closes">Voting closes (optional)</label>
-            <input class="admin-input" id="nr-closes" type="text" placeholder="2026-09-01">
+            <label class="admin-field-label" for="nr-meeting-date">Meeting date</label>
+            <input class="admin-input" id="nr-meeting-date" type="date">
+          </div>
+          <div>
+            <label class="admin-field-label" for="nr-suggestions-months">Suggestions start months before</label>
+            <input class="admin-input" id="nr-suggestions-months" type="number" min="0" max="24" step="0.1" value="2.5">
+          </div>
+          <div>
+            <label class="admin-field-label" for="nr-voting-months">Voting closes months before</label>
+            <input class="admin-input" id="nr-voting-months" type="number" min="0" max="24" step="0.1" value="2">
+          </div>
+          <div>
+            <label class="admin-field-label" for="nr-suggestions-open">Suggestions open</label>
+            <input class="admin-input" id="nr-suggestions-open" type="date">
+          </div>
+          <div>
+            <label class="admin-field-label" for="nr-closes">Voting closes</label>
+            <input class="admin-input" id="nr-closes" type="date">
           </div>
         </div>
         <div class="admin-actions">
@@ -102,6 +118,53 @@
 
   var $ = function (id) { return document.getElementById(id); };
   var PHASES = ['suggesting', 'voting', 'revealed', 'closed'];
+  var DAY_MS = 24 * 60 * 60 * 1000;
+
+  function parseDateOnly(value) {
+    var match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!match) return null;
+    var date = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
+    if (date.getUTCFullYear() !== Number(match[1]) || date.getUTCMonth() !== Number(match[2]) - 1 || date.getUTCDate() !== Number(match[3])) return null;
+    return date;
+  }
+
+  function dateOnly(date) {
+    return date.toISOString().slice(0, 10);
+  }
+
+  function addMonthsClamped(date, deltaMonths) {
+    var sourceYear = date.getUTCFullYear();
+    var sourceMonth = date.getUTCMonth();
+    var sourceDay = date.getUTCDate();
+    var targetMonthIndex = sourceYear * 12 + sourceMonth + deltaMonths;
+    var targetYear = Math.floor(targetMonthIndex / 12);
+    var targetMonth = targetMonthIndex - targetYear * 12;
+    var lastDay = new Date(Date.UTC(targetYear, targetMonth + 1, 0)).getUTCDate();
+    return new Date(Date.UTC(targetYear, targetMonth, Math.min(sourceDay, lastDay)));
+  }
+
+  function cleanMonthsBefore(value, fallback) {
+    var number = Number(value);
+    if (!Number.isFinite(number) || number < 0 || number > 24) return fallback;
+    return Math.round(number * 10) / 10;
+  }
+
+  function dateBeforeMeeting(meeting, monthsBefore) {
+    var wholeMonths = Math.trunc(monthsBefore);
+    var days = Math.round((monthsBefore - wholeMonths) * 30);
+    return dateOnly(new Date(addMonthsClamped(meeting, -wholeMonths).getTime() - days * DAY_MS));
+  }
+
+  function defaultScheduleForMeetingDate(meetingDate, suggestionsMonths, votingMonths) {
+    var meeting = parseDateOnly(meetingDate);
+    if (!meeting) return { suggestionsOpenAt: '', votingClosesAt: '' };
+    suggestionsMonths = cleanMonthsBefore(suggestionsMonths, 2.5);
+    votingMonths = cleanMonthsBefore(votingMonths, 2);
+    return {
+      suggestionsOpenAt: dateBeforeMeeting(meeting, suggestionsMonths),
+      votingClosesAt: dateBeforeMeeting(meeting, votingMonths),
+    };
+  }
 
   function h(tag, attrs, kids) {
     var n = document.createElement(tag);
@@ -158,6 +221,7 @@
       opt.value = r.id;
       var label = 'Round #' + r.id;
       if (r.title) label += ' — ' + r.title;
+      if (r.meeting_date) label += ' · ' + r.meeting_date;
       label += ' (' + r.phase + ')';
       opt.textContent = label;
       if (r.id === selectedId) opt.selected = true;
@@ -172,6 +236,11 @@
     $('nr-id').value = nextId;
     $('nr-code').value = 'storm' + nextId;
     $('nr-title').value = 'Meeting ' + nextId;
+    $('nr-meeting-date').value = '';
+    $('nr-suggestions-months').value = '2.5';
+    $('nr-voting-months').value = '2';
+    $('nr-suggestions-open').value = '';
+    $('nr-closes').value = '';
   }
 
   function applyData(data) {
@@ -222,7 +291,34 @@
 
     var titleInput = h('input', { class: 'admin-input', type: 'text', value: round.title || '' });
     var codeInput = h('input', { class: 'admin-input', type: 'text', value: round.storm_code || '' });
-    var closesInput = h('input', { class: 'admin-input', type: 'text', value: round.voting_closes_at || '' });
+    var meetingDateInput = h('input', { class: 'admin-input', type: 'date', value: round.meeting_date || '' });
+    var suggestionsMonthsInput = h('input', {
+      class: 'admin-input',
+      type: 'number',
+      min: '0',
+      max: '24',
+      step: '0.1',
+      value: round.suggestions_open_months_before != null ? round.suggestions_open_months_before : 2.5,
+    });
+    var votingMonthsInput = h('input', {
+      class: 'admin-input',
+      type: 'number',
+      min: '0',
+      max: '24',
+      step: '0.1',
+      value: round.voting_closes_months_before != null ? round.voting_closes_months_before : 2,
+    });
+    var suggestionsOpenInput = h('input', { class: 'admin-input', type: 'date', value: round.suggestions_open_at || '' });
+    var closesInput = h('input', { class: 'admin-input', type: 'date', value: round.voting_closes_at || '' });
+
+    function updateRoundScheduleDefaults() {
+      var schedule = defaultScheduleForMeetingDate(meetingDateInput.value, suggestionsMonthsInput.value, votingMonthsInput.value);
+      suggestionsOpenInput.value = schedule.suggestionsOpenAt;
+      closesInput.value = schedule.votingClosesAt;
+    }
+    meetingDateInput.addEventListener('change', updateRoundScheduleDefaults);
+    suggestionsMonthsInput.addEventListener('change', updateRoundScheduleDefaults);
+    votingMonthsInput.addEventListener('change', updateRoundScheduleDefaults);
 
     var phaseSelect = h('select', { class: 'admin-select' }, PHASES.map(function (p) {
       return h('option', { value: p, text: p, selected: p === round.phase ? 'selected' : null });
@@ -237,6 +333,10 @@
           title: titleInput.value,
           stormCode: codeInput.value,
           phase: phaseSelect.value,
+          meetingDate: meetingDateInput.value,
+          suggestionsOpenMonthsBefore: suggestionsMonthsInput.value,
+          votingClosesMonthsBefore: votingMonthsInput.value,
+          suggestionsOpenAt: suggestionsOpenInput.value,
           votingClosesAt: closesInput.value,
         }),
       }).then(function () { showMsg(msg, 'Saved.', true); load(); })
@@ -257,7 +357,11 @@
         h('div', null, [h('label', { class: 'admin-field-label', text: 'Title' }), titleInput]),
         h('div', null, [h('label', { class: 'admin-field-label', text: 'Storm code' }), codeInput]),
         h('div', null, [h('label', { class: 'admin-field-label', text: 'Phase' }), phaseSelect]),
-        h('div', null, [h('label', { class: 'admin-field-label', text: 'Voting closes (optional)' }), closesInput]),
+        h('div', null, [h('label', { class: 'admin-field-label', text: 'Meeting date' }), meetingDateInput]),
+        h('div', null, [h('label', { class: 'admin-field-label', text: 'Suggestions start months before' }), suggestionsMonthsInput]),
+        h('div', null, [h('label', { class: 'admin-field-label', text: 'Voting closes months before' }), votingMonthsInput]),
+        h('div', null, [h('label', { class: 'admin-field-label', text: 'Suggestions open' }), suggestionsOpenInput]),
+        h('div', null, [h('label', { class: 'admin-field-label', text: 'Voting closes' }), closesInput]),
       ]),
       h('div', { class: 'admin-actions' }, [saveBtn, deleteBtn]),
       msg,
@@ -428,11 +532,17 @@
         id: $('nr-id').value,
         stormCode: $('nr-code').value,
         title: $('nr-title').value,
+        meetingDate: $('nr-meeting-date').value,
+        suggestionsOpenMonthsBefore: $('nr-suggestions-months').value,
+        votingClosesMonthsBefore: $('nr-voting-months').value,
+        suggestionsOpenAt: $('nr-suggestions-open').value,
         votingClosesAt: $('nr-closes').value,
       }),
     }).then(function () {
       showMsg(msg, 'Round opened.', true);
-      $('nr-id').value = $('nr-code').value = $('nr-title').value = $('nr-closes').value = '';
+      $('nr-id').value = $('nr-code').value = $('nr-title').value = $('nr-meeting-date').value = $('nr-suggestions-open').value = $('nr-closes').value = '';
+      $('nr-suggestions-months').value = '2.5';
+      $('nr-voting-months').value = '2';
       toggleNewRound(false);
       currentRoundId = null;
       load();
@@ -443,6 +553,16 @@
     var id = Number(this.value);
     if (id) loadRound(id);
   });
+
+  function updateNewRoundScheduleDefaults() {
+    var schedule = defaultScheduleForMeetingDate($('nr-meeting-date').value, $('nr-suggestions-months').value, $('nr-voting-months').value);
+    $('nr-suggestions-open').value = schedule.suggestionsOpenAt;
+    $('nr-closes').value = schedule.votingClosesAt;
+  }
+
+  $('nr-meeting-date').addEventListener('change', updateNewRoundScheduleDefaults);
+  $('nr-suggestions-months').addEventListener('change', updateNewRoundScheduleDefaults);
+  $('nr-voting-months').addEventListener('change', updateNewRoundScheduleDefaults);
 
   function toggleNewRound(show) {
     var panel = $('new-round-panel');

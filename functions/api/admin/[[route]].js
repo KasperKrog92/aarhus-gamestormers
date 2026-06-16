@@ -2,14 +2,15 @@
 // Authorization: Bearer <ADMIN_TOKEN>. Used by vote-admin.html.
 //
 //   GET    /api/admin/round            full current round + all suggestions + tallies
-//   POST   /api/admin/round            open a new round { id, stormCode, title?, votingClosesAt? }
-//   PATCH  /api/admin/round            update current round { phase?, stormCode?, title?, votingClosesAt?, winnerSuggestionId? }
+//   POST   /api/admin/round            open a new round { id, stormCode, title?, meetingDate?, suggestionsOpenMonthsBefore?, votingClosesMonthsBefore?, suggestionsOpenAt?, votingClosesAt? }
+//   PATCH  /api/admin/round            update current round { phase?, stormCode?, title?, meetingDate?, suggestionsOpenMonthsBefore?, votingClosesMonthsBefore?, suggestionsOpenAt?, votingClosesAt?, winnerSuggestionId? }
 //   PATCH  /api/admin/suggestion/:id   edit/approve/reject a suggestion
 //   DELETE /api/admin/suggestion/:id   delete a suggestion
 //   DELETE /api/admin/ballot/:ballotId remove a single ballot (all its votes)
 import { json, fail, readJson, clean } from '../../_lib/http.js';
 import { isAdmin } from '../../_lib/auth.js';
 import {
+  ensureRoundScheduleColumns,
   ensureSuggestionDescriptionColumns,
   getCurrentRound,
   getRoundById,
@@ -18,6 +19,13 @@ import {
   getTallies,
   getBallots,
 } from '../../_lib/db.js';
+import {
+  DEFAULT_SUGGESTIONS_OPEN_MONTHS_BEFORE,
+  DEFAULT_VOTING_CLOSES_MONTHS_BEFORE,
+  cleanDateOnly,
+  cleanMonthsBefore,
+  defaultScheduleForMeetingDate,
+} from '../../_lib/schedule.js';
 
 const PHASES = ['suggesting', 'voting', 'revealed', 'closed'];
 const STATUSES = ['pending', 'approved', 'rejected'];
@@ -28,6 +36,7 @@ export async function onRequest(context) {
   if (!isAdmin(request, env)) return fail('Unauthorized', 401);
 
   const db = env.DB;
+  await ensureRoundScheduleColumns(db);
   const segs = Array.isArray(params.route) ? params.route : params.route ? [params.route] : [];
   const [resource, id] = segs;
   const method = request.method.toUpperCase();
@@ -57,7 +66,7 @@ export async function onRequest(context) {
 }
 
 async function adminListRounds(db) {
-  const { results } = await db.prepare('SELECT id, title, phase, created_at FROM rounds ORDER BY id DESC').all();
+  const { results } = await db.prepare('SELECT id, title, meeting_date, phase, created_at FROM rounds ORDER BY id DESC').all();
   return json({ rounds: results || [] });
 }
 
@@ -95,10 +104,29 @@ async function adminOpenRound(db, request) {
   const stormCode = clean(body.stormCode, 40);
   if (!stormCode) return fail('Storm code required');
   if (await getRoundById(db, id)) return fail('Round ' + id + ' already exists', 409);
+  const meetingDate = cleanDateOnly(body.meetingDate);
+  const suggestionsOpenMonthsBefore = cleanMonthsBefore(body.suggestionsOpenMonthsBefore, DEFAULT_SUGGESTIONS_OPEN_MONTHS_BEFORE);
+  const votingClosesMonthsBefore = cleanMonthsBefore(body.votingClosesMonthsBefore, DEFAULT_VOTING_CLOSES_MONTHS_BEFORE);
+  const defaults = defaultScheduleForMeetingDate(meetingDate, suggestionsOpenMonthsBefore, votingClosesMonthsBefore);
+  const suggestionsOpenAt = cleanDateOnly(body.suggestionsOpenAt) || defaults.suggestionsOpenAt;
+  const votingClosesAt = cleanDateOnly(body.votingClosesAt) || defaults.votingClosesAt;
 
   await db
-    .prepare("INSERT INTO rounds (id, title, storm_code, phase, voting_closes_at) VALUES (?, ?, ?, 'suggesting', ?)")
-    .bind(id, clean(body.title, 120) || null, stormCode, clean(body.votingClosesAt, 40) || null)
+    .prepare(
+      `INSERT INTO rounds
+         (id, title, meeting_date, storm_code, phase, suggestions_open_months_before, voting_closes_months_before, suggestions_open_at, voting_closes_at)
+       VALUES (?, ?, ?, ?, 'suggesting', ?, ?, ?, ?)`
+    )
+    .bind(
+      id,
+      clean(body.title, 120) || null,
+      meetingDate || null,
+      stormCode,
+      suggestionsOpenMonthsBefore,
+      votingClosesMonthsBefore,
+      suggestionsOpenAt || null,
+      votingClosesAt || null
+    )
     .run();
   return json({ ok: true, id }, 201);
 }
@@ -123,7 +151,15 @@ async function adminPatchRound(db, request, id) {
   }
   if (body.stormCode !== undefined) put('storm_code', clean(body.stormCode, 40));
   if (body.title !== undefined) put('title', clean(body.title, 120));
-  if (body.votingClosesAt !== undefined) put('voting_closes_at', clean(body.votingClosesAt, 40) || null);
+  if (body.meetingDate !== undefined) put('meeting_date', cleanDateOnly(body.meetingDate) || null);
+  if (body.suggestionsOpenMonthsBefore !== undefined) {
+    put('suggestions_open_months_before', cleanMonthsBefore(body.suggestionsOpenMonthsBefore, DEFAULT_SUGGESTIONS_OPEN_MONTHS_BEFORE));
+  }
+  if (body.votingClosesMonthsBefore !== undefined) {
+    put('voting_closes_months_before', cleanMonthsBefore(body.votingClosesMonthsBefore, DEFAULT_VOTING_CLOSES_MONTHS_BEFORE));
+  }
+  if (body.suggestionsOpenAt !== undefined) put('suggestions_open_at', cleanDateOnly(body.suggestionsOpenAt) || null);
+  if (body.votingClosesAt !== undefined) put('voting_closes_at', cleanDateOnly(body.votingClosesAt) || null);
   if (body.winnerSuggestionId !== undefined) {
     put('winner_suggestion_id', body.winnerSuggestionId === null ? null : Number(body.winnerSuggestionId));
   }

@@ -3,7 +3,8 @@
 // Gated by: phase === 'voting', correct storm code, Turnstile pass.
 // voterName is optional and self-reported (helps the admin spot funky ballots).
 import { json, fail, readJson, clean } from '../_lib/http.js';
-import { getCurrentRound, getSuggestions } from '../_lib/db.js';
+import { ensureRoundScheduleColumns, getCurrentRound, getSuggestions } from '../_lib/db.js';
+import { roundScheduleState } from '../_lib/schedule.js';
 import { verifyTurnstile } from '../_lib/turnstile.js';
 
 export async function onRequestPost({ request, env }) {
@@ -13,9 +14,11 @@ export async function onRequestPost({ request, env }) {
   const body = await readJson(request);
   if (!body) return fail('Invalid request body');
 
+  await ensureRoundScheduleColumns(db);
   const round = await getCurrentRound(db);
   if (!round) return fail('No active round', 409);
   if (round.phase !== 'voting') return fail('Voting is not open', 409);
+  if (!roundScheduleState(round).votingIsOpen) return fail('Voting has closed for this round', 409);
 
   if (clean(body.stormCode, 40) !== round.storm_code) return fail('Wrong code', 403);
 

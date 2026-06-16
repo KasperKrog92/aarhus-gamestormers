@@ -5,16 +5,23 @@ var STRINGS = {
   da: {
     loading: 'Indlæser…',
     statusNone: 'Ingen aktiv afstemning',
+    statusUpcoming: 'Forslag åbner snart',
     statusSuggesting: 'Forslag er åbne',
     statusVoting: 'Afstemning er åben',
+    statusVotingClosed: 'Afstemningen er lukket',
     statusRevealed: 'Resultatet er klar',
     introNone: 'Der er ingen aktiv runde lige nu. Hold øje med Discord for næste afstemning.',
+    introUpcoming: 'Denne runde er oprettet, men forslag åbner først på datoen herunder.',
     introSuggesting:
       'Foreslå et spil til næste møde. Er det på Steam, henter vi titel, billede, genrer og beskrivelse automatisk. Ellers udfylder du det selv. Du skal bruge mødets kode fra Discord.',
     introVoting:
       'Sæt flueben ved <b>alle</b> de spil, du gerne vil spille. Det med flest stemmer vinder. Du skal bruge mødets kode fra Discord.',
+    introVotingClosed: 'Afstemningen er lukket for denne runde. Resultatet bliver delt, når det er klar.',
     introRevealed: 'Tak til alle der stemte! Her er resultatet. Vinderen bliver næste mødes spil.',
     meetingFor: 'Forslag til {meeting}',
+    scheduleMeetingDate: 'Mødedato',
+    scheduleSuggestionsOpen: 'Forslag åbner ({months} måneder før mødet)',
+    scheduleVotingCloses: 'Afstemning lukker ({months} måneder før mødet)',
     formTitle: 'Foreslå et spil',
     suggestToggle: 'Foreslå nyt spil',
     hideSuggest: 'Skjul formular',
@@ -70,16 +77,23 @@ var STRINGS = {
   en: {
     loading: 'Loading…',
     statusNone: 'No active vote',
+    statusUpcoming: 'Suggestions open soon',
     statusSuggesting: 'Suggestions are open',
     statusVoting: 'Voting is open',
+    statusVotingClosed: 'Voting is closed',
     statusRevealed: 'The result is in',
     introNone: 'There is no active round right now. Watch Discord for the next vote.',
+    introUpcoming: 'This round has been created, but suggestions open on the date below.',
     introSuggesting:
       "Suggest a game for the next meeting. If it’s on Steam we’ll pull in the title, image, genres and description automatically. Otherwise you fill it in yourself. You’ll need the meeting code from Discord.",
     introVoting:
       'Tick <b>every</b> game you’d be happy to play. The one with the most ticks wins. You’ll need the meeting code from Discord.',
+    introVotingClosed: 'Voting is closed for this round. The result will be shared when it is ready.',
     introRevealed: 'Thanks to everyone who voted! Here’s the result. The winner becomes the next meeting’s game.',
     meetingFor: 'Suggestions for {meeting}',
+    scheduleMeetingDate: 'Meeting date',
+    scheduleSuggestionsOpen: 'Suggestions open ({months} months before the meeting)',
+    scheduleVotingCloses: 'Voting closes ({months} months before the meeting)',
     formTitle: 'Suggest a game',
     suggestToggle: 'Suggest new game',
     hideSuggest: 'Hide form',
@@ -191,6 +205,46 @@ var STRINGS = {
       label += ' · ' + title;
     }
     return label;
+  }
+
+  function formatDate(dateString) {
+    var match = String(dateString || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!match) return '';
+    var date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+    return new Intl.DateTimeFormat(lang === 'en' ? 'en-GB' : 'da-DK', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    }).format(date);
+  }
+
+  function formatMonths(value) {
+    var number = Number(value);
+    if (!Number.isFinite(number)) return '';
+    var text = String(Math.round(number * 10) / 10);
+    return lang === 'en' ? text : text.replace('.', ',');
+  }
+
+  function scheduleDetails(round) {
+    var items = [
+      [T.scheduleMeetingDate, round.meetingDate],
+      [
+        T.scheduleSuggestionsOpen.replace('{months}', formatMonths(round.suggestionsOpenMonthsBefore)),
+        round.suggestionsOpenAt,
+      ],
+      [
+        T.scheduleVotingCloses.replace('{months}', formatMonths(round.votingClosesMonthsBefore)),
+        round.votingClosesAt,
+      ],
+    ].filter(function (item) { return formatDate(item[1]); });
+
+    if (!items.length) return null;
+    return el('dl', { class: 'vote-schedule' }, items.map(function (item) {
+      return el('div', { class: 'vote-schedule-item' }, [
+        el('dt', { text: item[0] }),
+        el('dd', { text: formatDate(item[1]) }),
+      ]);
+    }));
   }
 
   // ── Turnstile (explicit render so it survives dynamic DOM) ─────────────────
@@ -339,10 +393,14 @@ var STRINGS = {
   }
 
   function renderSuggesting(data) {
+    var suggestionsOpen = data.round.suggestionsAreOpen !== false;
     clear(app);
-    app.appendChild(status(T.statusSuggesting));
+    app.appendChild(status(suggestionsOpen ? T.statusSuggesting : T.statusUpcoming));
     app.appendChild(meetingBadge(data.round));
-    app.appendChild(el('p', { class: 'vote-intro', html: T.introSuggesting }));
+    var schedule = scheduleDetails(data.round);
+    if (schedule) app.appendChild(schedule);
+    app.appendChild(el('p', { class: 'vote-intro', html: suggestionsOpen ? T.introSuggesting : T.introUpcoming }));
+    if (!suggestionsOpen) return;
     var suggestionItems = data.suggestions.slice();
     var suggestionHeading = el('h2', { class: 'admin-section-title', text: T.approvedSoFar, style: 'color:var(--cream)' });
     var suggestionGrid = grid([]);
@@ -521,10 +579,14 @@ var STRINGS = {
   }
 
   function renderVoting(data) {
+    var votingOpen = data.round.votingIsOpen !== false;
     clear(app);
-    app.appendChild(status(T.statusVoting));
+    app.appendChild(status(votingOpen ? T.statusVoting : T.statusVotingClosed));
     app.appendChild(meetingBadge(data.round));
-    app.appendChild(el('p', { class: 'vote-intro', html: T.introVoting }));
+    var schedule = scheduleDetails(data.round);
+    if (schedule) app.appendChild(schedule);
+    app.appendChild(el('p', { class: 'vote-intro', html: votingOpen ? T.introVoting : T.introVotingClosed }));
+    if (!votingOpen) return;
 
     if (!data.suggestions.length) {
       app.appendChild(el('p', { class: 'vote-empty', text: T.noGames }));
@@ -585,6 +647,8 @@ var STRINGS = {
     clear(app);
     app.appendChild(status(T.statusRevealed));
     app.appendChild(meetingBadge(data.round));
+    var schedule = scheduleDetails(data.round);
+    if (schedule) app.appendChild(schedule);
     app.appendChild(el('p', { class: 'vote-intro', text: T.introRevealed }));
 
     if (!data.suggestions.length) {

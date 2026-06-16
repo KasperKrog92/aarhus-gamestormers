@@ -1111,6 +1111,33 @@ img { display: block; max-width: 100%; height: auto; }
   font-size: 0.86rem;
   font-weight: 700;
 }
+.vote-schedule {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 10px;
+  margin: 0 0 18px;
+  max-width: 860px;
+}
+.vote-schedule-item {
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(247,244,238,0.08);
+  border: 1px solid rgba(247,244,238,0.14);
+}
+.vote-schedule dt {
+  margin-bottom: 4px;
+  color: rgba(247,244,238,0.62);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+.vote-schedule dd {
+  margin: 0;
+  color: var(--cream);
+  font-size: 0.95rem;
+  font-weight: 800;
+}
 .vote-disclosure-wrap {
   max-width: 620px;
   margin-bottom: 32px;
