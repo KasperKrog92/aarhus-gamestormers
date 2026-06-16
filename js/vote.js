@@ -71,6 +71,8 @@ var STRINGS = {
     votes: 'stemmer',
     winnerTag: 'Vinder',
     playtime: '⏱ ~{h} t.',
+    platformPrefix: 'Tilgængelig på ',
+    platformAnd: ' og ',
     errGeneric: 'Noget gik galt. Prøv igen.',
     errPickOne: 'Vælg mindst ét spil.',
   },
@@ -143,6 +145,8 @@ var STRINGS = {
     votes: 'votes',
     winnerTag: 'Winner',
     playtime: '⏱ ~{h} hrs.',
+    platformPrefix: 'Available on ',
+    platformAnd: ' and ',
     errGeneric: 'Something went wrong. Please try again.',
     errPickOne: 'Pick at least one game.',
   },
@@ -193,6 +197,21 @@ var STRINGS = {
 
   function playtimeText(h) {
     return T.playtime.replace('{h}', h);
+  }
+
+  // Steam platform name -> sprite symbol id (the sprite lives in the page body).
+  var PLATFORM_ICONS = { Windows: 'gs-icon-windows', macOS: 'gs-icon-apple', Linux: 'gs-icon-linux' };
+
+  // Small icon row showing which platforms the game runs on, per Steam. Built via
+  // innerHTML so the SVG <use> references resolve in the SVG namespace.
+  function platformIcons(platforms) {
+    var list = (platforms || []).filter(function (p) { return PLATFORM_ICONS[p]; });
+    if (!list.length) return null;
+    var svg = list
+      .map(function (p) { return '<svg class="platform-icon" aria-hidden="true"><use href="#' + PLATFORM_ICONS[p] + '"/></svg>'; })
+      .join('');
+    var names = list.length > 1 ? list.slice(0, -1).join(', ') + T.platformAnd + list[list.length - 1] : list[0];
+    return el('span', { class: 'platform-icons', role: 'img', 'aria-label': T.platformPrefix + names, html: svg });
   }
 
   function votedKey(roundId) { return 'gs-voted-r' + roundId; }
@@ -276,6 +295,8 @@ var STRINGS = {
       tags.push(el('span', { class: 'history-genre', text: g }));
     });
     if (s.playtimeHours) tags.push(el('span', { class: 'history-genre', text: playtimeText(s.playtimeHours) }));
+    var platforms = platformIcons(s.platforms);
+    if (platforms) tags.push(platforms);
 
     var storeLinks = [];
     if (s.storeUrl) storeLinks.push(el('a', { href: s.storeUrl, target: '_blank', rel: 'noopener noreferrer', text: 'Steam' }));

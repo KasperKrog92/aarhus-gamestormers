@@ -396,6 +396,7 @@ img { display: block; max-width: 100%; height: auto; }
 .event-badge {
   display: flex;
   align-items: center;
+  gap: 10px;
 }
 .event-num {
   font-family: 'Barlow Condensed', sans-serif;
@@ -442,6 +443,24 @@ img { display: block; max-width: 100%; height: auto; }
 }
 .event-store-links a.store-link-on-sale:hover {
   background: var(--green-light);
+}
+/* Platform availability icons (Steam: Windows / macOS / Linux). Shared by the
+   upcoming event cards and the voting suggestion cards. Both card types sit on
+   the same dark surface, so a single light tone reads well in both places. */
+.platform-icons {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.platform-icon {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  color: rgba(247,244,238,0.62);
+  fill: currentColor;
+}
+.suggestion-tags .platform-icons {
+  margin-left: auto;
 }
 .store-sale-tag {
   display: inline-flex;

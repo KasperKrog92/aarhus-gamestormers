@@ -89,6 +89,7 @@ The base reset includes `[hidden] { display: none !important; }`. Keep that rule
 - `.event-card`, `.event-cover`, `.event-body`: upcoming event cards.
 - `.event-details`, `.event-detail`, `.event-detail-label`, `.event-detail-value`: date, time, and venue tiles inside event cards.
 - `.event-detail-time`: keeps approximate ranges such as `18:30-~21:00` on one line.
+- `.platform-icons` / `.platform-icon`: Steam platform availability icons (Windows / macOS / Linux). Shared by upcoming event cards and voting suggestion cards. Icons are `<use>` references to the `#gs-icon-windows`, `#gs-icon-apple`, and `#gs-icon-linux` `<symbol>`s in the per-page SVG sprite placed just after `<body>`. The wrapper carries `role="img"` and an `aria-label` listing the platforms; on event cards it sits in `.event-badge`, on suggestion cards it is the last item in `.suggestion-tags` (pushed right via `margin-left:auto`).
 - `.event-store-links a`: text-only store link pills. Use Steam and GOG only.
 - `.event-desc`: wrapper around one or more paragraphs in event cards. Do not use a bare paragraph when multiple paragraphs are needed.
 - `.history-grid`: history card grid; cards must not stretch their row siblings when expanded.

@@ -8,10 +8,13 @@ For the recurring "a new game has been chosen" workflow, follow [`../MEETING_WOR
 
 Edit the events section in both language files.
 
+The events grid should hold only meetings that are still upcoming. Once a meeting has been held, remove its event card and matching JSON-LD `Event` (see [`../MEETING_WORKFLOW.md`](../MEETING_WORKFLOW.md) step 8). `js/script.js` auto-hides a card after its `data-end` passes, but that is a safety net, not a reason to leave the dead markup in place.
+
 Update all of these fields together:
 
 - Steam CDN banner URL and `alt` text.
 - Event number badge.
+- Platform icons (`.platform-icons` inside `.event-badge`): include only the platforms the game actually supports on Steam (Windows / macOS / Linux), and update the `aria-label` to match. Verify availability from the Steam store page or `appdetails` `platforms` field.
 - Event title.
 - Genre row directly after `<h3 class="event-title">`.
 - HowLongToBeat link as `.event-playtime`.

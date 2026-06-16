@@ -30,6 +30,8 @@ This is the canonical step-by-step; the per-component HTML details live in
 - Banners and store links use the ID:
   `https://cdn.akamai.steamstatic.com/steam/apps/{APP_ID}/header.jpg`
 - Check **GOG**: include a GOG link (+ `data-gog-id` on the event-card link) only if a GOG page actually exists.
+- Note the **platforms** Steam reports (Windows / macOS / Linux) for the event card's `.platform-icons`. The
+  store page lists them, or read the `appdetails` `platforms` field. Include only the ones marked true.
 - Read the Steam premise/genres/tags to write **accurate** copy. If the announcement's wording conflicts
   with the real game, lean on Steam — and flag the mismatch to the maintainer before publishing.
 
@@ -57,7 +59,7 @@ Denmark uses **CEST (UTC+2) ~late Mar–late Oct**, **CET (UTC+1) ~Nov–Mar**. 
 ## 4. Add the upcoming **event card** #N (both files)
 
 Copy the previous event card as a template, append it at the end of the events grid, and update:
-banner img + alt · `event-num` (`N. møde` / `Meeting N`) · store links · title · genre pills + `event-playtime`
+banner img + alt · `event-num` (`N. møde` / `Meeting N`) · `.platform-icons` (Steam platforms + matching `aria-label`) · store links · title · genre pills + `event-playtime`
 HLTB link · date/time/venue tiles · `event-desc` (DA/EN paragraphs, wrapped in `<div class="event-desc">`) ·
 calendar dropdown — unique id `cal-menu-gsN` (`-en` in English) + matching `aria-controls`, Google href,
 ICS `data-*` (incl. `data-uid="gsN-YYYYMMDD@gamestormers.dk"`, `data-filename="gamestormers-N.ics"`), Outlook href.
@@ -90,8 +92,16 @@ Usually done at the same time a new game is announced, for the meeting that alre
   Once the passed card is no longer reveal-gated and the remaining pre-published cards are still in the future,
   nothing recomputes — the **static fallback number is what shows**, so it must be correct. Forgetting this
   leaves the count one too low.
-- The passed **event card auto-hides** via its `data-end` (JS), so no manual removal is required;
-  optionally delete very old event cards / JSON-LD events to keep the files tidy.
+- **Remove the passed meeting's upcoming event card and its JSON-LD `Event`** from **both** files: delete the
+  whole `<!-- Nth Meeting -->` `.event-card` block in the events grid, and the matching
+  `@id="…/#event-…"` object in the `<head>` JSON-LD `@graph`. The game lives on as its (now revealed)
+  history card, so nothing is lost.
+  **Why this is a real step, not optional:** `js/script.js` auto-hides an event card once its `data-end` has
+  passed, so a held meeting *looks* gone — but the markup (and its structured-data `Event`, which search
+  engines still read) stays in the file and piles up over time. The auto-hide is a safety net for the gap
+  between "meeting happened" and "files cleaned up", not a substitute for deleting the card.
+- After deleting, the events grid should contain only **still-upcoming** meetings. Re-check the JSON-LD array
+  is still valid (no dangling comma) and that the hero countdown picks the next future card.
 
 ## 9. Update `sitemap.xml`
 
