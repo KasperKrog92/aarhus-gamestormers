@@ -64,6 +64,7 @@ Timezone quick reference:
 - GOG event links need `data-gog-id="{GOG_PRODUCT_ID}"` and are matched against `data/gog-sales.json`.
 - `.github/workflows/update-steam-sales.yml` refreshes both JSON files by scanning upcoming event store-link blocks.
 - If the workflow has not run yet, the JSON can be manually updated with `onSale`, `discountPercent`, and optional formatted prices.
+- The same workflow posts a Discord message when a game newly goes on sale (an off-to-on transition versus the previous run, so it never spams while a sale lasts). It is gated on the repo secret `DISCORD_WEBHOOK_URL`; if the secret is unset, notification is skipped and sale data still updates.
 
 ## Past Meetings
 

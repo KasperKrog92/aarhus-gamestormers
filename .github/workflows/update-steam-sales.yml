@@ -22,6 +22,8 @@ jobs:
 
       - name: Fetch current store discounts
         uses: actions/github-script@v8
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         with:
           script: |
             const fs = require('fs/promises');
@@ -30,19 +32,39 @@ jobs:
             const htmlFiles = ['index.html', 'en/index.html'];
             const steamAppIds = new Set();
             const gogProductIds = new Set();
+            // id -> { title, url }, used to build readable Discord notifications.
+            const steamMeta = {};
+            const gogMeta = {};
             const eventStoreLinksPattern = /<div class="event-store-links">([\s\S]*?)<\/div>/g;
             const steamLinkPattern = /store\.steampowered\.com\/app\/(\d+)/g;
+            const steamHrefPattern = /href="(https:\/\/store\.steampowered\.com\/app\/(\d+)[^"]*)"/;
             const gogIdPattern = /data-gog-id=["'](\d+)["']/g;
+            const gogAnchorPattern = /href="(https:\/\/www\.gog\.com\/[^"]*)"[^>]*data-gog-id=["'](\d+)["']/;
+            const titleAfterPattern = /<h3 class="event-title">([\s\S]*?)<\/h3>/;
 
             for (const file of htmlFiles) {
               const html = await fs.readFile(file, 'utf8');
               for (const blockMatch of html.matchAll(eventStoreLinksPattern)) {
                 const block = blockMatch[1];
+                // The game title sits in the <h3> right after the store-links block.
+                const after = html.slice(blockMatch.index + blockMatch[0].length);
+                const titleMatch = after.match(titleAfterPattern);
+                const title = titleMatch ? titleMatch[1].replace(/\s+/g, ' ').trim() : '';
+
                 for (const match of block.matchAll(steamLinkPattern)) {
                   steamAppIds.add(match[1]);
                 }
+                const steamHref = block.match(steamHrefPattern);
+                if (steamHref) {
+                  steamMeta[steamHref[2]] = { title, url: steamHref[1] };
+                }
+
                 for (const match of block.matchAll(gogIdPattern)) {
                   gogProductIds.add(match[1]);
+                }
+                const gogAnchor = block.match(gogAnchorPattern);
+                if (gogAnchor) {
+                  gogMeta[gogAnchor[2]] = { title, url: gogAnchor[1] };
                 }
               }
             }
@@ -54,6 +76,14 @@ jobs:
             async function writeJson(file, data) {
               await fs.mkdir(path.dirname(file), { recursive: true });
               await fs.writeFile(file, JSON.stringify(data, null, 2) + '\n');
+            }
+
+            async function readJson(file) {
+              try {
+                return JSON.parse(await fs.readFile(file, 'utf8'));
+              } catch {
+                return null;
+              }
             }
 
             function minorUnitsToNumber(value) {
@@ -146,6 +176,14 @@ jobs:
             const steamIds = sortNumericIds(steamAppIds);
             const gogIds = sortNumericIds(gogProductIds);
 
+            const steamFile = path.join('data', 'steam-sales.json');
+            const gogFile = path.join('data', 'gog-sales.json');
+
+            // Read the prior run's data before overwriting, so we can detect
+            // games that newly went on sale (off -> on transitions).
+            const previousSteam = await readJson(steamFile);
+            const previousGog = await readJson(gogFile);
+
             const steamData = {
               updatedAt: new Date().toISOString(),
               country: 'DK',
@@ -157,8 +195,54 @@ jobs:
               products: await fetchGogSales(gogIds)
             };
 
-            await writeJson(path.join('data', 'steam-sales.json'), steamData);
-            await writeJson(path.join('data', 'gog-sales.json'), gogData);
+            await writeJson(steamFile, steamData);
+            await writeJson(gogFile, gogData);
+
+            // Announce newly discounted games to Discord. Stays silent when a
+            // game is already on sale from a previous run, so it never spams.
+            const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
+            if (webhookUrl) {
+              const announcements = [];
+
+              function collectNewSales(currentMap, previousMap, meta) {
+                for (const [id, info] of Object.entries(currentMap || {})) {
+                  if (!info.onSale) continue;
+                  if (previousMap && previousMap[id] && previousMap[id].onSale) continue;
+
+                  const game = meta[id] || {};
+                  const title = game.title || id;
+                  const price = info.initialFormatted
+                    ? `~~${info.initialFormatted}~~ **${info.finalFormatted}**`
+                    : `**${info.finalFormatted}**`;
+                  // Bare URL on its own line so Discord unfurls a rich store embed.
+                  const linkLine = game.url ? `\n${game.url}` : '';
+                  announcements.push(`🔥 **${title}** is now ${info.discountPercent}% off — ${price}${linkLine}`);
+                }
+              }
+
+              collectNewSales(steamData.apps, previousSteam && previousSteam.apps, steamMeta);
+              collectNewSales(gogData.products, previousGog && previousGog.products, gogMeta);
+
+              if (announcements.length) {
+                const res = await fetch(webhookUrl, {
+                  method: 'POST',
+                  headers: { 'content-type': 'application/json' },
+                  body: JSON.stringify({
+                    content: announcements.join('\n\n'),
+                    allowed_mentions: { parse: [] }
+                  })
+                });
+                if (!res.ok) {
+                  core.warning(`Discord webhook returned ${res.status}`);
+                } else {
+                  core.info(`Posted ${announcements.length} sale notification(s) to Discord.`);
+                }
+              } else {
+                core.info('No newly discounted games to announce.');
+              }
+            } else {
+              core.info('DISCORD_WEBHOOK_URL not set; skipping Discord notification.');
+            }
 
             const diffExitCode = await exec.exec('git', ['diff', '--quiet', '--', 'data/steam-sales.json', 'data/gog-sales.json'], {
               ignoreReturnCode: true
