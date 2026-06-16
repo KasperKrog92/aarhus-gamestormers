@@ -84,12 +84,13 @@ That command targets Workers, not Pages.
 
 Cloudflare runs `npm clean-install`, so `package.json` and `package-lock.json` must stay in sync even though the app has no runtime npm dependencies.
 
+## Hosting
+
+Cloudflare Pages is the sole host of `www.gamestormers.dk` (confirm with the `Server: cloudflare` response header). GitHub Pages was retired on 2026-06-16: the `CNAME` file was removed and GitHub Pages was disabled in repo settings, so the `pages-build-deployment` workflow no longer runs. Do not re-add a `CNAME` file or re-enable GitHub Pages.
+
 ## Legacy Files
 
-- `CNAME` is kept for the previous GitHub Pages setup.
-- `.htaccess` is kept for reference.
-
-Both are inert on Cloudflare Pages.
+- `.htaccess` is kept for reference. It is inert on Cloudflare Pages.
 
 ## Commit And Push Safety
 
