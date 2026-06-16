@@ -6,7 +6,7 @@ the meeting as an **upcoming event** and a **pre-published history card**, in **
 fully in sync.
 
 This is the canonical step-by-step; the per-component HTML details live in
-[`CLAUDE.md`](CLAUDE.md) under **Content Management**. Keep both files (`index.html` = Danish,
+[`docs/content-guide.md`](docs/content-guide.md). Keep both files (`index.html` = Danish,
 `en/index.html` = English) in sync at every step.
 
 ---

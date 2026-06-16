@@ -26,7 +26,7 @@ Hosted on Cloudflare Pages. Changes pushed to `main` deploy automatically.
 
 ## Making Changes
 
-All content is hardcoded in HTML. There is no build step or CMS. The detailed maintenance guide lives in [CLAUDE.md](CLAUDE.md); read that before changing events, history cards, SEO metadata, or deployment details.
+All content is hardcoded in HTML. There is no build step or CMS. Agent maintenance guidance starts in [CLAUDE.md](CLAUDE.md), which links to focused docs under `docs/`; read the relevant guide before changing events, history cards, SEO metadata, voting, or deployment details.
 
 Common updates:
 

@@ -39,7 +39,7 @@ Phase B does not auto-edit `index.html` or `en/index.html`. The maintainer still
 - Modify `js/vote.js`: render archive below the active round UI.
 - Modify `vote.html` and `en/vote.html`: add an archive mount point if the existing `#vote-app` structure needs a stable target.
 - Modify `css/style.css`: archive list/results styling using existing vote card patterns.
-- Modify `CLAUDE.md`: document Phase B scheduler, secrets, archive, and handoff process.
+- Modify `docs/voting-system.md`: document Phase B scheduler, secrets, archive, and handoff process.
 - Modify `README.md`: mention scheduled voting automation and required GitHub secrets.
 
 ## Required Secrets
@@ -1233,12 +1233,12 @@ git commit -m "feat: render voting archive"
 ## Task 12: Documentation And Final Verification
 
 **Files:**
-- Modify: `CLAUDE.md`
+- Modify: `docs/voting-system.md`
 - Modify: `README.md`
 
-- [ ] **Step 1: Update `CLAUDE.md`**
+- [ ] **Step 1: Update `docs/voting-system.md`**
 
-Add a `Phase B automation` subsection under `Game suggestion & voting system`:
+Add a `Phase B automation` subsection:
 
 ```md
 **Phase B automation**: GitHub Actions runs `automation/phase-b/run-scheduler.mjs` hourly. The runner calls the Pages admin API with `VOTING_ADMIN_TOKEN`, advances round phases from the schedule fields stored in D1, posts Discord announcements via `DISCORD_WEBHOOK_URL`, and generates maintainer handoff notes for winners. It does not auto-edit homepage event/history HTML; maintainers still follow `MEETING_WORKFLOW.md`.
@@ -1298,7 +1298,7 @@ Expected: both endpoints return JSON.
 - [ ] **Step 6: Commit docs**
 
 ```powershell
-git add CLAUDE.md README.md
+git add docs/voting-system.md README.md
 git commit -m "docs: document voting phase automation"
 ```
 
