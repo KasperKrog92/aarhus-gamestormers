@@ -40,12 +40,17 @@
     </div>
 
     <div id="admin-body" hidden>
+      <div class="admin-picker-row">
+        <select class="admin-select" id="round-select"></select>
+        <button class="admin-btn primary" id="btn-new-round">+ New round</button>
+      </div>
+
       <details class="admin-section">
-        <summary class="admin-section-summary">Current round</summary>
+        <summary class="admin-section-summary">Round</summary>
         <div id="round-area"></div>
       </details>
 
-      <details class="admin-section">
+      <details class="admin-section" id="new-round-section">
         <summary class="admin-section-summary">Open a new round</summary>
         <div class="admin-card" id="new-round-card">
           <p class="admin-meta">Creates the next round and makes it the current one (phase: suggesting).</p>
@@ -92,6 +97,7 @@
   var API = '/api/admin';
   var TOKEN_KEY = 'gs-admin-token';
   var token = sessionStorage.getItem(TOKEN_KEY) || '';
+  var currentRoundId = null;
 
   var $ = function (id) { return document.getElementById(id); };
   var PHASES = ['suggesting', 'voting', 'revealed', 'closed'];
@@ -136,15 +142,53 @@
     load();
   }
 
+  function renderRoundPicker(rounds, selectedId) {
+    var sel = $('round-select');
+    sel.innerHTML = '';
+    if (!rounds.length) {
+      var opt = document.createElement('option');
+      opt.disabled = true;
+      opt.textContent = 'No rounds yet — open one below';
+      sel.appendChild(opt);
+      return;
+    }
+    rounds.forEach(function (r) {
+      var opt = document.createElement('option');
+      opt.value = r.id;
+      var label = 'Round #' + r.id;
+      if (r.title) label += ' — ' + r.title;
+      label += ' (' + r.phase + ')';
+      opt.textContent = label;
+      if (r.id === selectedId) opt.selected = true;
+      sel.appendChild(opt);
+    });
+  }
+
+  function applyData(data) {
+    currentRoundId = data.round ? data.round.id : null;
+    renderRound(data.round, data.tallies || {});
+    renderSuggestions(data.suggestions || [], data.tallies || {});
+    renderBallots(data.ballots || [], data.suggestions || []);
+  }
+
+  function loadRound(id) {
+    authedFetch('/round/' + id)
+      .then(applyData)
+      .catch(function (err) { alert(err.message); });
+  }
+
   function load() {
-    authedFetch('/round')
-      .then(function (data) {
+    var roundFetch = currentRoundId ? authedFetch('/round/' + currentRoundId) : authedFetch('/round');
+    Promise.all([authedFetch('/rounds'), roundFetch])
+      .then(function (results) {
+        var roundList = results[0].rounds || [];
+        var data = results[1];
         $('auth-msg').hidden = true;
         $('admin-body').hidden = false;
         $('auth-card').hidden = true;
-        renderRound(data.round, data.tallies || {});
-        renderSuggestions(data.suggestions || [], data.tallies || {});
-        renderBallots(data.ballots || [], data.suggestions || []);
+        if (!currentRoundId && data.round) currentRoundId = data.round.id;
+        renderRoundPicker(roundList, currentRoundId);
+        applyData(data);
       })
       .catch(function (err) {
         $('admin-body').hidden = true;
@@ -159,8 +203,8 @@
     area.innerHTML = '';
     if (!round) {
       area.appendChild(h('div', { class: 'admin-card' }, [
-        h('h2', { text: 'No active round' }),
-        h('p', { class: 'admin-meta', text: 'Open a round below to start a cycle.' }),
+        h('h2', { text: 'No rounds yet' }),
+        h('p', { class: 'admin-meta', text: 'Use the + New round button above to start a cycle.' }),
       ]));
       return;
     }
@@ -176,7 +220,7 @@
     var msg = h('div', { class: 'admin-msg', hidden: 'hidden' });
 
     var saveBtn = h('button', { class: 'admin-btn primary', onclick: function () {
-      authedFetch('/round', {
+      authedFetch('/round/' + round.id, {
         method: 'PATCH',
         body: JSON.stringify({
           title: titleInput.value,
@@ -186,7 +230,14 @@
         }),
       }).then(function () { showMsg(msg, 'Saved.', true); load(); })
         .catch(function (e) { showMsg(msg, e.message, false); });
-    } }, ['Save round']);
+    } }, ['Save']);
+
+    var deleteBtn = h('button', { class: 'admin-btn danger', onclick: function () {
+      if (!confirm('Delete round #' + round.id + ' and ALL its suggestions and votes? This cannot be undone.')) return;
+      authedFetch('/round/' + round.id, { method: 'DELETE' })
+        .then(function () { currentRoundId = null; load(); })
+        .catch(function (e) { showMsg(msg, e.message, false); });
+    } }, ['Delete round']);
 
     area.appendChild(h('div', { class: 'admin-card' }, [
       h('h2', { text: 'Round #' + round.id + (round.title ? ' — ' + round.title : '') }),
@@ -197,7 +248,7 @@
         h('div', null, [h('label', { class: 'admin-field-label', text: 'Phase' }), phaseSelect]),
         h('div', null, [h('label', { class: 'admin-field-label', text: 'Voting closes (optional)' }), closesInput]),
       ]),
-      h('div', { class: 'admin-actions' }, [saveBtn]),
+      h('div', { class: 'admin-actions' }, [saveBtn, deleteBtn]),
       msg,
     ]));
   }
@@ -354,8 +405,21 @@
     }).then(function () {
       showMsg(msg, 'Round opened.', true);
       $('nr-id').value = $('nr-code').value = $('nr-title').value = $('nr-closes').value = '';
+      $('new-round-section').open = false;
+      currentRoundId = null;
       load();
     }).catch(function (e) { showMsg(msg, e.message, false); });
+  });
+
+  $('round-select').addEventListener('change', function () {
+    var id = Number(this.value);
+    if (id) loadRound(id);
+  });
+
+  $('btn-new-round').addEventListener('click', function () {
+    var sec = $('new-round-section');
+    sec.open = true;
+    sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
 
   $('connect').addEventListener('click', connect);

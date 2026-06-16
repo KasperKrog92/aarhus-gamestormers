@@ -10,7 +10,7 @@ var STRINGS = {
     statusRevealed: 'Resultatet er klar',
     introNone: 'Der er ingen aktiv runde lige nu. Hold øje med Discord for næste afstemning.',
     introSuggesting:
-      'Foreslå et spil til næste møde. Indsæt et Steam-link, så henter vi titel, billede og genrer automatisk. Du skal bruge mødets kode fra Discord (fx <code>storm19</code>).',
+      'Foreslå et spil til næste møde. Indsæt et Steam-link, så henter vi titel, billede og genrer automatisk. Du skal bruge mødets kode fra Discord.',
     introVoting:
       'Sæt flueben ved <b>alle</b> de spil, du gerne vil spille — det med flest stemmer vinder. Du skal bruge mødets kode fra Discord.',
     introRevealed: 'Tak til alle der stemte! Her er resultatet — vinderen bliver næste mødes spil.',
@@ -25,7 +25,7 @@ var STRINGS = {
     labelName: 'Dit navn (valgfri)',
     namePlaceholder: 'Vises på forslagskortet',
     labelCode: 'Mødekode',
-    codePlaceholder: 'fx storm19',
+    codePlaceholder: 'Koden fra Discord',
     hintCode: 'Koden deles på Discord.',
     btnSuggest: 'Send forslag',
     suggestThanks: 'Tak! “{title}” er tilføjet til forslagene.',
@@ -52,7 +52,7 @@ var STRINGS = {
     statusRevealed: 'The result is in',
     introNone: 'There is no active round right now. Watch Discord for the next vote.',
     introSuggesting:
-      'Suggest a game for the next meeting. Paste a Steam link and we’ll pull in the title, image and genres automatically. You’ll need the meeting code from Discord (e.g. <code>storm19</code>).',
+      ‘Suggest a game for the next meeting. Paste a Steam link and we’ll pull in the title, image and genres automatically. You’ll need the meeting code from Discord.’,
     introVoting:
       'Tick <b>every</b> game you’d be happy to play — the one with the most ticks wins. You’ll need the meeting code from Discord.',
     introRevealed: 'Thanks to everyone who voted! Here’s the result — the winner becomes the next meeting’s game.',
@@ -67,7 +67,7 @@ var STRINGS = {
     labelName: 'Your name (optional)',
     namePlaceholder: 'Shown on the suggestion card',
     labelCode: 'Meeting code',
-    codePlaceholder: 'e.g. storm19',
+    codePlaceholder: 'Code from Discord',
     hintCode: 'The code is shared on Discord.',
     btnSuggest: 'Submit suggestion',
     suggestThanks: 'Thanks! “{title}” has been added to the suggestions.',

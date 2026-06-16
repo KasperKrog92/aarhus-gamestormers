@@ -24,10 +24,19 @@ export async function onRequest(context) {
   const [resource, id] = segs;
   const method = request.method.toUpperCase();
 
+  if (resource === 'rounds' && !id) {
+    if (method === 'GET') return adminListRounds(db);
+  }
   if (resource === 'round') {
-    if (method === 'GET') return adminGetRound(db);
-    if (method === 'POST') return adminOpenRound(db, request);
-    if (method === 'PATCH') return adminPatchRound(db, request);
+    if (!id) {
+      if (method === 'GET') return adminGetRound(db);
+      if (method === 'POST') return adminOpenRound(db, request);
+    } else {
+      const numId = Number(id);
+      if (method === 'GET') return adminGetRoundById(db, numId);
+      if (method === 'PATCH') return adminPatchRound(db, request, numId);
+      if (method === 'DELETE') return adminDeleteRound(db, numId);
+    }
   }
   if (resource === 'suggestion' && id) {
     if (method === 'PATCH') return adminPatchSuggestion(db, request, Number(id));
@@ -39,6 +48,11 @@ export async function onRequest(context) {
   return fail('Not found', 404);
 }
 
+async function adminListRounds(db) {
+  const { results } = await db.prepare('SELECT id, title, phase, created_at FROM rounds ORDER BY id DESC').all();
+  return json({ rounds: results || [] });
+}
+
 async function adminGetRound(db) {
   const round = await getCurrentRound(db);
   if (!round) return json({ round: null, suggestions: [], tallies: {}, ballots: [] });
@@ -46,6 +60,23 @@ async function adminGetRound(db) {
   const tallies = await getTallies(db, round.id);
   const ballots = await getBallots(db, round.id);
   return json({ round, suggestions, tallies, ballots });
+}
+
+async function adminGetRoundById(db, id) {
+  if (!Number.isInteger(id) || id <= 0) return fail('Invalid id');
+  const round = await getRoundById(db, id);
+  if (!round) return fail('Round not found', 404);
+  const suggestions = await getSuggestions(db, round.id);
+  const tallies = await getTallies(db, round.id);
+  const ballots = await getBallots(db, round.id);
+  return json({ round, suggestions, tallies, ballots });
+}
+
+async function adminDeleteRound(db, id) {
+  if (!Number.isInteger(id) || id <= 0) return fail('Invalid id');
+  // ON DELETE CASCADE in schema handles suggestions and votes automatically
+  await db.prepare('DELETE FROM rounds WHERE id = ?').bind(id).run();
+  return json({ ok: true });
 }
 
 async function adminOpenRound(db, request) {
@@ -64,11 +95,11 @@ async function adminOpenRound(db, request) {
   return json({ ok: true, id }, 201);
 }
 
-async function adminPatchRound(db, request) {
+async function adminPatchRound(db, request, id) {
   const body = await readJson(request);
   if (!body) return fail('Invalid body');
-  const round = await getCurrentRound(db);
-  if (!round) return fail('No round to update', 409);
+  const round = await getRoundById(db, id);
+  if (!round) return fail('Round not found', 404);
 
   const sets = [];
   const vals = [];
