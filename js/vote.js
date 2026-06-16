@@ -10,7 +10,7 @@ var STRINGS = {
     statusRevealed: 'Resultatet er klar',
     introNone: 'Der er ingen aktiv runde lige nu. Hold øje med Discord for næste afstemning.',
     introSuggesting:
-      'Foreslå et spil til næste møde. Indsæt et Steam-link, så henter vi titel, billede og genrer automatisk. Du skal bruge mødets kode fra Discord.',
+      'Foreslå et spil til næste møde. Er det på Steam, henter vi titel, billede og genrer automatisk — ellers udfylder du det selv. Du skal bruge mødets kode fra Discord.',
     introVoting:
       'Sæt flueben ved <b>alle</b> de spil, du gerne vil spille — det med flest stemmer vinder. Du skal bruge mødets kode fra Discord.',
     introRevealed: 'Tak til alle der stemte! Her er resultatet — vinderen bliver næste mødes spil.',
@@ -18,8 +18,19 @@ var STRINGS = {
     formTitle: 'Foreslå et spil',
     suggestToggle: 'Foreslå nyt spil',
     hideSuggest: 'Skjul formular',
+    steamQuestion: 'Er spillet på Steam?',
+    steamYes: 'Ja, det er på Steam',
+    steamNo: 'Nej / ikke på Steam',
+    changeChoice: '← Vælg igen',
     labelSteam: 'Steam-link',
     hintSteam: 'Fx https://store.steampowered.com/app/753640/Outer_Wilds/',
+    labelTitle: 'Spillets titel',
+    titlePlaceholder: 'Fx Hollow Knight: Silksong',
+    labelStore: 'Butikslink (valgfri)',
+    storePlaceholder: 'Link til GOG, Epic, itch.io …',
+    labelGenres: 'Genrer (valgfri)',
+    genresPlaceholder: 'Kommasepareret, fx Puzzle, Horror',
+    manualNote: 'Spil uden Steam-side bliver gennemset af en admin, før de vises på listen.',
     labelPitch: 'Din pitch (valgfri)',
     pitchPlaceholder: 'Hvorfor skulle vi spille det? Et par linjer.',
     labelName: 'Dit navn (valgfri)',
@@ -29,6 +40,7 @@ var STRINGS = {
     hintCode: 'Koden deles på Discord.',
     btnSuggest: 'Send forslag',
     suggestThanks: 'Tak! “{title}” er tilføjet til forslagene.',
+    manualThanks: 'Tak! “{title}” bliver vist, når en admin har godkendt det.',
     approvedSoFar: 'Forslag indtil videre',
     castBallot: 'Afgiv din stemme',
     btnVote: 'Stem',
@@ -52,7 +64,7 @@ var STRINGS = {
     statusRevealed: 'The result is in',
     introNone: 'There is no active round right now. Watch Discord for the next vote.',
     introSuggesting:
-      "Suggest a game for the next meeting. Paste a Steam link and we’ll pull in the title, image and genres automatically. You’ll need the meeting code from Discord.",
+      "Suggest a game for the next meeting. If it’s on Steam we’ll pull in the title, image and genres automatically — otherwise you fill it in yourself. You’ll need the meeting code from Discord.",
     introVoting:
       'Tick <b>every</b> game you’d be happy to play — the one with the most ticks wins. You’ll need the meeting code from Discord.',
     introRevealed: 'Thanks to everyone who voted! Here’s the result — the winner becomes the next meeting’s game.',
@@ -60,8 +72,19 @@ var STRINGS = {
     formTitle: 'Suggest a game',
     suggestToggle: 'Suggest new game',
     hideSuggest: 'Hide form',
+    steamQuestion: 'Is the game on Steam?',
+    steamYes: 'Yes, it’s on Steam',
+    steamNo: 'No / not on Steam',
+    changeChoice: '← Choose again',
     labelSteam: 'Steam link',
     hintSteam: 'e.g. https://store.steampowered.com/app/753640/Outer_Wilds/',
+    labelTitle: 'Game title',
+    titlePlaceholder: 'e.g. Hollow Knight: Silksong',
+    labelStore: 'Store link (optional)',
+    storePlaceholder: 'Link to GOG, Epic, itch.io …',
+    labelGenres: 'Genres (optional)',
+    genresPlaceholder: 'Comma-separated, e.g. Puzzle, Horror',
+    manualNote: 'Games without a Steam page are reviewed by an admin before they appear on the list.',
     labelPitch: 'Your pitch (optional)',
     pitchPlaceholder: 'Why should we play it? A couple of lines.',
     labelName: 'Your name (optional)',
@@ -71,6 +94,7 @@ var STRINGS = {
     hintCode: 'The code is shared on Discord.',
     btnSuggest: 'Submit suggestion',
     suggestThanks: 'Thanks! “{title}” has been added to the suggestions.',
+    manualThanks: 'Thanks! “{title}” will appear once an admin has approved it.',
     approvedSoFar: 'Suggestions so far',
     castBallot: 'Cast your ballot',
     btnVote: 'Vote',
@@ -268,13 +292,11 @@ var STRINGS = {
     app.appendChild(meetingBadge(data.round));
     app.appendChild(el('p', { class: 'vote-intro', html: T.introSuggesting }));
 
-    var steam = el('input', { class: 'vote-input', type: 'url', placeholder: 'https://store.steampowered.com/app/…' });
-    var pitch = el('textarea', { class: 'vote-textarea', placeholder: T.pitchPlaceholder, maxlength: '500' });
-    var name = el('input', { class: 'vote-input', type: 'text', placeholder: T.namePlaceholder, maxlength: '80' });
-    var code = el('input', { class: 'vote-input', type: 'text', placeholder: T.codePlaceholder, maxlength: '40' });
-    var tsBox = el('div');
-    var box = msgBox();
-    var btn = el('button', { class: 'btn-green', type: 'submit', text: T.btnSuggest });
+    // The disclosure reveals a container that walks through: a Steam yes/no
+    // question → the matching form. Switching forms simply re-renders `panel`.
+    var panel = el('div');
+    panel.hidden = true;
+
     var disclosureText = el('span', { text: T.suggestToggle });
     var disclosureChevron = el('span', { class: 'vote-disclosure-chevron', text: 'v', 'aria-hidden': 'true' });
     var disclosureBtn = el('button', { class: 'vote-disclosure', type: 'button', 'aria-expanded': 'false' }, [
@@ -282,54 +304,139 @@ var STRINGS = {
       disclosureChevron,
     ]);
 
-    var form = el('form', { class: 'vote-panel' }, [
-      el('h2', { class: 'vote-panel-title', text: T.formTitle }),
-      field(T.labelSteam, steam, T.hintSteam),
-      field(T.labelPitch, pitch),
-      field(T.labelName, name),
-      field(T.labelCode, code, T.hintCode),
-      tsBox,
-      el('div', { class: 'vote-actions' }, [btn]),
-      box,
-    ]);
-    form.hidden = true;
-
-    var turnstileMounted = false;
     disclosureBtn.addEventListener('click', function () {
-      var opening = form.hidden;
-      form.hidden = !opening;
+      var opening = panel.hidden;
+      panel.hidden = !opening;
       disclosureBtn.setAttribute('aria-expanded', opening ? 'true' : 'false');
       disclosureText.textContent = opening ? T.hideSuggest : T.suggestToggle;
-      if (opening && !turnstileMounted) {
-        mountTurnstile(tsBox);
-        turnstileMounted = true;
-      }
+      if (opening) showChoice();
+      else clear(panel);
     });
 
-    form.addEventListener('submit', function (e) {
-      e.preventDefault();
-      btn.disabled = true;
-      api('/suggest', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          steamUrl: steam.value,
-          pitch: pitch.value,
-          suggestedBy: name.value,
-          stormCode: code.value,
-          turnstileToken: tsToken,
-        }),
-      })
-        .then(function (res) {
-          showMsg(box, T.suggestThanks.replace('{title}', res.game.title), true);
-          steam.value = pitch.value = name.value = '';
-          if (window.turnstile && tsWidgetId !== null) window.turnstile.reset(tsWidgetId);
+    function backLink() {
+      return el('button', { class: 'vote-back', type: 'button', text: T.changeChoice, onclick: showChoice });
+    }
+
+    function showChoice() {
+      clear(panel);
+      var yesBtn = el('button', { class: 'btn-green', type: 'button', text: T.steamYes, onclick: showSteamForm });
+      var noBtn = el('button', { class: 'vote-choice-alt', type: 'button', text: T.steamNo, onclick: showManualForm });
+      panel.appendChild(el('div', { class: 'vote-panel vote-choice' }, [
+        el('h2', { class: 'vote-panel-title', text: T.steamQuestion }),
+        el('div', { class: 'vote-choice-btns' }, [yesBtn, noBtn]),
+      ]));
+    }
+
+    // Shared submit: posts the payload, shows the right thanks message, resets.
+    function wireSubmit(form, btn, box, buildBody, clearInputs, thanks) {
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        btn.disabled = true;
+        api('/suggest', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(buildBody()),
         })
-        .catch(function (err) { showMsg(box, err.message, false); })
-        .finally(function () { btn.disabled = false; });
-    });
+          .then(function (res) {
+            showMsg(box, thanks.replace('{title}', res.game.title), true);
+            clearInputs();
+            if (window.turnstile && tsWidgetId !== null) window.turnstile.reset(tsWidgetId);
+          })
+          .catch(function (err) { showMsg(box, err.message, false); })
+          .finally(function () { btn.disabled = false; });
+      });
+    }
 
-    app.appendChild(el('div', { class: 'vote-disclosure-wrap' }, [disclosureBtn, form]));
+    function showSteamForm() {
+      clear(panel);
+      var steam = el('input', { class: 'vote-input', type: 'url', placeholder: 'https://store.steampowered.com/app/…' });
+      var pitch = el('textarea', { class: 'vote-textarea', placeholder: T.pitchPlaceholder, maxlength: '500' });
+      var name = el('input', { class: 'vote-input', type: 'text', placeholder: T.namePlaceholder, maxlength: '80' });
+      var code = el('input', { class: 'vote-input', type: 'text', placeholder: T.codePlaceholder, maxlength: '40' });
+      var tsBox = el('div');
+      var box = msgBox();
+      var btn = el('button', { class: 'btn-green', type: 'submit', text: T.btnSuggest });
+
+      var form = el('form', { class: 'vote-panel' }, [
+        el('div', { class: 'vote-panel-head' }, [el('h2', { class: 'vote-panel-title', text: T.formTitle }), backLink()]),
+        field(T.labelSteam, steam, T.hintSteam),
+        field(T.labelPitch, pitch),
+        field(T.labelName, name),
+        field(T.labelCode, code, T.hintCode),
+        tsBox,
+        el('div', { class: 'vote-actions' }, [btn]),
+        box,
+      ]);
+
+      wireSubmit(
+        form, btn, box,
+        function () {
+          return {
+            onSteam: true,
+            steamUrl: steam.value,
+            pitch: pitch.value,
+            suggestedBy: name.value,
+            stormCode: code.value,
+            turnstileToken: tsToken,
+          };
+        },
+        function () { steam.value = pitch.value = name.value = ''; },
+        T.suggestThanks
+      );
+
+      panel.appendChild(form);
+      mountTurnstile(tsBox);
+    }
+
+    function showManualForm() {
+      clear(panel);
+      var title = el('input', { class: 'vote-input', type: 'text', placeholder: T.titlePlaceholder, maxlength: '200' });
+      var store = el('input', { class: 'vote-input', type: 'url', placeholder: T.storePlaceholder, maxlength: '400' });
+      var genres = el('input', { class: 'vote-input', type: 'text', placeholder: T.genresPlaceholder, maxlength: '200' });
+      var pitch = el('textarea', { class: 'vote-textarea', placeholder: T.pitchPlaceholder, maxlength: '500' });
+      var name = el('input', { class: 'vote-input', type: 'text', placeholder: T.namePlaceholder, maxlength: '80' });
+      var code = el('input', { class: 'vote-input', type: 'text', placeholder: T.codePlaceholder, maxlength: '40' });
+      var tsBox = el('div');
+      var box = msgBox();
+      var btn = el('button', { class: 'btn-green', type: 'submit', text: T.btnSuggest });
+
+      var form = el('form', { class: 'vote-panel' }, [
+        el('div', { class: 'vote-panel-head' }, [el('h2', { class: 'vote-panel-title', text: T.formTitle }), backLink()]),
+        el('p', { class: 'vote-hint', text: T.manualNote }),
+        field(T.labelTitle, title),
+        field(T.labelStore, store),
+        field(T.labelGenres, genres),
+        field(T.labelPitch, pitch),
+        field(T.labelName, name),
+        field(T.labelCode, code, T.hintCode),
+        tsBox,
+        el('div', { class: 'vote-actions' }, [btn]),
+        box,
+      ]);
+
+      wireSubmit(
+        form, btn, box,
+        function () {
+          return {
+            onSteam: false,
+            title: title.value,
+            storeUrl: store.value,
+            genres: genres.value,
+            pitch: pitch.value,
+            suggestedBy: name.value,
+            stormCode: code.value,
+            turnstileToken: tsToken,
+          };
+        },
+        function () { title.value = store.value = genres.value = pitch.value = name.value = ''; },
+        T.manualThanks
+      );
+
+      panel.appendChild(form);
+      mountTurnstile(tsBox);
+    }
+
+    app.appendChild(el('div', { class: 'vote-disclosure-wrap' }, [disclosureBtn, panel]));
 
     // Already-approved suggestions appear below the form (read-only).
     if (data.suggestions.length) {

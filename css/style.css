@@ -1126,6 +1126,48 @@ img { display: block; max-width: 100%; height: auto; }
   color: var(--cream);
   margin-bottom: 16px;
 }
+.vote-panel-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.vote-panel-head .vote-panel-title { margin-bottom: 0; }
+.vote-back {
+  flex-shrink: 0;
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--green);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.vote-back:hover { color: var(--green-light); text-decoration: underline; }
+
+/* Steam yes/no choice step */
+.vote-choice-btns { display: flex; flex-wrap: wrap; gap: 12px; }
+.vote-choice-alt {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 22px;
+  border: 1px solid rgba(150,195,141,0.34);
+  border-radius: 12px;
+  background: rgba(150,195,141,0.16);
+  color: var(--cream);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.vote-choice-alt:hover { background: rgba(150,195,141,0.26); }
+
 .vote-field { margin-bottom: 16px; }
 .vote-label {
   display: block;
@@ -1438,6 +1480,7 @@ img { display: block; max-width: 100%; height: auto; }
 .admin-badge.pending  { background: #f3ead2; color: #8a6d1f; }
 .admin-badge.approved { background: #d8ecd3; color: #3c6b34; }
 .admin-badge.rejected { background: #ecd9d9; color: #8a3030; }
+.admin-badge.nonsteam { background: #e2dcef; color: #4b3f6b; }
 .admin-meta { font-size: 0.82rem; color: var(--muted); margin-bottom: 10px; }
 .admin-msg { font-size: 0.88rem; margin: 10px 0; padding: 10px 14px; border-radius: 8px; }
 .admin-msg.ok { background: #d8ecd3; color: #3c6b34; }

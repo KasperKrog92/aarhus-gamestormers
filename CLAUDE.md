@@ -206,7 +206,7 @@ only dynamic part of the site and the reason hosting moved to Cloudflare Pages. 
 | Route | Method | Purpose |
 |---|---|---|
 | `/api/round/current` | GET | Current round + approved cards (tallies only when `revealed`; never exposes the storm code). |
-| `/api/suggest` | POST | Submit a suggestion; imports the game from Steam server-side; **auto-approved** (visible immediately). |
+| `/api/suggest` | POST | Submit a suggestion. The form first asks "Is the game on Steam?": **Steam games** (`onSteam:true`) import from Steam server-side and are **auto-approved** (visible immediately); **non-Steam games** (`onSteam:false`) carry a member-typed title/store link/genres/pitch, are stored as **`pending`**, and stay hidden until the maintainer verifies them (and adds an image). |
 | `/api/vote` | POST | Cast an approval ballot (one `votes` row per ticked game); optional self-reported `voterName`. |
 | `/api/admin/round` | GET/POST/PATCH | Read full round (incl. per-ballot list + live tallies); open a new round; change phase / winner / code. |
 | `/api/admin/suggestion/:id` | PATCH/DELETE | Approve / reject / edit or delete a suggestion. |
@@ -222,8 +222,11 @@ gate) + **Cloudflare Turnstile** (bot check). **No IP is stored and no cookie is
 on purpose to stay cookie-free and PII-free. True one-vote-per-person would need identity (e.g. Discord
 login), which was explicitly out of scope.
 
-**Curation & moderation**: suggestions are **auto-approved** — they appear on the board as soon as they're
-submitted; the maintainer can still edit, reject (hide), or delete them in `vote-admin.html`. Voting is
+**Curation & moderation**: **Steam suggestions are auto-approved** — they appear on the board as soon as
+they're submitted; the maintainer can still edit, reject (hide), or delete them in `vote-admin.html`.
+**Non-Steam suggestions land as `pending`** and are hidden from the public board until the maintainer
+approves them (the admin suggestion card exposes Image URL / Store URL inputs and flags non-Steam entries
+so the maintainer can fill in the banner before approving). Voting is
 intentionally low-friction, so to compensate the admin sees the **full per-ballot breakdown at any phase**
 (optional voter name, which games each ballot approved, and timestamp) plus live tallies, and can **delete
 any ballot** (`/api/admin/ballot/:ballotId`) if a vote looks suspicious. Ballot names are rendered with
