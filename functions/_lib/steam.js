@@ -40,8 +40,7 @@ export async function fetchSteamGame(appId) {
   return {
     steamAppId: appId,
     title: d.name || '',
-    // Match the site's banner convention (akamai header.jpg).
-    image: `https://cdn.akamai.steamstatic.com/steam/apps/${appId}/header.jpg`,
+    image: d.header_image || `https://cdn.akamai.steamstatic.com/steam/apps/${appId}/header.jpg`,
     storeUrl: `https://store.steampowered.com/app/${appId}/`,
     genres,
     platforms,
