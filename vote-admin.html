@@ -50,7 +50,7 @@
           <h2>Open a new round</h2>
           <button class="admin-btn ghost" id="nr-cancel" type="button">Cancel</button>
         </div>
-        <p class="admin-meta">Creates the next round and makes it the current one (phase: suggesting).</p>
+        <p class="admin-meta">Creates the next round, makes it current (phase: suggesting), and creates the matching public meeting record.</p>
         <div class="admin-grid">
           <div>
             <label class="admin-field-label" for="nr-id">Meeting number</label>
@@ -67,6 +67,26 @@
           <div>
             <label class="admin-field-label" for="nr-meeting-date">Meeting date</label>
             <input class="admin-input" id="nr-meeting-date" type="date">
+          </div>
+          <div>
+            <label class="admin-field-label" for="nr-meeting-start">Meeting start</label>
+            <input class="admin-input" id="nr-meeting-start" type="time" value="18:30">
+          </div>
+          <div>
+            <label class="admin-field-label" for="nr-meeting-end">Meeting end</label>
+            <input class="admin-input" id="nr-meeting-end" type="time" value="21:00">
+          </div>
+          <div>
+            <label class="admin-field-label" for="nr-venue-name">Venue name</label>
+            <input class="admin-input" id="nr-venue-name" type="text" value="Folkehuset Møllestien">
+          </div>
+          <div>
+            <label class="admin-field-label" for="nr-venue-address">Venue address</label>
+            <input class="admin-input" id="nr-venue-address" type="text" value="Grønnegade 10, 8000 Aarhus C">
+          </div>
+          <div>
+            <label class="admin-field-label" for="nr-discord-invite">Discord invite</label>
+            <input class="admin-input" id="nr-discord-invite" type="url" value="https://discord.gg/N2h6DJxVDF">
           </div>
           <div>
             <label class="admin-field-label" for="nr-suggestions-months">Suggestions start months before</label>
@@ -115,6 +135,9 @@
   var TOKEN_KEY = 'gs-admin-token';
   var token = sessionStorage.getItem(TOKEN_KEY) || '';
   var currentRoundId = null;
+  var DEFAULT_VENUE_NAME = 'Folkehuset Møllestien';
+  var DEFAULT_VENUE_ADDRESS = 'Grønnegade 10, 8000 Aarhus C';
+  var DEFAULT_DISCORD_INVITE = 'https://discord.gg/N2h6DJxVDF';
 
   var $ = function (id) { return document.getElementById(id); };
   var PHASES = ['suggesting', 'voting', 'revealed', 'closed'];
@@ -222,6 +245,7 @@
       var label = 'Round #' + r.id;
       if (r.title) label += ' — ' + r.title;
       if (r.meeting_date) label += ' · ' + r.meeting_date;
+      label += r.has_public_meeting ? ' - public meeting' : ' - missing public meeting';
       label += ' (' + r.phase + ')';
       opt.textContent = label;
       if (r.id === selectedId) opt.selected = true;
@@ -237,6 +261,11 @@
     $('nr-code').value = 'storm' + nextId;
     $('nr-title').value = 'Meeting ' + nextId;
     $('nr-meeting-date').value = '';
+    $('nr-meeting-start').value = '18:30';
+    $('nr-meeting-end').value = '21:00';
+    $('nr-venue-name').value = DEFAULT_VENUE_NAME;
+    $('nr-venue-address').value = DEFAULT_VENUE_ADDRESS;
+    $('nr-discord-invite').value = DEFAULT_DISCORD_INVITE;
     $('nr-suggestions-months').value = '2.5';
     $('nr-voting-months').value = '2';
     $('nr-suggestions-open').value = '';
@@ -245,7 +274,7 @@
 
   function applyData(data) {
     currentRoundId = data.round ? data.round.id : null;
-    renderRound(data.round, data.tallies || {});
+    renderRound(data.round, data.tallies || {}, data.meeting || null);
     renderSuggestions(data.suggestions || [], data.tallies || {});
     renderBallots(data.ballots || [], data.suggestions || []);
   }
@@ -278,7 +307,7 @@
   }
 
   // ── current round ──────────────────────────────────────────────────────────
-  function renderRound(round, tallies) {
+  function renderRound(round, tallies, meeting) {
     var area = $('round-area');
     area.innerHTML = '';
     if (!round) {
@@ -292,6 +321,11 @@
     var titleInput = h('input', { class: 'admin-input', type: 'text', value: round.title || '' });
     var codeInput = h('input', { class: 'admin-input', type: 'text', value: round.storm_code || '' });
     var meetingDateInput = h('input', { class: 'admin-input', type: 'date', value: round.meeting_date || '' });
+    var meetingStartInput = h('input', { class: 'admin-input', type: 'time', value: meeting && meeting.startTime ? meeting.startTime : '18:30' });
+    var meetingEndInput = h('input', { class: 'admin-input', type: 'time', value: meeting && meeting.endTime ? meeting.endTime : '21:00' });
+    var venueNameInput = h('input', { class: 'admin-input', type: 'text', value: meeting && meeting.venueName ? meeting.venueName : DEFAULT_VENUE_NAME });
+    var venueAddressInput = h('input', { class: 'admin-input', type: 'text', value: meeting && meeting.venueAddress ? meeting.venueAddress : DEFAULT_VENUE_ADDRESS });
+    var discordInviteInput = h('input', { class: 'admin-input', type: 'url', value: meeting && meeting.discordInvite ? meeting.discordInvite : DEFAULT_DISCORD_INVITE });
     var suggestionsMonthsInput = h('input', {
       class: 'admin-input',
       type: 'number',
@@ -334,6 +368,11 @@
           stormCode: codeInput.value,
           phase: phaseSelect.value,
           meetingDate: meetingDateInput.value,
+          meetingStartTime: meetingStartInput.value,
+          meetingEndTime: meetingEndInput.value,
+          venueName: venueNameInput.value,
+          venueAddress: venueAddressInput.value,
+          discordInvite: discordInviteInput.value,
           suggestionsOpenMonthsBefore: suggestionsMonthsInput.value,
           votingClosesMonthsBefore: votingMonthsInput.value,
           suggestionsOpenAt: suggestionsOpenInput.value,
@@ -353,11 +392,17 @@
     area.appendChild(h('div', { class: 'admin-card' }, [
       h('h2', { text: 'Round #' + round.id + (round.title ? ' — ' + round.title : '') }),
       h('p', { class: 'admin-meta', html: 'Public URL: <a href="/vote" target="_blank" rel="noopener">/vote</a> · phase controls what visitors see (suggesting → voting → revealed).' }),
+      h('p', { class: 'admin-meta', text: meeting ? 'Public meeting record: yes (' + meeting.status + ')' : 'Public meeting record: missing. Save this round to create one from the event basics below.' }),
       h('div', { class: 'admin-grid' }, [
         h('div', null, [h('label', { class: 'admin-field-label', text: 'Title' }), titleInput]),
         h('div', null, [h('label', { class: 'admin-field-label', text: 'Storm code' }), codeInput]),
         h('div', null, [h('label', { class: 'admin-field-label', text: 'Phase' }), phaseSelect]),
         h('div', null, [h('label', { class: 'admin-field-label', text: 'Meeting date' }), meetingDateInput]),
+        h('div', null, [h('label', { class: 'admin-field-label', text: 'Meeting start' }), meetingStartInput]),
+        h('div', null, [h('label', { class: 'admin-field-label', text: 'Meeting end' }), meetingEndInput]),
+        h('div', null, [h('label', { class: 'admin-field-label', text: 'Venue name' }), venueNameInput]),
+        h('div', null, [h('label', { class: 'admin-field-label', text: 'Venue address' }), venueAddressInput]),
+        h('div', null, [h('label', { class: 'admin-field-label', text: 'Discord invite' }), discordInviteInput]),
         h('div', null, [h('label', { class: 'admin-field-label', text: 'Suggestions start months before' }), suggestionsMonthsInput]),
         h('div', null, [h('label', { class: 'admin-field-label', text: 'Voting closes months before' }), votingMonthsInput]),
         h('div', null, [h('label', { class: 'admin-field-label', text: 'Suggestions open' }), suggestionsOpenInput]),
@@ -533,6 +578,11 @@
         stormCode: $('nr-code').value,
         title: $('nr-title').value,
         meetingDate: $('nr-meeting-date').value,
+        meetingStartTime: $('nr-meeting-start').value,
+        meetingEndTime: $('nr-meeting-end').value,
+        venueName: $('nr-venue-name').value,
+        venueAddress: $('nr-venue-address').value,
+        discordInvite: $('nr-discord-invite').value,
         suggestionsOpenMonthsBefore: $('nr-suggestions-months').value,
         votingClosesMonthsBefore: $('nr-voting-months').value,
         suggestionsOpenAt: $('nr-suggestions-open').value,
@@ -541,6 +591,11 @@
     }).then(function () {
       showMsg(msg, 'Round opened.', true);
       $('nr-id').value = $('nr-code').value = $('nr-title').value = $('nr-meeting-date').value = $('nr-suggestions-open').value = $('nr-closes').value = '';
+      $('nr-meeting-start').value = '18:30';
+      $('nr-meeting-end').value = '21:00';
+      $('nr-venue-name').value = DEFAULT_VENUE_NAME;
+      $('nr-venue-address').value = DEFAULT_VENUE_ADDRESS;
+      $('nr-discord-invite').value = DEFAULT_DISCORD_INVITE;
       $('nr-suggestions-months').value = '2.5';
       $('nr-voting-months').value = '2';
       toggleNewRound(false);

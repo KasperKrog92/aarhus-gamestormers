@@ -1,7 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { defaultScheduleForMeetingDate, roundScheduleState } from '../functions/_lib/schedule.js';
+import {
+  defaultScheduleForMeetingDate,
+  meetingUtcRange,
+  roundScheduleState,
+  timeOnlyInZone,
+} from '../functions/_lib/schedule.js';
 
 test('default round schedule is based on the meeting date', () => {
   assert.deepEqual(defaultScheduleForMeetingDate('2026-09-15'), {
@@ -42,4 +47,13 @@ test('round schedule state respects suggestion start and inclusive voting close 
     suggestionsAreOpen: true,
     votingIsOpen: false,
   });
+});
+
+test('meetingUtcRange converts Copenhagen meeting times to UTC with daylight saving', () => {
+  assert.deepEqual(meetingUtcRange('2026-08-03', '18:30', '21:00'), {
+    startsAtUtc: '2026-08-03T16:30:00.000Z',
+    endsAtUtc: '2026-08-03T19:00:00.000Z',
+  });
+
+  assert.equal(timeOnlyInZone('2026-08-03T16:30:00.000Z'), '18:30');
 });

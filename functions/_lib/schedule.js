@@ -1,6 +1,7 @@
 const DAY_MS = 24 * 60 * 60 * 1000;
 export const DEFAULT_SUGGESTIONS_OPEN_MONTHS_BEFORE = 2.5;
 export const DEFAULT_VOTING_CLOSES_MONTHS_BEFORE = 2;
+export const DEFAULT_MEETING_TIMEZONE = 'Europe/Copenhagen';
 
 function parseDateOnly(value) {
   const match = String(value || '').trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
@@ -27,6 +28,15 @@ function addDays(date, days) {
   return new Date(date.getTime() + days * DAY_MS);
 }
 
+function cleanTime(value) {
+  const match = String(value || '').trim().match(/^(\d{2}):(\d{2})$/);
+  if (!match) return '';
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return '';
+  return match[1] + ':' + match[2];
+}
+
 function addMonthsClamped(date, deltaMonths) {
   const sourceYear = date.getUTCFullYear();
   const sourceMonth = date.getUTCMonth();
@@ -41,6 +51,10 @@ function addMonthsClamped(date, deltaMonths) {
 export function cleanDateOnly(value) {
   const date = parseDateOnly(value);
   return date ? dateOnly(date) : '';
+}
+
+export function cleanTimeOnly(value) {
+  return cleanTime(value);
 }
 
 export function cleanMonthsBefore(value, fallback) {
@@ -96,4 +110,74 @@ export function roundScheduleState(round, now = new Date()) {
     suggestionsAreOpen: !isBeforeDateOnly(today, round.suggestions_open_at),
     votingIsOpen: !isAfterDateOnly(today, round.voting_closes_at),
   };
+}
+
+function getTimeZoneParts(date, timeZone) {
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  });
+  const parts = {};
+  for (const part of formatter.formatToParts(date)) {
+    if (part.type !== 'literal') parts[part.type] = part.value;
+  }
+  return {
+    year: Number(parts.year),
+    month: Number(parts.month),
+    day: Number(parts.day),
+    hour: Number(parts.hour),
+    minute: Number(parts.minute),
+  };
+}
+
+function localPartsMillis(parts) {
+  return Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute);
+}
+
+function zonedLocalToUtc(date, time, timeZone) {
+  const cleanDate = cleanDateOnly(date);
+  const cleanMeetingTime = cleanTimeOnly(time);
+  if (!cleanDate || !cleanMeetingTime) return '';
+
+  const [year, month, day] = cleanDate.split('-').map(Number);
+  const [hour, minute] = cleanMeetingTime.split(':').map(Number);
+  const wanted = { year, month, day, hour, minute };
+  let guess = new Date(Date.UTC(year, month - 1, day, hour, minute));
+
+  for (let i = 0; i < 3; i += 1) {
+    const actual = getTimeZoneParts(guess, timeZone);
+    const diff = localPartsMillis(wanted) - localPartsMillis(actual);
+    if (diff === 0) return guess.toISOString();
+    guess = new Date(guess.getTime() + diff);
+  }
+
+  return guess.toISOString();
+}
+
+export function meetingUtcRange(meetingDate, startTime, endTime, timeZone = DEFAULT_MEETING_TIMEZONE) {
+  const cleanDate = cleanDateOnly(meetingDate);
+  const cleanStart = cleanTimeOnly(startTime);
+  const cleanEnd = cleanTimeOnly(endTime);
+  if (!cleanDate || !cleanStart || !cleanEnd) return { startsAtUtc: '', endsAtUtc: '' };
+
+  const startsAtUtc = zonedLocalToUtc(cleanDate, cleanStart, timeZone);
+  let endDate = cleanDate;
+  if (cleanEnd <= cleanStart) {
+    const parsed = parseDateOnly(cleanDate);
+    endDate = parsed ? dateOnly(addDays(parsed, 1)) : cleanDate;
+  }
+  const endsAtUtc = zonedLocalToUtc(endDate, cleanEnd, timeZone);
+  return { startsAtUtc, endsAtUtc };
+}
+
+export function timeOnlyInZone(isoUtc, timeZone = DEFAULT_MEETING_TIMEZONE) {
+  const date = new Date(isoUtc);
+  if (!Number.isFinite(date.getTime())) return '';
+  const parts = getTimeZoneParts(date, timeZone);
+  return String(parts.hour).padStart(2, '0') + ':' + String(parts.minute).padStart(2, '0');
 }

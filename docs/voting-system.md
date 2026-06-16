@@ -21,6 +21,9 @@ It is the site's only dynamic feature. It runs on Cloudflare Pages Functions and
 ## D1 Tables
 
 - `rounds`: meeting round, meeting date, schedule windows, phase, winner, and storm code.
+- `meetings`: public meeting basics for the homepage and history flow. `meetings.id` matches `rounds.id`.
+- `games`: reusable selected-game metadata for public event and history cards.
+- `meeting_copy`: localized public event/history copy for a meeting.
 - `suggestions`: submitted games and imported metadata.
 - `votes`: approval-voting rows, one row per selected game, with optional self-reported `voter_name`.
 
@@ -31,7 +34,7 @@ It is the site's only dynamic feature. It runs on Cloudflare Pages Functions and
 | `/api/round/current` | GET | Current round and approved cards. Tallies are only exposed when revealed. The storm code is never exposed. |
 | `/api/suggest` | POST | Submit a suggestion. Steam suggestions are imported server-side and auto-approved. Non-Steam suggestions are pending until maintainer approval. |
 | `/api/vote` | POST | Cast an approval ballot with optional voter name. |
-| `/api/admin/round` | GET/POST/PATCH | Read full round, open a new round, change phase, winner, code, meeting date, or schedule windows. |
+| `/api/admin/round` | GET/POST/PATCH | Read full round, open a new round, change phase, winner, code, meeting date, schedule windows, or public meeting basics. |
 | `/api/admin/suggestion/:id` | PATCH/DELETE | Approve, reject, edit, or delete a suggestion. |
 | `/api/admin/ballot/:ballotId` | DELETE | Remove a single ballot and all its votes. |
 
@@ -44,6 +47,10 @@ suggesting -> voting -> revealed -> closed
 ```
 
 The current round is the row with the highest `id`, which also maps to the meeting number.
+
+When the admin opens a round, the API also creates or updates the matching `meetings` row. The same numeric id is used for both records. The round keeps voting-specific fields such as the storm code, phase, and schedule offsets. The meeting stores public event basics: meeting date, Copenhagen-local start/end times converted to UTC, venue name, venue address, Discord invite, timezone, and public meeting status.
+
+`vote-admin.html` shows whether each round has a public meeting record. Saving a round with meeting basics updates the matching meeting record, which lets older rounds be repaired without touching the database manually.
 
 ## Round Schedule
 

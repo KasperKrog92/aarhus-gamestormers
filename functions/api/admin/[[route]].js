@@ -2,8 +2,8 @@
 // Authorization: Bearer <ADMIN_TOKEN>. Used by vote-admin.html.
 //
 //   GET    /api/admin/round            full current round + all suggestions + tallies
-//   POST   /api/admin/round            open a new round { id, stormCode, title?, meetingDate?, suggestionsOpenMonthsBefore?, votingClosesMonthsBefore?, suggestionsOpenAt?, votingClosesAt? }
-//   PATCH  /api/admin/round            update current round { phase?, stormCode?, title?, meetingDate?, suggestionsOpenMonthsBefore?, votingClosesMonthsBefore?, suggestionsOpenAt?, votingClosesAt?, winnerSuggestionId? }
+//   POST   /api/admin/round            open a new round and matching public meeting
+//   PATCH  /api/admin/round            update current round and matching public meeting basics
 //   PATCH  /api/admin/suggestion/:id   edit/approve/reject a suggestion
 //   DELETE /api/admin/suggestion/:id   delete a suggestion
 //   DELETE /api/admin/ballot/:ballotId remove a single ballot (all its votes)
@@ -11,24 +11,34 @@ import { json, fail, readJson, clean } from '../../_lib/http.js';
 import { isAdmin } from '../../_lib/auth.js';
 import {
   ensureRoundScheduleColumns,
+  ensureMeetingContentTables,
   ensureSuggestionDescriptionColumns,
   getCurrentRound,
+  getMeetingById,
   getRoundById,
   getSuggestions,
   getSuggestionById,
   getTallies,
   getBallots,
+  upsertMeeting,
 } from '../../_lib/db.js';
 import {
+  DEFAULT_MEETING_TIMEZONE,
   DEFAULT_SUGGESTIONS_OPEN_MONTHS_BEFORE,
   DEFAULT_VOTING_CLOSES_MONTHS_BEFORE,
   cleanDateOnly,
   cleanMonthsBefore,
+  cleanTimeOnly,
   defaultScheduleForMeetingDate,
+  meetingUtcRange,
+  timeOnlyInZone,
 } from '../../_lib/schedule.js';
 
 const PHASES = ['suggesting', 'voting', 'revealed', 'closed'];
 const STATUSES = ['pending', 'approved', 'rejected'];
+const DEFAULT_VENUE_NAME = 'Folkehuset Møllestien';
+const DEFAULT_VENUE_ADDRESS = 'Grønnegade 10, 8000 Aarhus C';
+const DEFAULT_DISCORD_INVITE = 'https://discord.gg/N2h6DJxVDF';
 
 export async function onRequest(context) {
   const { request, env, params } = context;
@@ -37,6 +47,7 @@ export async function onRequest(context) {
 
   const db = env.DB;
   await ensureRoundScheduleColumns(db);
+  await ensureMeetingContentTables(db);
   const segs = Array.isArray(params.route) ? params.route : params.route ? [params.route] : [];
   const [resource, id] = segs;
   const method = request.method.toUpperCase();
@@ -66,17 +77,32 @@ export async function onRequest(context) {
 }
 
 async function adminListRounds(db) {
-  const { results } = await db.prepare('SELECT id, title, meeting_date, phase, created_at FROM rounds ORDER BY id DESC').all();
+  const { results } = await db
+    .prepare(
+      `SELECT
+         r.id,
+         r.title,
+         r.meeting_date,
+         r.phase,
+         r.created_at,
+         CASE WHEN m.id IS NULL THEN 0 ELSE 1 END AS has_public_meeting,
+         m.status AS meeting_status
+       FROM rounds r
+       LEFT JOIN meetings m ON m.id = r.id
+       ORDER BY r.id DESC`
+    )
+    .all();
   return json({ rounds: results || [] });
 }
 
 async function adminGetRound(db) {
   const round = await getCurrentRound(db);
-  if (!round) return json({ round: null, suggestions: [], tallies: {}, ballots: [] });
+  if (!round) return json({ round: null, meeting: null, suggestions: [], tallies: {}, ballots: [] });
   const suggestions = await getSuggestions(db, round.id);
   const tallies = await getTallies(db, round.id);
   const ballots = await getBallots(db, round.id);
-  return json({ round, suggestions, tallies, ballots });
+  const meeting = await getMeetingById(db, round.id);
+  return json({ round, meeting: toAdminMeeting(meeting), suggestions, tallies, ballots });
 }
 
 async function adminGetRoundById(db, id) {
@@ -86,7 +112,8 @@ async function adminGetRoundById(db, id) {
   const suggestions = await getSuggestions(db, round.id);
   const tallies = await getTallies(db, round.id);
   const ballots = await getBallots(db, round.id);
-  return json({ round, suggestions, tallies, ballots });
+  const meeting = await getMeetingById(db, round.id);
+  return json({ round, meeting: toAdminMeeting(meeting), suggestions, tallies, ballots });
 }
 
 async function adminDeleteRound(db, id) {
@@ -110,6 +137,8 @@ async function adminOpenRound(db, request) {
   const defaults = defaultScheduleForMeetingDate(meetingDate, suggestionsOpenMonthsBefore, votingClosesMonthsBefore);
   const suggestionsOpenAt = cleanDateOnly(body.suggestionsOpenAt) || defaults.suggestionsOpenAt;
   const votingClosesAt = cleanDateOnly(body.votingClosesAt) || defaults.votingClosesAt;
+  const meeting = meetingFromInput(body, { id, meetingDate, phase: 'suggesting' });
+  if (meeting.error) return fail(meeting.error);
 
   await db
     .prepare(
@@ -128,7 +157,8 @@ async function adminOpenRound(db, request) {
       votingClosesAt || null
     )
     .run();
-  return json({ ok: true, id }, 201);
+  await upsertMeeting(db, meeting.value);
+  return json({ ok: true, id, meeting: true }, 201);
 }
 
 async function adminPatchRound(db, request, id) {
@@ -163,11 +193,121 @@ async function adminPatchRound(db, request, id) {
   if (body.winnerSuggestionId !== undefined) {
     put('winner_suggestion_id', body.winnerSuggestionId === null ? null : Number(body.winnerSuggestionId));
   }
-  if (!sets.length) return fail('Nothing to update');
+  const hasMeetingFields = hasAny(body, [
+    'meetingDate',
+    'meetingStartTime',
+    'meetingEndTime',
+    'venueName',
+    'venueAddress',
+    'discordInvite',
+    'timezone',
+  ]);
+  const existingMeeting = await getMeetingById(db, id);
+  const shouldUpsertMeeting = hasMeetingFields || (body.phase !== undefined && existingMeeting);
+  if (!sets.length && !shouldUpsertMeeting) return fail('Nothing to update');
 
-  vals.push(round.id);
-  await db.prepare('UPDATE rounds SET ' + sets.join(', ') + ' WHERE id = ?').bind(...vals).run();
+  let meeting = null;
+  if (shouldUpsertMeeting) {
+    meeting = meetingFromInput(
+      body,
+      {
+        id: round.id,
+        meetingDate: body.meetingDate !== undefined ? cleanDateOnly(body.meetingDate) : cleanDateOnly(round.meeting_date),
+        phase: body.phase !== undefined ? clean(body.phase, 20) : round.phase,
+      },
+      existingMeeting
+    );
+    if (meeting.error) return fail(meeting.error);
+  }
+
+  if (sets.length) {
+    vals.push(round.id);
+    await db.prepare('UPDATE rounds SET ' + sets.join(', ') + ' WHERE id = ?').bind(...vals).run();
+  }
+  if (meeting) await upsertMeeting(db, meeting.value);
   return json({ ok: true });
+}
+
+function hasAny(obj, keys) {
+  return keys.some((key) => Object.prototype.hasOwnProperty.call(obj, key));
+}
+
+function phaseToMeetingStatus(phase) {
+  if (phase === 'closed') return 'completed';
+  if (PHASES.includes(phase)) return phase;
+  return 'planned';
+}
+
+function toAdminMeeting(row) {
+  if (!row) return null;
+  const timeZone = row.timezone || DEFAULT_MEETING_TIMEZONE;
+  return {
+    id: row.id,
+    meetingDate: row.meeting_date,
+    startsAtUtc: row.starts_at_utc,
+    endsAtUtc: row.ends_at_utc,
+    startTime: timeOnlyInZone(row.starts_at_utc, timeZone),
+    endTime: timeOnlyInZone(row.ends_at_utc, timeZone),
+    timezone: timeZone,
+    venueName: row.venue_name,
+    venueAddress: row.venue_address || '',
+    discordInvite: row.discord_invite || '',
+    status: row.status,
+    hasSelectedGame: row.selected_game_id != null,
+  };
+}
+
+function meetingFromInput(body, round, existing = null) {
+  const timeZone = clean(body.timezone, 80) || (existing && existing.timezone) || DEFAULT_MEETING_TIMEZONE;
+  const meetingDate = round.meetingDate || (existing && cleanDateOnly(existing.meeting_date));
+  const startTime = cleanTimeOnly(
+    body.meetingStartTime !== undefined
+      ? body.meetingStartTime
+      : existing
+        ? timeOnlyInZone(existing.starts_at_utc, timeZone)
+        : '18:30'
+  );
+  const endTime = cleanTimeOnly(
+    body.meetingEndTime !== undefined
+      ? body.meetingEndTime
+      : existing
+        ? timeOnlyInZone(existing.ends_at_utc, timeZone)
+        : '21:00'
+  );
+  const venueName = clean(
+    body.venueName !== undefined ? body.venueName : existing ? existing.venue_name : DEFAULT_VENUE_NAME,
+    160
+  );
+  const venueAddress = clean(
+    body.venueAddress !== undefined ? body.venueAddress : existing ? existing.venue_address : DEFAULT_VENUE_ADDRESS,
+    240
+  );
+  const discordInvite = clean(
+    body.discordInvite !== undefined ? body.discordInvite : existing ? existing.discord_invite : DEFAULT_DISCORD_INVITE,
+    300
+  );
+
+  if (!meetingDate) return { error: 'Meeting date required for public meeting record' };
+  if (!startTime) return { error: 'Meeting start time required' };
+  if (!endTime) return { error: 'Meeting end time required' };
+  if (!venueName) return { error: 'Venue name required' };
+
+  const range = meetingUtcRange(meetingDate, startTime, endTime, timeZone);
+  if (!range.startsAtUtc || !range.endsAtUtc) return { error: 'Could not build meeting start/end time' };
+
+  return {
+    value: {
+      id: round.id,
+      meetingDate,
+      startsAtUtc: range.startsAtUtc,
+      endsAtUtc: range.endsAtUtc,
+      timezone: timeZone,
+      venueName,
+      venueAddress,
+      discordInvite,
+      status: phaseToMeetingStatus(round.phase),
+    },
+  };
 }
 
 async function adminPatchSuggestion(db, request, id) {

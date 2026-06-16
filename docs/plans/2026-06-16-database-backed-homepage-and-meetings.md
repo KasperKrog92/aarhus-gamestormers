@@ -17,9 +17,20 @@ Implemented the data/API foundation as a reviewable first phase:
 - Ran `npm test`, passing 9/9 tests.
 - Smoke-tested `/api/meetings/public` through `wrangler pages dev`, returning `200 OK`.
 
+### 2026-06-16 Task 2 Complete
+
+Connected voting rounds to public meeting records:
+
+- Opening a round now creates the matching `meetings` row with the same id as `rounds.id`.
+- Round creation and saving capture meeting date, Copenhagen-local start/end times, venue name, venue address, and Discord invite.
+- Meeting start/end times are stored as UTC timestamps in D1 while schedule offsets remain on `rounds`.
+- The admin round picker and round editor show whether the public meeting record exists.
+- Saving an older round with event basics creates or repairs its public meeting record.
+- Updated `docs/voting-system.md` with the round/meeting relationship.
+- Ran `npm test`, passing 11/11 tests.
+
 Deferred to later phases:
 
-- Admin UI and round-creation integration.
 - Homepage dynamic rendering.
 - Selected-game promotion flow.
 - Voting page next-round notice.
@@ -182,13 +193,13 @@ Note: local schema was applied with `npx --yes wrangler ...` because `wrangler` 
 
 ## Task 2: Connect Rounds To Meetings
 
-- [ ] When opening a round, create or update the matching `meetings` row.
-- [ ] Keep `rounds.id` equal to `meetings.id`.
-- [ ] Store meeting date, start/end UTC, venue, and Discord invite in `meetings`.
-- [ ] Keep schedule offsets on `rounds` for voting behavior.
-- [ ] Update `vote-admin.html` so creating a round also captures meeting event basics.
-- [ ] Add an admin view that clearly shows whether a round has a public meeting record.
-- [ ] Run `npm test`.
+- [x] When opening a round, create or update the matching `meetings` row.
+- [x] Keep `rounds.id` equal to `meetings.id`.
+- [x] Store meeting date, start/end UTC, venue, and Discord invite in `meetings`.
+- [x] Keep schedule offsets on `rounds` for voting behavior.
+- [x] Update `vote-admin.html` so creating a round also captures meeting event basics.
+- [x] Add an admin view that clearly shows whether a round has a public meeting record.
+- [x] Run `npm test`.
 
 ## Task 3: Public Meetings API
 
