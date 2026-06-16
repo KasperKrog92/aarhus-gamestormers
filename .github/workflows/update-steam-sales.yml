@@ -204,24 +204,40 @@ jobs:
             if (webhookUrl) {
               const announcements = [];
 
-              function collectNewSales(currentMap, previousMap, meta) {
+              // Steam prices Denmark in EUR, so we append an approximate DKK.
+              // DKK is pegged to the euro, so a fixed rate stays accurate to
+              // within a fraction of a percent. GOG already reports DKK.
+              const EUR_TO_DKK = 7.46;
+              function eurToDkk(formatted) {
+                const cleaned = String(formatted || '').replace(/[^\d.,]/g, '');
+                if (!cleaned) return '';
+                const eur = Number(cleaned.replace(/\./g, '').replace(',', '.'));
+                if (!Number.isFinite(eur) || eur <= 0) return '';
+                return `${Math.round(eur * EUR_TO_DKK)} kr.`;
+              }
+
+              function collectNewSales(currentMap, previousMap, meta, convertToDkk) {
                 for (const [id, info] of Object.entries(currentMap || {})) {
                   if (!info.onSale) continue;
                   if (previousMap && previousMap[id] && previousMap[id].onSale) continue;
 
                   const game = meta[id] || {};
                   const title = game.title || id;
-                  const price = info.initialFormatted
+                  let price = info.initialFormatted
                     ? `~~${info.initialFormatted}~~ **${info.finalFormatted}**`
                     : `**${info.finalFormatted}**`;
+                  if (convertToDkk) {
+                    const dkk = eurToDkk(info.finalFormatted);
+                    if (dkk) price += ` (≈${dkk})`;
+                  }
                   // Bare URL on its own line so Discord unfurls a rich store embed.
                   const linkLine = game.url ? `\n${game.url}` : '';
                   announcements.push(`🔥 **${title}** is now ${info.discountPercent}% off — ${price}${linkLine}`);
                 }
               }
 
-              collectNewSales(steamData.apps, previousSteam && previousSteam.apps, steamMeta);
-              collectNewSales(gogData.products, previousGog && previousGog.products, gogMeta);
+              collectNewSales(steamData.apps, previousSteam && previousSteam.apps, steamMeta, true);
+              collectNewSales(gogData.products, previousGog && previousGog.products, gogMeta, false);
 
               if (announcements.length) {
                 const res = await fetch(webhookUrl, {
