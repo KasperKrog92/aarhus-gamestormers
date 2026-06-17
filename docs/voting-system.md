@@ -85,23 +85,26 @@ visible. See [`project-guide.md`](project-guide.md) and [`content-guide.md`](con
 ### Next-round notice
 
 `GET /api/round/current` includes a `nextRound` object — `{ id, title, meetingDate, suggestionsOpenAt,
-votingClosesAt }` — built from the next round whose id is greater than the current round (storm code excluded).
+votingOpensAt, votingClosesAt }` — built from the next round whose id is greater than the current round (storm code excluded).
 When the current round is revealed or voting has closed, `js/vote.js` shows this as a bilingual "next round"
 notice. Because the current round is the highest-id round today, `nextRound` is normally `null`; the field is
-forward-compatible groundwork for pre-created future rounds (Phase B voting automation), where it will populate.
+forward-compatible groundwork for the Voting Scheduler And Handoff project, where pre-created future rounds can populate it.
 
 ## Round Schedule
 
 Each round can be attached to a `meeting_date` (`YYYY-MM-DD`). When the admin creates a round with a meeting date, the system defaults:
 
-- `suggestions_open_months_before`: `2.5`
-- `voting_closes_months_before`: `2`
+- `suggestions_open_months_before`: `2.8`
+- `voting_opens_months_before`: `2.5`
+- `voting_closes_months_before`: `2.2`
 - `suggestions_open_at`: derived from the meeting date and suggestion lead time.
+- `voting_opens_at`: derived from the meeting date and voting-open lead time.
 - `voting_closes_at`: derived from the meeting date and voting close lead time.
 
-The public vote page shows the meeting date and the resulting suggestion/voting dates. The editable month offsets stay admin-facing on `vote-admin.html`. Fractional months are converted as 30-day fractions, so `2.5` means two calendar months plus 15 days. The admin still controls the phase manually (`suggesting -> voting -> revealed -> closed`), but the API enforces the schedule boundaries:
+The public vote page shows the meeting date and the resulting suggestion/voting dates. The editable month offsets stay admin-facing on `vote-admin.html`. Fractional months are converted as 30-day fractions, so `2.5` means two calendar months plus 15 days and `2.8` means two calendar months plus 24 days. The admin still controls the phase manually (`suggesting -> voting -> revealed -> closed`), but the API enforces the schedule boundaries:
 
 - Suggestions are rejected before `suggestions_open_at` when the round is in `suggesting`.
+- Votes are rejected before `voting_opens_at` when the round is in `voting`.
 - Votes are rejected after `voting_closes_at` when the round is in `voting`; the close date itself is inclusive for the whole day.
 
 ## Vote Integrity
@@ -197,6 +200,6 @@ Apply the schema to production only when intentionally changing production D1:
 wrangler d1 execute gamestormers --remote --file=./schema.sql
 ```
 
-## Planned Phase 2
+## Planned Voting Scheduler Work
 
-Not built yet: scheduler automation for phase changes, Discord announcements of phase changes and winners, automated selected-game promotion/publication gating, and winner handoff artifacts for missing manual fields. A GitHub Action is the current Phase B plan. Playtime should stay manual unless a reliable source becomes available. (New-suggestion Discord notifications are built, see Suggestion Notifications above.)
+Not built yet: scheduler automation for phase changes, Discord announcements of phase changes and winners, automated selected-game promotion/publication gating, and winner handoff artifacts for missing manual fields. A GitHub Action is the current plan for the Voting Scheduler And Handoff project. Playtime should stay manual unless a reliable source becomes available. (New-suggestion Discord notifications are built, see Suggestion Notifications above.)

@@ -12,6 +12,7 @@ import {
 } from '../../_lib/db.js';
 import {
   DEFAULT_SUGGESTIONS_OPEN_MONTHS_BEFORE,
+  DEFAULT_VOTING_OPENS_MONTHS_BEFORE,
   DEFAULT_VOTING_CLOSES_MONTHS_BEFORE,
   roundScheduleState,
 } from '../../_lib/schedule.js';
@@ -42,10 +43,13 @@ export async function onRequestGet({ env }) {
       phase: round.phase, // suggesting | voting | revealed | closed
       meetingDate: round.meeting_date,
       suggestionsOpenMonthsBefore: round.suggestions_open_months_before ?? DEFAULT_SUGGESTIONS_OPEN_MONTHS_BEFORE,
+      votingOpensMonthsBefore: round.voting_opens_months_before ?? DEFAULT_VOTING_OPENS_MONTHS_BEFORE,
       votingClosesMonthsBefore: round.voting_closes_months_before ?? DEFAULT_VOTING_CLOSES_MONTHS_BEFORE,
       suggestionsOpenAt: round.suggestions_open_at,
+      votingOpensAt: round.voting_opens_at,
       votingClosesAt: round.voting_closes_at,
       suggestionsAreOpen: schedule.suggestionsAreOpen,
+      votingHasStarted: schedule.votingHasStarted,
       votingIsOpen: schedule.votingIsOpen,
       winnerSuggestionId: round.winner_suggestion_id,
     },

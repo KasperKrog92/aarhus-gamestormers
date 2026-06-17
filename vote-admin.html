@@ -90,18 +90,26 @@
           </div>
           <div>
             <label class="admin-field-label" for="nr-suggestions-months">Suggestions start months before</label>
-            <input class="admin-input" id="nr-suggestions-months" type="number" min="0" max="24" step="0.1" value="2.5">
+            <input class="admin-input" id="nr-suggestions-months" type="number" min="0" max="24" step="0.1" value="2.8">
           </div>
           <div>
-            <label class="admin-field-label" for="nr-voting-months">Voting closes months before</label>
-            <input class="admin-input" id="nr-voting-months" type="number" min="0" max="24" step="0.1" value="2">
+            <label class="admin-field-label" for="nr-voting-open-months">Voting starts months before</label>
+            <input class="admin-input" id="nr-voting-open-months" type="number" min="0" max="24" step="0.1" value="2.5">
+          </div>
+          <div>
+            <label class="admin-field-label" for="nr-voting-months">Voting closes / reveal months before</label>
+            <input class="admin-input" id="nr-voting-months" type="number" min="0" max="24" step="0.1" value="2.2">
           </div>
           <div>
             <label class="admin-field-label" for="nr-suggestions-open">Suggestions open</label>
             <input class="admin-input" id="nr-suggestions-open" type="date">
           </div>
           <div>
-            <label class="admin-field-label" for="nr-closes">Voting closes</label>
+            <label class="admin-field-label" for="nr-voting-open">Voting starts</label>
+            <input class="admin-input" id="nr-voting-open" type="date">
+          </div>
+          <div>
+            <label class="admin-field-label" for="nr-closes">Voting closes / reveal date</label>
             <input class="admin-input" id="nr-closes" type="date">
           </div>
         </div>
@@ -143,6 +151,9 @@
   var DEFAULT_VENUE_NAME = 'Folkehuset Møllestien';
   var DEFAULT_VENUE_ADDRESS = 'Grønnegade 10, 8000 Aarhus C';
   var DEFAULT_DISCORD_INVITE = 'https://discord.gg/N2h6DJxVDF';
+  var DEFAULT_SUGGESTIONS_OPEN_MONTHS_BEFORE = 2.8;
+  var DEFAULT_VOTING_OPENS_MONTHS_BEFORE = 2.5;
+  var DEFAULT_VOTING_CLOSES_MONTHS_BEFORE = 2.2;
 
   var $ = function (id) { return document.getElementById(id); };
   var PHASES = ['suggesting', 'voting', 'revealed', 'closed'];
@@ -183,14 +194,16 @@
     return dateOnly(new Date(addMonthsClamped(meeting, -wholeMonths).getTime() - days * DAY_MS));
   }
 
-  function defaultScheduleForMeetingDate(meetingDate, suggestionsMonths, votingMonths) {
+  function defaultScheduleForMeetingDate(meetingDate, suggestionsMonths, votingOpensMonths, votingClosesMonths) {
     var meeting = parseDateOnly(meetingDate);
-    if (!meeting) return { suggestionsOpenAt: '', votingClosesAt: '' };
-    suggestionsMonths = cleanMonthsBefore(suggestionsMonths, 2.5);
-    votingMonths = cleanMonthsBefore(votingMonths, 2);
+    if (!meeting) return { suggestionsOpenAt: '', votingOpensAt: '', votingClosesAt: '' };
+    suggestionsMonths = cleanMonthsBefore(suggestionsMonths, DEFAULT_SUGGESTIONS_OPEN_MONTHS_BEFORE);
+    votingOpensMonths = cleanMonthsBefore(votingOpensMonths, DEFAULT_VOTING_OPENS_MONTHS_BEFORE);
+    votingClosesMonths = cleanMonthsBefore(votingClosesMonths, DEFAULT_VOTING_CLOSES_MONTHS_BEFORE);
     return {
       suggestionsOpenAt: dateBeforeMeeting(meeting, suggestionsMonths),
-      votingClosesAt: dateBeforeMeeting(meeting, votingMonths),
+      votingOpensAt: dateBeforeMeeting(meeting, votingOpensMonths),
+      votingClosesAt: dateBeforeMeeting(meeting, votingClosesMonths),
     };
   }
 
@@ -271,9 +284,11 @@
     $('nr-venue-name').value = DEFAULT_VENUE_NAME;
     $('nr-venue-address').value = DEFAULT_VENUE_ADDRESS;
     $('nr-discord-invite').value = DEFAULT_DISCORD_INVITE;
-    $('nr-suggestions-months').value = '2.5';
-    $('nr-voting-months').value = '2';
+    $('nr-suggestions-months').value = String(DEFAULT_SUGGESTIONS_OPEN_MONTHS_BEFORE);
+    $('nr-voting-open-months').value = String(DEFAULT_VOTING_OPENS_MONTHS_BEFORE);
+    $('nr-voting-months').value = String(DEFAULT_VOTING_CLOSES_MONTHS_BEFORE);
     $('nr-suggestions-open').value = '';
+    $('nr-voting-open').value = '';
     $('nr-closes').value = '';
   }
 
@@ -338,7 +353,15 @@
       min: '0',
       max: '24',
       step: '0.1',
-      value: round.suggestions_open_months_before != null ? round.suggestions_open_months_before : 2.5,
+      value: round.suggestions_open_months_before != null ? round.suggestions_open_months_before : DEFAULT_SUGGESTIONS_OPEN_MONTHS_BEFORE,
+    });
+    var votingOpensMonthsInput = h('input', {
+      class: 'admin-input',
+      type: 'number',
+      min: '0',
+      max: '24',
+      step: '0.1',
+      value: round.voting_opens_months_before != null ? round.voting_opens_months_before : DEFAULT_VOTING_OPENS_MONTHS_BEFORE,
     });
     var votingMonthsInput = h('input', {
       class: 'admin-input',
@@ -346,18 +369,21 @@
       min: '0',
       max: '24',
       step: '0.1',
-      value: round.voting_closes_months_before != null ? round.voting_closes_months_before : 2,
+      value: round.voting_closes_months_before != null ? round.voting_closes_months_before : DEFAULT_VOTING_CLOSES_MONTHS_BEFORE,
     });
     var suggestionsOpenInput = h('input', { class: 'admin-input', type: 'date', value: round.suggestions_open_at || '' });
+    var votingOpenInput = h('input', { class: 'admin-input', type: 'date', value: round.voting_opens_at || '' });
     var closesInput = h('input', { class: 'admin-input', type: 'date', value: round.voting_closes_at || '' });
 
     function updateRoundScheduleDefaults() {
-      var schedule = defaultScheduleForMeetingDate(meetingDateInput.value, suggestionsMonthsInput.value, votingMonthsInput.value);
+      var schedule = defaultScheduleForMeetingDate(meetingDateInput.value, suggestionsMonthsInput.value, votingOpensMonthsInput.value, votingMonthsInput.value);
       suggestionsOpenInput.value = schedule.suggestionsOpenAt;
+      votingOpenInput.value = schedule.votingOpensAt;
       closesInput.value = schedule.votingClosesAt;
     }
     meetingDateInput.addEventListener('change', updateRoundScheduleDefaults);
     suggestionsMonthsInput.addEventListener('change', updateRoundScheduleDefaults);
+    votingOpensMonthsInput.addEventListener('change', updateRoundScheduleDefaults);
     votingMonthsInput.addEventListener('change', updateRoundScheduleDefaults);
 
     var phaseSelect = h('select', { class: 'admin-select' }, PHASES.map(function (p) {
@@ -380,8 +406,10 @@
           venueAddress: venueAddressInput.value,
           discordInvite: discordInviteInput.value,
           suggestionsOpenMonthsBefore: suggestionsMonthsInput.value,
+          votingOpensMonthsBefore: votingOpensMonthsInput.value,
           votingClosesMonthsBefore: votingMonthsInput.value,
           suggestionsOpenAt: suggestionsOpenInput.value,
+          votingOpensAt: votingOpenInput.value,
           votingClosesAt: closesInput.value,
         }),
       }).then(function () { showMsg(msg, 'Saved.', true); load(); })
@@ -410,9 +438,11 @@
         h('div', null, [h('label', { class: 'admin-field-label', text: 'Venue address' }), venueAddressInput]),
         h('div', null, [h('label', { class: 'admin-field-label', text: 'Discord invite' }), discordInviteInput]),
         h('div', null, [h('label', { class: 'admin-field-label', text: 'Suggestions start months before' }), suggestionsMonthsInput]),
-        h('div', null, [h('label', { class: 'admin-field-label', text: 'Voting closes months before' }), votingMonthsInput]),
+        h('div', null, [h('label', { class: 'admin-field-label', text: 'Voting starts months before' }), votingOpensMonthsInput]),
+        h('div', null, [h('label', { class: 'admin-field-label', text: 'Voting closes / reveal months before' }), votingMonthsInput]),
         h('div', null, [h('label', { class: 'admin-field-label', text: 'Suggestions open' }), suggestionsOpenInput]),
-        h('div', null, [h('label', { class: 'admin-field-label', text: 'Voting closes' }), closesInput]),
+        h('div', null, [h('label', { class: 'admin-field-label', text: 'Voting starts' }), votingOpenInput]),
+        h('div', null, [h('label', { class: 'admin-field-label', text: 'Voting closes / reveal date' }), closesInput]),
       ]),
       h('div', { class: 'admin-actions' }, [saveBtn, deleteBtn]),
       msg,
@@ -727,20 +757,23 @@
         venueAddress: $('nr-venue-address').value,
         discordInvite: $('nr-discord-invite').value,
         suggestionsOpenMonthsBefore: $('nr-suggestions-months').value,
+        votingOpensMonthsBefore: $('nr-voting-open-months').value,
         votingClosesMonthsBefore: $('nr-voting-months').value,
         suggestionsOpenAt: $('nr-suggestions-open').value,
+        votingOpensAt: $('nr-voting-open').value,
         votingClosesAt: $('nr-closes').value,
       }),
     }).then(function () {
       showMsg(msg, 'Round opened.', true);
-      $('nr-id').value = $('nr-code').value = $('nr-title').value = $('nr-meeting-date').value = $('nr-suggestions-open').value = $('nr-closes').value = '';
+      $('nr-id').value = $('nr-code').value = $('nr-title').value = $('nr-meeting-date').value = $('nr-suggestions-open').value = $('nr-voting-open').value = $('nr-closes').value = '';
       $('nr-meeting-start').value = '18:30';
       $('nr-meeting-end').value = '21:00';
       $('nr-venue-name').value = DEFAULT_VENUE_NAME;
       $('nr-venue-address').value = DEFAULT_VENUE_ADDRESS;
       $('nr-discord-invite').value = DEFAULT_DISCORD_INVITE;
-      $('nr-suggestions-months').value = '2.5';
-      $('nr-voting-months').value = '2';
+      $('nr-suggestions-months').value = String(DEFAULT_SUGGESTIONS_OPEN_MONTHS_BEFORE);
+      $('nr-voting-open-months').value = String(DEFAULT_VOTING_OPENS_MONTHS_BEFORE);
+      $('nr-voting-months').value = String(DEFAULT_VOTING_CLOSES_MONTHS_BEFORE);
       toggleNewRound(false);
       currentRoundId = null;
       load();
@@ -753,13 +786,15 @@
   });
 
   function updateNewRoundScheduleDefaults() {
-    var schedule = defaultScheduleForMeetingDate($('nr-meeting-date').value, $('nr-suggestions-months').value, $('nr-voting-months').value);
+    var schedule = defaultScheduleForMeetingDate($('nr-meeting-date').value, $('nr-suggestions-months').value, $('nr-voting-open-months').value, $('nr-voting-months').value);
     $('nr-suggestions-open').value = schedule.suggestionsOpenAt;
+    $('nr-voting-open').value = schedule.votingOpensAt;
     $('nr-closes').value = schedule.votingClosesAt;
   }
 
   $('nr-meeting-date').addEventListener('change', updateNewRoundScheduleDefaults);
   $('nr-suggestions-months').addEventListener('change', updateNewRoundScheduleDefaults);
+  $('nr-voting-open-months').addEventListener('change', updateNewRoundScheduleDefaults);
   $('nr-voting-months').addEventListener('change', updateNewRoundScheduleDefaults);
 
   function toggleNewRound(show) {

@@ -1,6 +1,7 @@
 const DAY_MS = 24 * 60 * 60 * 1000;
-export const DEFAULT_SUGGESTIONS_OPEN_MONTHS_BEFORE = 2.5;
-export const DEFAULT_VOTING_CLOSES_MONTHS_BEFORE = 2;
+export const DEFAULT_SUGGESTIONS_OPEN_MONTHS_BEFORE = 2.8;
+export const DEFAULT_VOTING_OPENS_MONTHS_BEFORE = 2.5;
+export const DEFAULT_VOTING_CLOSES_MONTHS_BEFORE = 2.2;
 export const DEFAULT_MEETING_TIMEZONE = 'Europe/Copenhagen';
 
 function parseDateOnly(value) {
@@ -72,18 +73,21 @@ function dateBeforeMeeting(meeting, monthsBefore) {
 export function defaultScheduleForMeetingDate(
   meetingDate,
   suggestionsOpenMonthsBefore = DEFAULT_SUGGESTIONS_OPEN_MONTHS_BEFORE,
+  votingOpensMonthsBefore = DEFAULT_VOTING_OPENS_MONTHS_BEFORE,
   votingClosesMonthsBefore = DEFAULT_VOTING_CLOSES_MONTHS_BEFORE
 ) {
   const meeting = parseDateOnly(meetingDate);
   if (!meeting) {
     return {
       suggestionsOpenAt: '',
+      votingOpensAt: '',
       votingClosesAt: '',
     };
   }
 
   return {
     suggestionsOpenAt: dateBeforeMeeting(meeting, suggestionsOpenMonthsBefore),
+    votingOpensAt: dateBeforeMeeting(meeting, votingOpensMonthsBefore),
     votingClosesAt: dateBeforeMeeting(meeting, votingClosesMonthsBefore),
   };
 }
@@ -106,9 +110,11 @@ export function isAfterDateOnly(date, boundary) {
 
 export function roundScheduleState(round, now = new Date()) {
   const today = todayDateOnly(now);
+  const votingHasStarted = !isBeforeDateOnly(today, round.voting_opens_at);
   return {
     suggestionsAreOpen: !isBeforeDateOnly(today, round.suggestions_open_at),
-    votingIsOpen: !isAfterDateOnly(today, round.voting_closes_at),
+    votingHasStarted,
+    votingIsOpen: votingHasStarted && !isAfterDateOnly(today, round.voting_closes_at),
   };
 }
 

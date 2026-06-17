@@ -27,9 +27,11 @@ export async function ensureSuggestionDescriptionColumns(db) {
 export async function ensureRoundScheduleColumns(db) {
   if (roundScheduleColumnsChecked) return;
   await addColumnIfMissing(db, 'rounds', 'meeting_date', 'TEXT');
-  await addColumnIfMissing(db, 'rounds', 'suggestions_open_months_before', 'REAL DEFAULT 2.5');
-  await addColumnIfMissing(db, 'rounds', 'voting_closes_months_before', 'REAL DEFAULT 2');
+  await addColumnIfMissing(db, 'rounds', 'suggestions_open_months_before', 'REAL DEFAULT 2.8');
+  await addColumnIfMissing(db, 'rounds', 'voting_opens_months_before', 'REAL DEFAULT 2.5');
+  await addColumnIfMissing(db, 'rounds', 'voting_closes_months_before', 'REAL DEFAULT 2.2');
   await addColumnIfMissing(db, 'rounds', 'suggestions_open_at', 'TEXT');
+  await addColumnIfMissing(db, 'rounds', 'voting_opens_at', 'TEXT');
   roundScheduleColumnsChecked = true;
 }
 
@@ -116,6 +118,7 @@ export function toNextRoundNotice(round) {
     title: round.title || null,
     meetingDate: round.meeting_date || null,
     suggestionsOpenAt: round.suggestions_open_at || null,
+    votingOpensAt: round.voting_opens_at || null,
     votingClosesAt: round.voting_closes_at || null,
   };
 }

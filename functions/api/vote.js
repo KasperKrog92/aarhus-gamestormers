@@ -1,6 +1,6 @@
 // POST /api/vote — cast an approval ballot (tick one or more approved games).
 // Body: { suggestionIds: number[], voterName?, stormCode, turnstileToken }
-// Gated by: phase === 'voting', correct storm code, Turnstile pass.
+// Gated by: phase === 'voting', voting schedule window, correct storm code, Turnstile pass.
 // voterName is optional and self-reported (helps the admin spot funky ballots).
 import { json, fail, readJson, clean } from '../_lib/http.js';
 import { ensureRoundScheduleColumns, getCurrentRound, getSuggestions } from '../_lib/db.js';
@@ -18,7 +18,9 @@ export async function onRequestPost({ request, env }) {
   const round = await getCurrentRound(db);
   if (!round) return fail('No active round', 409);
   if (round.phase !== 'voting') return fail('Voting is not open', 409);
-  if (!roundScheduleState(round).votingIsOpen) return fail('Voting has closed for this round', 409);
+  const schedule = roundScheduleState(round);
+  if (!schedule.votingHasStarted) return fail('Voting is not open yet', 409);
+  if (!schedule.votingIsOpen) return fail('Voting has closed for this round', 409);
 
   if (clean(body.stormCode, 40) !== round.storm_code) return fail('Wrong code', 403);
 

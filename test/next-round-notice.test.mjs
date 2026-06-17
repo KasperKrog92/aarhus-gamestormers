@@ -11,6 +11,7 @@ function roundRow(overrides = {}) {
     storm_code: 'SECRET-CODE',
     phase: 'suggesting',
     suggestions_open_at: '2026-07-21',
+    voting_opens_at: '2026-07-30',
     voting_closes_at: '2026-08-05',
     winner_suggestion_id: null,
     ...overrides,
@@ -48,6 +49,7 @@ test('toNextRoundNotice exposes public schedule but never the storm code', () =>
     title: 'Next storm',
     meetingDate: '2026-10-05',
     suggestionsOpenAt: '2026-07-21',
+    votingOpensAt: '2026-07-30',
     votingClosesAt: '2026-08-05',
   });
   assert.equal(Object.hasOwn(notice, 'stormCode'), false);

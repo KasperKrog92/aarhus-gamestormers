@@ -33,6 +33,7 @@ import {
 import {
   DEFAULT_MEETING_TIMEZONE,
   DEFAULT_SUGGESTIONS_OPEN_MONTHS_BEFORE,
+  DEFAULT_VOTING_OPENS_MONTHS_BEFORE,
   DEFAULT_VOTING_CLOSES_MONTHS_BEFORE,
   cleanDateOnly,
   cleanMonthsBefore,
@@ -168,9 +169,11 @@ async function adminOpenRound(db, request) {
   if (await getRoundById(db, id)) return fail('Round ' + id + ' already exists', 409);
   const meetingDate = cleanDateOnly(body.meetingDate);
   const suggestionsOpenMonthsBefore = cleanMonthsBefore(body.suggestionsOpenMonthsBefore, DEFAULT_SUGGESTIONS_OPEN_MONTHS_BEFORE);
+  const votingOpensMonthsBefore = cleanMonthsBefore(body.votingOpensMonthsBefore, DEFAULT_VOTING_OPENS_MONTHS_BEFORE);
   const votingClosesMonthsBefore = cleanMonthsBefore(body.votingClosesMonthsBefore, DEFAULT_VOTING_CLOSES_MONTHS_BEFORE);
-  const defaults = defaultScheduleForMeetingDate(meetingDate, suggestionsOpenMonthsBefore, votingClosesMonthsBefore);
+  const defaults = defaultScheduleForMeetingDate(meetingDate, suggestionsOpenMonthsBefore, votingOpensMonthsBefore, votingClosesMonthsBefore);
   const suggestionsOpenAt = cleanDateOnly(body.suggestionsOpenAt) || defaults.suggestionsOpenAt;
+  const votingOpensAt = cleanDateOnly(body.votingOpensAt) || defaults.votingOpensAt;
   const votingClosesAt = cleanDateOnly(body.votingClosesAt) || defaults.votingClosesAt;
   const meeting = meetingFromInput(body, { id, meetingDate, phase: 'suggesting' });
   if (meeting.error) return fail(meeting.error);
@@ -178,8 +181,8 @@ async function adminOpenRound(db, request) {
   await db
     .prepare(
       `INSERT INTO rounds
-         (id, title, meeting_date, storm_code, phase, suggestions_open_months_before, voting_closes_months_before, suggestions_open_at, voting_closes_at)
-       VALUES (?, ?, ?, ?, 'suggesting', ?, ?, ?, ?)`
+         (id, title, meeting_date, storm_code, phase, suggestions_open_months_before, voting_opens_months_before, voting_closes_months_before, suggestions_open_at, voting_opens_at, voting_closes_at)
+       VALUES (?, ?, ?, ?, 'suggesting', ?, ?, ?, ?, ?, ?)`
     )
     .bind(
       id,
@@ -187,8 +190,10 @@ async function adminOpenRound(db, request) {
       meetingDate || null,
       stormCode,
       suggestionsOpenMonthsBefore,
+      votingOpensMonthsBefore,
       votingClosesMonthsBefore,
       suggestionsOpenAt || null,
+      votingOpensAt || null,
       votingClosesAt || null
     )
     .run();
@@ -220,10 +225,14 @@ async function adminPatchRound(db, request, id) {
   if (body.suggestionsOpenMonthsBefore !== undefined) {
     put('suggestions_open_months_before', cleanMonthsBefore(body.suggestionsOpenMonthsBefore, DEFAULT_SUGGESTIONS_OPEN_MONTHS_BEFORE));
   }
+  if (body.votingOpensMonthsBefore !== undefined) {
+    put('voting_opens_months_before', cleanMonthsBefore(body.votingOpensMonthsBefore, DEFAULT_VOTING_OPENS_MONTHS_BEFORE));
+  }
   if (body.votingClosesMonthsBefore !== undefined) {
     put('voting_closes_months_before', cleanMonthsBefore(body.votingClosesMonthsBefore, DEFAULT_VOTING_CLOSES_MONTHS_BEFORE));
   }
   if (body.suggestionsOpenAt !== undefined) put('suggestions_open_at', cleanDateOnly(body.suggestionsOpenAt) || null);
+  if (body.votingOpensAt !== undefined) put('voting_opens_at', cleanDateOnly(body.votingOpensAt) || null);
   if (body.votingClosesAt !== undefined) put('voting_closes_at', cleanDateOnly(body.votingClosesAt) || null);
   if (body.winnerSuggestionId !== undefined) {
     put('winner_suggestion_id', body.winnerSuggestionId === null ? null : Number(body.winnerSuggestionId));

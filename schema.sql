@@ -15,10 +15,12 @@ CREATE TABLE IF NOT EXISTS rounds (
   storm_code           TEXT NOT NULL,                  -- soft Discord gate, e.g. "storm19"
   phase                TEXT NOT NULL DEFAULT 'suggesting'
                          CHECK (phase IN ('suggesting','voting','revealed','closed')),
-  suggestions_open_months_before REAL NOT NULL DEFAULT 2.5, -- shown publicly, editable in admin
-  voting_closes_months_before    REAL NOT NULL DEFAULT 2,   -- shown publicly, editable in admin
-  suggestions_open_at  TEXT,                           -- YYYY-MM-DD, defaults to meeting_date - 2.5 months
-  voting_closes_at     TEXT,                           -- YYYY-MM-DD, defaults to meeting_date - 2 months
+  suggestions_open_months_before REAL NOT NULL DEFAULT 2.8, -- shown publicly, editable in admin
+  voting_opens_months_before     REAL NOT NULL DEFAULT 2.5, -- shown publicly, editable in admin
+  voting_closes_months_before    REAL NOT NULL DEFAULT 2.2, -- shown publicly, editable in admin
+  suggestions_open_at  TEXT,                           -- YYYY-MM-DD, defaults to meeting_date - 2.8 months
+  voting_opens_at      TEXT,                           -- YYYY-MM-DD, defaults to meeting_date - 2.5 months
+  voting_closes_at     TEXT,                           -- YYYY-MM-DD, defaults to meeting_date - 2.2 months
   winner_suggestion_id INTEGER,                        -- set when phase = revealed/closed
   created_at           TEXT NOT NULL DEFAULT (datetime('now'))
 );

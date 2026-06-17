@@ -28,8 +28,10 @@ function fakeD1() {
               results: [
                 { name: 'meeting_date' },
                 { name: 'suggestions_open_months_before' },
+                { name: 'voting_opens_months_before' },
                 { name: 'voting_closes_months_before' },
                 { name: 'suggestions_open_at' },
+                { name: 'voting_opens_at' },
               ],
             };
           }
@@ -75,6 +77,12 @@ test('opening a round creates the matching public meeting row', async () => {
   const roundInsert = db.statements.find((entry) => entry.sql.includes('INSERT INTO rounds'));
   assert.ok(roundInsert);
   assert.equal(roundInsert.args[0], 19);
+  assert.equal(roundInsert.args[4], 2.8);
+  assert.equal(roundInsert.args[5], 2.5);
+  assert.equal(roundInsert.args[6], 2.2);
+  assert.equal(roundInsert.args[7], '2026-05-10');
+  assert.equal(roundInsert.args[8], '2026-05-19');
+  assert.equal(roundInsert.args[9], '2026-05-28');
 
   const meetingUpsert = db.statements.find((entry) => entry.sql.includes('INSERT INTO meetings'));
   assert.ok(meetingUpsert);

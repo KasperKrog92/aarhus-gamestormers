@@ -37,8 +37,10 @@ function makeDb(state) {
               results: [
                 { name: 'meeting_date' },
                 { name: 'suggestions_open_months_before' },
+                { name: 'voting_opens_months_before' },
                 { name: 'voting_closes_months_before' },
                 { name: 'suggestions_open_at' },
+                { name: 'voting_opens_at' },
               ],
             };
           }

@@ -7,6 +7,7 @@ var STRINGS = {
     statusNone: 'Ingen aktiv afstemning',
     statusUpcoming: 'Forslag åbner snart',
     statusSuggesting: 'Forslag er åbne',
+    statusVotingUpcoming: 'Afstemning åbner snart',
     statusVoting: 'Afstemning er åben',
     statusVotingClosed: 'Afstemningen er lukket',
     statusRevealed: 'Resultatet er klar',
@@ -16,18 +17,22 @@ var STRINGS = {
       'Foreslå et spil til mødet. Steam-spil får titel, billede, genrer og beskrivelse automatisk. Brug mødets kode fra Discord.',
     introVoting:
       'Sæt flueben ved <b>alle</b> de spil, du gerne vil spille. Spillet med flest stemmer vælges til mødet. Brug koden fra Discord.',
+    introVotingUpcoming: 'Afstemningen åbner på datoen herunder.',
     introVotingClosed: 'Afstemningen er lukket. Resultatet bliver delt, når det er klar.',
     introRevealed: 'Tak til alle der stemte. Her er resultatet, og vinderen er spillet til mødet.',
     meetingFor: 'Forslag til {meeting}',
     scheduleMeetingDate: 'Mødedato',
     scheduleSuggestionsOpen: 'Forslag åbner',
     scheduleSuggestionsOpened: 'Forslag åbnede',
+    scheduleVotingOpens: 'Afstemning åbner',
+    scheduleVotingOpened: 'Afstemning åbnede',
     scheduleVotingCloses: 'Afstemning lukker',
     scheduleVotingClosed: 'Afstemning lukkede',
     nextRoundHeading: 'Næste runde',
     nextRoundIntro: 'Vil du være med igen? Her er den næste runde.',
     nextRoundMeeting: 'Næste møde',
     nextRoundSuggestionsOpen: 'Forslag åbner',
+    nextRoundVotingOpens: 'Afstemning åbner',
     nextRoundVotingCloses: 'Afstemning lukker',
     formTitle: 'Foreslå et spil',
     suggestToggle: 'Foreslå nyt spil',
@@ -88,6 +93,7 @@ var STRINGS = {
     statusNone: 'No active vote',
     statusUpcoming: 'Suggestions open soon',
     statusSuggesting: 'Suggestions are open',
+    statusVotingUpcoming: 'Voting opens soon',
     statusVoting: 'Voting is open',
     statusVotingClosed: 'Voting is closed',
     statusRevealed: 'The result is in',
@@ -97,18 +103,22 @@ var STRINGS = {
       "Suggest a game for the meeting. Steam games get title, image, genres and description filled in automatically. Use the meeting code from Discord.",
     introVoting:
       'Tick <b>every</b> game you’d be happy to play. The game with the most ticks is chosen for the meeting. Use the code from Discord.',
+    introVotingUpcoming: 'Voting opens on the date below.',
     introVotingClosed: 'Voting is closed. The result will be shared when it is ready.',
     introRevealed: 'Thanks to everyone who voted. Here is the result, and the winner is the game for the meeting.',
     meetingFor: 'Suggestions for {meeting}',
     scheduleMeetingDate: 'Meeting date',
     scheduleSuggestionsOpen: 'Suggestions open',
     scheduleSuggestionsOpened: 'Suggestions opened',
+    scheduleVotingOpens: 'Voting opens',
+    scheduleVotingOpened: 'Voting opened',
     scheduleVotingCloses: 'Voting closes',
     scheduleVotingClosed: 'Voting closed',
     nextRoundHeading: 'Next round',
     nextRoundIntro: 'Want to join again? Here is the next round.',
     nextRoundMeeting: 'Next meeting',
     nextRoundSuggestionsOpen: 'Suggestions open',
+    nextRoundVotingOpens: 'Voting opens',
     nextRoundVotingCloses: 'Voting closes',
     formTitle: 'Suggest a game',
     suggestToggle: 'Suggest new game',
@@ -252,11 +262,16 @@ var STRINGS = {
   }
 
   function deadlineDetails(round) {
-    var votingHasEnded = round.phase === 'revealed' || round.phase === 'closed' || round.votingIsOpen === false;
+    var votingHasStarted = round.votingHasStarted !== false;
+    var votingHasEnded = round.phase === 'revealed' || round.phase === 'closed' || (votingHasStarted && round.votingIsOpen === false);
     var items = [
       [
         round.suggestionsAreOpen === false ? T.scheduleSuggestionsOpen : T.scheduleSuggestionsOpened,
         round.suggestionsOpenAt,
+      ],
+      [
+        votingHasStarted ? T.scheduleVotingOpened : T.scheduleVotingOpens,
+        round.votingOpensAt,
       ],
       [
         votingHasEnded ? T.scheduleVotingClosed : T.scheduleVotingCloses,
@@ -298,6 +313,7 @@ var STRINGS = {
       [T.nextRoundMeeting, roundLabel(nextRound)],
       [T.scheduleMeetingDate, formatDate(nextRound.meetingDate)],
       [T.nextRoundSuggestionsOpen, formatDate(nextRound.suggestionsOpenAt)],
+      [T.nextRoundVotingOpens, formatDate(nextRound.votingOpensAt)],
       [T.nextRoundVotingCloses, formatDate(nextRound.votingClosesAt)],
     ].filter(function (row) { return row[1]; });
     if (rows.length < 2) return null; // need more than just the meeting label
@@ -652,9 +668,11 @@ var STRINGS = {
 
   function renderVoting(data) {
     var votingOpen = data.round.votingIsOpen !== false;
+    var votingHasStarted = data.round.votingHasStarted !== false;
     clear(app);
-    app.appendChild(roundHero(data.round, votingOpen ? T.statusVoting : T.statusVotingClosed));
-    app.appendChild(el('p', { class: 'vote-intro', html: votingOpen ? T.introVoting : T.introVotingClosed }));
+    app.appendChild(roundHero(data.round, votingOpen ? T.statusVoting : (votingHasStarted ? T.statusVotingClosed : T.statusVotingUpcoming)));
+    app.appendChild(el('p', { class: 'vote-intro', html: votingOpen ? T.introVoting : (votingHasStarted ? T.introVotingClosed : T.introVotingUpcoming) }));
+    if (!votingHasStarted) return;
     if (!votingOpen) {
       var closedNotice = nextRoundNotice(data.nextRound);
       if (closedNotice) app.appendChild(closedNotice);

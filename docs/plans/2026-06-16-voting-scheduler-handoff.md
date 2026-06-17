@@ -1,8 +1,8 @@
-# Phase B Voting Automation Plan
+# Voting Scheduler And Handoff Plan
 
-Updated 2026-06-17 after the database-backed homepage and meetings plan was reviewed as implemented.
+Updated 2026-06-17 after the database-backed homepage/meetings work and explicit voting-start schedule fields were implemented.
 
-Prerequisite status: the database-backed homepage and meetings work is implemented. Phase B should build on the existing `meetings` / `games` / `meeting_copy` model and admin selected-game routes instead of generating homepage HTML changes.
+Prerequisite status: the database-backed homepage and meetings work is implemented. This automation project should build on the existing `meetings` / `games` / `meeting_copy` model and admin selected-game routes instead of generating homepage HTML changes.
 
 ## Goal
 
@@ -13,7 +13,7 @@ Automate the remaining voting round operations while keeping the maintainer in c
 3. Post Discord announcements for voting open and winner revealed.
 4. Promote the revealed winner into the database-backed homepage meeting record, with a maintainer-ready handoff only for missing manual fields.
 
-Phase B does not edit `index.html`, `en/index.html`, history cards, JSON-LD, or `sitemap.xml`. After the database-backed homepage plan lands, normal meeting publication should happen through D1/admin data instead of HTML edits. HowLongToBeat details and localized descriptions still need human review.
+This automation project does not edit `index.html`, `en/index.html`, history cards, JSON-LD, or `sitemap.xml`. Normal meeting publication should happen through D1/admin data instead of HTML edits. HowLongToBeat details and localized descriptions still need human review.
 
 ## Current Baseline
 
@@ -25,15 +25,23 @@ Already built:
 - Date-only round schedule fields:
   - `meeting_date`
   - `suggestions_open_months_before`
+  - `voting_opens_months_before`
   - `voting_closes_months_before`
   - `suggestions_open_at`
+  - `voting_opens_at`
   - `voting_closes_at`
-- Admin UI for creating/editing meeting date, offsets, and derived schedule dates.
+- Schedule defaults are now:
+  - Suggestions start `2.8` months before the meeting.
+  - Voting opens `2.5` months before the meeting.
+  - Voting closes / reveal date is `2.2` months before the meeting.
+- Admin UI for creating/editing meeting date, offsets, and all derived schedule dates.
 - API enforcement:
   - Suggestions are blocked before `suggestions_open_at`.
+  - Votes are blocked before `voting_opens_at`.
   - Votes are blocked after `voting_closes_at`, with the close date inclusive.
 - Public current-round API hides `storm_code`.
 - Public current-round API can return `nextRound` metadata for the vote page notice.
+- Public vote pages display suggestions-open, voting-open, and voting-close dates.
 - Database-backed homepage data exists through `GET /api/meetings/public`.
 - Admin selected-game flow exists:
   - `POST /api/admin/round/:id/select` copies a suggestion into `games`, attaches it to `meetings`, confirms `winner_suggestion_id`, and reveals the round unless already closed.
@@ -57,17 +65,17 @@ Not built yet:
 ## Decisions
 
 - Use GitHub Actions for orchestration, not Cloudflare Cron Triggers, because the repo already has scheduled Actions and Node scripts.
-- Keep schedule values date-only (`YYYY-MM-DD`) to match the current UI and API. Do not switch Phase B to ISO timestamp columns.
-- Add an explicit `voting_opens_at` date. The current schema has suggestions opening and voting closing, but no date that can safely automate the switch into `voting`.
+- Keep schedule values date-only (`YYYY-MM-DD`) to match the current UI and API. Do not switch the scheduler to ISO timestamp columns.
+- Use the explicit `voting_opens_at` date to automate the switch into `voting`.
 - Use these default schedule offsets from the meeting date:
   - Suggestions start `2.8` months before.
   - Voting opens `2.5` months before.
   - Voting closes `2.2` months before.
 - Use a dedicated GitHub Actions secret named `DISCORD_VOTING_WEBHOOK_URL` for phase/winner announcements. Do not reuse the sale-alert `DISCORD_WEBHOOK_URL`, and do not reuse the Cloudflare Pages suggestion-notification secret.
 - Record automation events in D1 so reruns and manual workflow dispatches do not duplicate Discord posts or handoffs.
-- Do not auto-open the next round in Phase B. The maintainer should be able to create a batch of future rounds/meetings ahead of time, then automation operates on those prepared records.
-- Treat homepage publication as a separate step from vote-result reveal. The existing selected-game endpoint can make a game public immediately, so Phase B must either add a draft/not-public promotion mode or only call that endpoint when the selected game will be publish-ready.
-- Defer the public archive. The current product need is phase automation and handoff. Archive can be Phase C once the result shape and page design are worth exposing.
+- Do not auto-open the next round. The maintainer should be able to create a batch of future rounds/meetings ahead of time, then automation operates on those prepared records.
+- Treat homepage publication as a separate step from vote-result reveal. The existing selected-game endpoint can make a game public immediately, so the scheduler must either add a draft/not-public promotion mode or only call that endpoint when the selected game will be publish-ready.
+- Defer the public archive. The current product need is phase automation and handoff. Archive can be a later project once the result shape and page design are worth exposing.
 
 ## Required Secrets
 
@@ -108,7 +116,7 @@ Modify:
 - `docs/deployment-guide.md`
 - `README.md`
 
-Do not modify for Phase B:
+Do not modify for this automation project:
 
 - `index.html`
 - `en/index.html`
@@ -120,13 +128,13 @@ Do not modify for Phase B:
 
 Purpose: make the existing date-only schedule usable for automated phase changes.
 
-- [ ] Update existing schema defaults:
+- [x] Update existing schema defaults:
   - `suggestions_open_months_before REAL NOT NULL DEFAULT 2.8`
   - `voting_closes_months_before REAL NOT NULL DEFAULT 2.2`
-- [ ] Add schema columns:
+- [x] Add schema columns:
   - `voting_opens_months_before REAL NOT NULL DEFAULT 2.5`
   - `voting_opens_at TEXT`
-- [ ] Update `ensureRoundScheduleColumns` to add missing schedule columns on older D1 databases:
+- [x] Update `ensureRoundScheduleColumns` to add missing schedule columns on older D1 databases:
   - `meeting_date`
   - `suggestions_open_months_before` with default `2.8`
   - `voting_opens_months_before` with default `2.5`
@@ -134,33 +142,33 @@ Purpose: make the existing date-only schedule usable for automated phase changes
   - `suggestions_open_at`
   - `voting_opens_at`
   - `voting_closes_at`
-- [ ] Extend `functions/_lib/schedule.js` so `defaultScheduleForMeetingDate()` returns `suggestionsOpenAt`, `votingOpensAt`, and `votingClosesAt`.
-- [ ] Update schedule constants:
+- [x] Extend `functions/_lib/schedule.js` so `defaultScheduleForMeetingDate()` returns `suggestionsOpenAt`, `votingOpensAt`, and `votingClosesAt`.
+- [x] Update schedule constants:
   - `DEFAULT_SUGGESTIONS_OPEN_MONTHS_BEFORE = 2.8`
   - `DEFAULT_VOTING_OPENS_MONTHS_BEFORE = 2.5`
   - `DEFAULT_VOTING_CLOSES_MONTHS_BEFORE = 2.2`
-- [ ] Keep fractional month handling consistent with the current tests: whole calendar months plus 30-day fractional months, so `2.8` means two calendar months plus 24 days and `2.2` means two calendar months plus 6 days.
-- [ ] Update `test/round-schedule.test.mjs` for the new default.
-- [ ] Run `npm test`.
+- [x] Keep fractional month handling consistent with the current tests: whole calendar months plus 30-day fractional months, so `2.8` means two calendar months plus 24 days and `2.2` means two calendar months plus 6 days.
+- [x] Update `test/round-schedule.test.mjs` for the new default.
+- [x] Run `npm test`.
 
 ## Task 2: Expose The New Schedule Field
 
 Purpose: let the maintainer inspect and override the automation date.
 
-- [ ] Update `functions/api/admin/[[route]].js`:
+- [x] Update `functions/api/admin/[[route]].js`:
   - `POST /api/admin/round` accepts `votingOpensMonthsBefore` and `votingOpensAt`.
   - `PATCH /api/admin/round/:id` accepts `votingOpensMonthsBefore` and `votingOpensAt`.
   - `GET /api/admin/round` and `GET /api/admin/round/:id` continue returning raw round rows for admin use.
-- [ ] Update `functions/api/round/current.js` to expose public-safe `votingOpensMonthsBefore` and `votingOpensAt`.
-- [ ] Update `vote-admin.html` to show/edit:
+- [x] Update `functions/api/round/current.js` to expose public-safe `votingOpensMonthsBefore` and `votingOpensAt`.
+- [x] Update `vote-admin.html` to show/edit:
   - Suggestions start months before, default `2.8`
   - Voting opens months before
   - Voting opens date, default offset `2.5`
   - Voting closes months before, default `2.2`
-- [ ] Update `js/vote.js` schedule display to include voting opens.
-- [ ] If `css/style.css` changes, bump its query string on affected HTML pages.
-- [ ] Add or extend static tests for admin field wiring if useful.
-- [ ] Run `npm test`.
+- [x] Update `js/vote.js` schedule display to include voting opens.
+- [x] No CSS changes were needed, so no stylesheet query-string bump was required.
+- [x] Add or extend static tests for admin field wiring if useful.
+- [x] Run `npm test`.
 
 ## Task 3: Add Automation Event Storage
 
@@ -227,7 +235,7 @@ Purpose: keep phase decisions pure and testable before wiring network calls.
   - If there are no votes, return a blocked/no-op result that explains why.
   - If there is a tie for first place, return a blocked/no-op result that names the tied suggestions.
   - Otherwise return `reveal_winner` with `winnerSuggestionId`.
-- [ ] Do not close rounds automatically in Phase B.
+- [ ] Do not close rounds automatically in the first scheduler pass.
 - [ ] Cover the rules with `node:test`.
 - [ ] Run `npm test`.
 
@@ -383,7 +391,7 @@ wrangler d1 execute gamestormers --remote --file=./schema.sql
 - Confirm the Discord webhook posts to the intended voting announcement channel.
 - Keep final event publication manual through `MEETING_WORKFLOW.md`.
 
-## Deferred To Phase C
+## Deferred To Later Projects
 
 - Public archive of old revealed/closed voting rounds.
 - Automatic creation of the next round.
