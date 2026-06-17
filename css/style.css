@@ -1049,11 +1049,38 @@ img { display: block; max-width: 100%; height: auto; }
 
 /* ─── Voting page (vote.html / en/vote.html) ───────────────────────────────── */
 .gs-vote {
-  padding: 56px 0 72px;
+  padding: 48px 0 72px;
   background: var(--purple);
   flex: 1;
 }
-.gs-vote .section-title { color: var(--cream); }
+.gs-vote .section-title {
+  color: var(--cream);
+  margin-bottom: 22px;
+}
+.vote-round-hero {
+  max-width: 860px;
+  margin: 0 0 24px;
+  padding: 20px 22px 22px;
+  border: 1px solid rgba(150,195,141,0.2);
+  border-radius: 12px;
+  background:
+    linear-gradient(135deg, rgba(150,195,141,0.12), rgba(247,244,238,0.035) 52%),
+    rgba(247,244,238,0.045);
+}
+.vote-round-hero-empty {
+  display: inline-flex;
+  width: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.vote-round-kicker {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
 .vote-status {
   display: inline-flex;
   align-items: center;
@@ -1068,7 +1095,7 @@ img { display: block; max-width: 100%; height: auto; }
   background: rgba(150,195,141,0.14);
   border: 1px solid rgba(150,195,141,0.22);
   color: var(--green);
-  margin: 0 8px 16px 0;
+  margin: 0;
 }
 .vote-status::before {
   content: '';
@@ -1079,10 +1106,10 @@ img { display: block; max-width: 100%; height: auto; }
 }
 .vote-intro {
   font-size: 1.02rem;
-  color: rgba(247,244,238,0.7);
-  line-height: 1.65;
-  max-width: 620px;
-  margin-bottom: 28px;
+  color: rgba(247,244,238,0.74);
+  line-height: 1.6;
+  max-width: 680px;
+  margin-bottom: 26px;
 }
 .vote-intro code {
   font-family: 'Barlow Condensed', sans-serif;
@@ -1138,7 +1165,7 @@ img { display: block; max-width: 100%; height: auto; }
 .vote-meeting {
   display: inline-flex;
   align-items: center;
-  margin: 0 0 14px;
+  margin: 0;
   padding: 5px 12px;
   border-radius: 999px;
   background: rgba(247,244,238,0.08);
@@ -1147,22 +1174,44 @@ img { display: block; max-width: 100%; height: auto; }
   font-size: 0.86rem;
   font-weight: 700;
 }
+.vote-date-card {
+  margin: 0 0 16px;
+}
+.vote-date-label {
+  display: block;
+  margin-bottom: 2px;
+  color: rgba(247,244,238,0.56);
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+.vote-date-value {
+  display: block;
+  color: var(--cream);
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: clamp(2rem, 4vw, 3.25rem);
+  font-weight: 800;
+  line-height: 1;
+}
 .vote-schedule {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  grid-template-columns: repeat(2, minmax(180px, 1fr));
   gap: 10px;
-  margin: 0 0 18px;
-  max-width: 860px;
+  margin: 0;
+  max-width: 540px;
 }
 .vote-schedule-item {
   padding: 10px 12px;
   border-radius: 8px;
-  background: rgba(247,244,238,0.08);
-  border: 1px solid rgba(247,244,238,0.14);
+  background: rgba(43,36,54,0.22);
+  border: 1px solid rgba(247,244,238,0.11);
 }
 .vote-schedule dt {
   margin-bottom: 4px;
-  color: rgba(247,244,238,0.62);
+  color: rgba(247,244,238,0.52);
   font-size: 0.72rem;
   font-weight: 800;
   letter-spacing: 0;
@@ -1171,7 +1220,7 @@ img { display: block; max-width: 100%; height: auto; }
 .vote-schedule dd {
   margin: 0;
   color: var(--cream);
-  font-size: 0.95rem;
+  font-size: 0.94rem;
   font-weight: 800;
 }
 .vote-disclosure-wrap {
@@ -1205,6 +1254,14 @@ img { display: block; max-width: 100%; height: auto; }
 }
 .vote-disclosure[aria-expanded="true"] .vote-disclosure-chevron {
   transform: rotate(180deg);
+}
+.vote-list-title {
+  margin: 44px 0 12px;
+  color: var(--cream);
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 1.65rem;
+  font-weight: 800;
+  line-height: 1.1;
 }
 
 /* Form panel (suggestion form + storm code) */
@@ -1660,6 +1717,20 @@ details[open] > .admin-section-summary::before { transform: rotate(90deg); }
 .admin-votes { font-weight: 800; color: var(--green-dark); }
 
 @media (max-width: 860px) {
+  .gs-vote { padding: 38px 0 52px; }
+  .vote-round-hero {
+    padding: 17px 18px 18px;
+    margin-bottom: 20px;
+  }
+  .vote-round-kicker { margin-bottom: 10px; }
+  .vote-date-card { margin-bottom: 14px; }
+  .vote-schedule { grid-template-columns: 1fr; max-width: none; }
+  .vote-intro { font-size: 0.98rem; margin-bottom: 22px; }
+  .vote-disclosure,
+  .vote-disclosure-wrap,
+  .vote-panel { max-width: none; width: 100%; }
+  .vote-choice-btns > * { width: 100%; justify-content: center; }
+  .vote-list-title { margin-top: 36px; }
   .suggestion-grid { grid-template-columns: 1fr; }
   .admin-row { flex-direction: column; }
   .admin-thumb { width: 100%; }

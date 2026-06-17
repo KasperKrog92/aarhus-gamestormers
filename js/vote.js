@@ -11,17 +11,19 @@ var STRINGS = {
     statusVotingClosed: 'Afstemningen er lukket',
     statusRevealed: 'Resultatet er klar',
     introNone: 'Der er ingen aktiv runde lige nu. Hold øje med Discord for næste afstemning.',
-    introUpcoming: 'Denne runde er oprettet, men forslag åbner først på datoen herunder.',
+    introUpcoming: 'Næste møde er planlagt. Forslag åbner på datoen herunder.',
     introSuggesting:
-      'Foreslå et spil til næste møde. Er det på Steam, henter vi titel, billede, genrer og beskrivelse automatisk. Ellers udfylder du det selv. Du skal bruge mødets kode fra Discord.',
+      'Foreslå et spil til mødet. Steam-spil får titel, billede, genrer og beskrivelse automatisk. Brug mødets kode fra Discord.',
     introVoting:
-      'Sæt flueben ved <b>alle</b> de spil, du gerne vil spille. Det med flest stemmer vinder. Du skal bruge mødets kode fra Discord.',
-    introVotingClosed: 'Afstemningen er lukket for denne runde. Resultatet bliver delt, når det er klar.',
-    introRevealed: 'Tak til alle der stemte! Her er resultatet. Vinderen bliver næste mødes spil.',
+      'Sæt flueben ved <b>alle</b> de spil, du gerne vil spille. Spillet med flest stemmer vælges til mødet. Brug koden fra Discord.',
+    introVotingClosed: 'Afstemningen er lukket. Resultatet bliver delt, når det er klar.',
+    introRevealed: 'Tak til alle der stemte. Her er resultatet, og vinderen er spillet til mødet.',
     meetingFor: 'Forslag til {meeting}',
     scheduleMeetingDate: 'Mødedato',
-    scheduleSuggestionsOpen: 'Forslag åbner ({months} måneder før mødet)',
-    scheduleVotingCloses: 'Afstemning lukker ({months} måneder før mødet)',
+    scheduleSuggestionsOpen: 'Forslag åbner',
+    scheduleSuggestionsOpened: 'Forslag åbnede',
+    scheduleVotingCloses: 'Afstemning lukker',
+    scheduleVotingClosed: 'Afstemning lukkede',
     nextRoundHeading: 'Næste runde',
     nextRoundIntro: 'Vil du være med igen? Her er den næste runde.',
     nextRoundMeeting: 'Næste møde',
@@ -64,8 +66,8 @@ var STRINGS = {
     btnSuggest: 'Send forslag',
     suggestThanks: 'Tak! “{title}” er tilføjet til forslagene.',
     manualThanks: 'Tak! “{title}” bliver vist, når en admin har godkendt det.',
-    approvedSoFar: 'Forslag indtil videre',
-    castBallot: 'Afgiv din stemme',
+    approvedSoFar: 'Spilforslag',
+    castBallot: 'Din stemme',
     btnVote: 'Stem',
     btnVoted: 'Stemme afgivet ✓',
     alreadyVoted: 'Det ser ud til, at du allerede har stemt i denne runde. Du kan stemme igen, men kun den seneste tæller for dig.',
@@ -90,17 +92,19 @@ var STRINGS = {
     statusVotingClosed: 'Voting is closed',
     statusRevealed: 'The result is in',
     introNone: 'There is no active round right now. Watch Discord for the next vote.',
-    introUpcoming: 'This round has been created, but suggestions open on the date below.',
+    introUpcoming: 'The next meeting is planned. Suggestions open on the date below.',
     introSuggesting:
-      "Suggest a game for the next meeting. If it’s on Steam we’ll pull in the title, image, genres and description automatically. Otherwise you fill it in yourself. You’ll need the meeting code from Discord.",
+      "Suggest a game for the meeting. Steam games get title, image, genres and description filled in automatically. Use the meeting code from Discord.",
     introVoting:
-      'Tick <b>every</b> game you’d be happy to play. The one with the most ticks wins. You’ll need the meeting code from Discord.',
-    introVotingClosed: 'Voting is closed for this round. The result will be shared when it is ready.',
-    introRevealed: 'Thanks to everyone who voted! Here’s the result. The winner becomes the next meeting’s game.',
+      'Tick <b>every</b> game you’d be happy to play. The game with the most ticks is chosen for the meeting. Use the code from Discord.',
+    introVotingClosed: 'Voting is closed. The result will be shared when it is ready.',
+    introRevealed: 'Thanks to everyone who voted. Here is the result, and the winner is the game for the meeting.',
     meetingFor: 'Suggestions for {meeting}',
     scheduleMeetingDate: 'Meeting date',
-    scheduleSuggestionsOpen: 'Suggestions open ({months} months before the meeting)',
-    scheduleVotingCloses: 'Voting closes ({months} months before the meeting)',
+    scheduleSuggestionsOpen: 'Suggestions open',
+    scheduleSuggestionsOpened: 'Suggestions opened',
+    scheduleVotingCloses: 'Voting closes',
+    scheduleVotingClosed: 'Voting closed',
     nextRoundHeading: 'Next round',
     nextRoundIntro: 'Want to join again? Here is the next round.',
     nextRoundMeeting: 'Next meeting',
@@ -143,8 +147,8 @@ var STRINGS = {
     btnSuggest: 'Submit suggestion',
     suggestThanks: 'Thanks! “{title}” has been added to the suggestions.',
     manualThanks: 'Thanks! “{title}” will appear once an admin has approved it.',
-    approvedSoFar: 'Suggestions so far',
-    castBallot: 'Cast your ballot',
+    approvedSoFar: 'Game suggestions',
+    castBallot: 'Your vote',
     btnVote: 'Vote',
     btnVoted: 'Vote cast ✓',
     alreadyVoted: 'Looks like you already voted in this round. You can vote again, but only your latest ballot counts for you.',
@@ -247,22 +251,15 @@ var STRINGS = {
     }).format(date);
   }
 
-  function formatMonths(value) {
-    var number = Number(value);
-    if (!Number.isFinite(number)) return '';
-    var text = String(Math.round(number * 10) / 10);
-    return lang === 'en' ? text : text.replace('.', ',');
-  }
-
-  function scheduleDetails(round) {
+  function deadlineDetails(round) {
+    var votingHasEnded = round.phase === 'revealed' || round.phase === 'closed' || round.votingIsOpen === false;
     var items = [
-      [T.scheduleMeetingDate, round.meetingDate],
       [
-        T.scheduleSuggestionsOpen.replace('{months}', formatMonths(round.suggestionsOpenMonthsBefore)),
+        round.suggestionsAreOpen === false ? T.scheduleSuggestionsOpen : T.scheduleSuggestionsOpened,
         round.suggestionsOpenAt,
       ],
       [
-        T.scheduleVotingCloses.replace('{months}', formatMonths(round.votingClosesMonthsBefore)),
+        votingHasEnded ? T.scheduleVotingClosed : T.scheduleVotingCloses,
         round.votingClosesAt,
       ],
     ].filter(function (item) { return formatDate(item[1]); });
@@ -274,6 +271,22 @@ var STRINGS = {
         el('dd', { text: formatDate(item[1]) }),
       ]);
     }));
+  }
+
+  function roundHero(round, statusText) {
+    var meetingDate = formatDate(round.meetingDate);
+    var deadlines = deadlineDetails(round);
+    return el('div', { class: 'vote-round-hero' }, [
+      el('div', { class: 'vote-round-kicker' }, [
+        status(statusText),
+        meetingBadge(round),
+      ]),
+      meetingDate ? el('div', { class: 'vote-date-card' }, [
+        el('span', { class: 'vote-date-label', text: T.scheduleMeetingDate }),
+        el('time', { class: 'vote-date-value', datetime: round.meetingDate, text: meetingDate }),
+      ]) : null,
+      deadlines,
+    ]);
   }
 
   // A small box pointing to the next round once this one is decided. Reuses the
@@ -413,7 +426,7 @@ var STRINGS = {
   }
 
   function meetingBadge(round) {
-    return el('p', { class: 'vote-meeting', text: T.meetingFor.replace('{meeting}', roundLabel(round)) });
+    return el('span', { class: 'vote-meeting', text: T.meetingFor.replace('{meeting}', roundLabel(round)) });
   }
 
   function suggestionGuidelines() {
@@ -448,21 +461,20 @@ var STRINGS = {
   // ── phase renderers ─────────────────────────────────────────────────────────
   function renderNone() {
     clear(app);
-    app.appendChild(status(T.statusNone));
+    app.appendChild(el('div', { class: 'vote-round-hero vote-round-hero-empty' }, [
+      status(T.statusNone),
+    ]));
     app.appendChild(el('p', { class: 'vote-intro', text: T.introNone }));
   }
 
   function renderSuggesting(data) {
     var suggestionsOpen = data.round.suggestionsAreOpen !== false;
     clear(app);
-    app.appendChild(status(suggestionsOpen ? T.statusSuggesting : T.statusUpcoming));
-    app.appendChild(meetingBadge(data.round));
-    var schedule = scheduleDetails(data.round);
-    if (schedule) app.appendChild(schedule);
+    app.appendChild(roundHero(data.round, suggestionsOpen ? T.statusSuggesting : T.statusUpcoming));
     app.appendChild(el('p', { class: 'vote-intro', html: suggestionsOpen ? T.introSuggesting : T.introUpcoming }));
     if (!suggestionsOpen) return;
     var suggestionItems = data.suggestions.slice();
-    var suggestionHeading = el('h2', { class: 'admin-section-title', text: T.approvedSoFar, style: 'color:var(--cream)' });
+    var suggestionHeading = el('h2', { class: 'vote-list-title', text: T.approvedSoFar });
     var suggestionGrid = grid([]);
     var suggestionListMounted = false;
 
@@ -641,10 +653,7 @@ var STRINGS = {
   function renderVoting(data) {
     var votingOpen = data.round.votingIsOpen !== false;
     clear(app);
-    app.appendChild(status(votingOpen ? T.statusVoting : T.statusVotingClosed));
-    app.appendChild(meetingBadge(data.round));
-    var schedule = scheduleDetails(data.round);
-    if (schedule) app.appendChild(schedule);
+    app.appendChild(roundHero(data.round, votingOpen ? T.statusVoting : T.statusVotingClosed));
     app.appendChild(el('p', { class: 'vote-intro', html: votingOpen ? T.introVoting : T.introVotingClosed }));
     if (!votingOpen) {
       var closedNotice = nextRoundNotice(data.nextRound);
@@ -709,10 +718,7 @@ var STRINGS = {
 
   function renderRevealed(data) {
     clear(app);
-    app.appendChild(status(T.statusRevealed));
-    app.appendChild(meetingBadge(data.round));
-    var schedule = scheduleDetails(data.round);
-    if (schedule) app.appendChild(schedule);
+    app.appendChild(roundHero(data.round, T.statusRevealed));
     app.appendChild(el('p', { class: 'vote-intro', text: T.introRevealed }));
 
     if (!data.suggestions.length) {

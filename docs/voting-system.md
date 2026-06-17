@@ -99,7 +99,7 @@ Each round can be attached to a `meeting_date` (`YYYY-MM-DD`). When the admin cr
 - `suggestions_open_at`: derived from the meeting date and suggestion lead time.
 - `voting_closes_at`: derived from the meeting date and voting close lead time.
 
-The month offsets and dates are shown on `vote.html` / `en/vote.html`; both the numbers and the resulting dates can be edited on `vote-admin.html`. Fractional months are converted as 30-day fractions, so `2.5` means two calendar months plus 15 days. The admin still controls the phase manually (`suggesting -> voting -> revealed -> closed`), but the API enforces the schedule boundaries:
+The public vote page shows the meeting date and the resulting suggestion/voting dates. The editable month offsets stay admin-facing on `vote-admin.html`. Fractional months are converted as 30-day fractions, so `2.5` means two calendar months plus 15 days. The admin still controls the phase manually (`suggesting -> voting -> revealed -> closed`), but the API enforces the schedule boundaries:
 
 - Suggestions are rejected before `suggestions_open_at` when the round is in `suggesting`.
 - Votes are rejected after `voting_closes_at` when the round is in `voting`; the close date itself is inclusive for the whole day.
