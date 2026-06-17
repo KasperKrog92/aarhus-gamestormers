@@ -1127,6 +1127,14 @@ img { display: block; max-width: 100%; height: auto; }
 .vote-guidelines a:hover {
   color: var(--green-light);
 }
+/* The next-round notice reuses .vote-guidelines styling but follows the results
+   grid, so it needs breathing room above it. */
+.vote-next-round {
+  margin-top: 24px;
+}
+.vote-next-round .vote-intro {
+  margin-bottom: 10px;
+}
 .vote-meeting {
   display: inline-flex;
   align-items: center;

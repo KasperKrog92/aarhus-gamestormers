@@ -31,7 +31,8 @@ It is the site's only dynamic feature. It runs on Cloudflare Pages Functions and
 
 | Route | Method | Purpose |
 | --- | --- | --- |
-| `/api/round/current` | GET | Current round and approved cards. Tallies are only exposed when revealed. The storm code is never exposed. |
+| `/api/round/current` | GET | Current round and approved cards. Tallies are only exposed when revealed. The storm code is never exposed. Also returns `nextRound` (public metadata for the next round, if one exists) for the vote page's next-round notice. |
+| `/api/meetings/public` | GET | Public-safe meeting data for the homepage: `upcoming`, `history`, and `planned` groups with their selected games and localized copy. Drives `js/meetings.js`. Storm codes, ballots, and pending/rejected suggestions are never exposed. |
 | `/api/suggest` | POST | Submit a suggestion. Steam suggestions are imported server-side and auto-approved. Non-Steam suggestions are pending until maintainer approval. |
 | `/api/vote` | POST | Cast an approval ballot with optional voter name. |
 | `/api/admin/round` | GET/POST/PATCH | Read full round, open a new round, change phase, winner, code, meeting date, schedule windows, or public meeting basics. The GET response also includes the selected game, localized meeting copy, and a publish-readiness check. |
@@ -66,6 +67,28 @@ Once a winner is known, the maintainer promotes it from the "Selected game" sect
 After promotion, the maintainer fills in fields that have no Steam source: GOG URL and product ID, HowLongToBeat URL and hours, genres/platforms corrections, and the localized event/history descriptions stored in `meeting_copy`. These edits go through `PATCH /api/admin/meeting/:id`.
 
 The admin GET responses include a `publishReadiness` object (`{ ready, missing }`). A homepage card is not considered publish-ready until the selected game has a title, cover image, store link, genres, platforms, playtime hours, a HowLongToBeat URL, and event descriptions in both Danish and English. The "Selected game" section surfaces this so a card is not revealed publicly with missing fields. Non-Steam suggestion approval stays manual; promotion does not change a suggestion's approval status.
+
+## Public Meetings And Homepage
+
+`GET /api/meetings/public` is the read side that the homepage uses. It joins `meetings` to their selected
+`games` and `meeting_copy`, hides cancelled meetings, and groups the rest:
+
+- `upcoming`: future meetings that have a selected game (rendered as event cards).
+- `history`: past meetings (`ends_at_utc` already passed) that have a selected game, newest first.
+- `planned`: future meetings with no selected game yet, returned as lightweight metadata only.
+
+`js/meetings.js` fetches this route, renders the event/history cards and JSON-LD for both languages, and leaves
+the static fallback shell in place only while the API has no selected meeting content. Once D1 returns selected
+meetings, empty `upcoming` or `history` groups clear the matching static fallback cards so old events do not stay
+visible. See [`project-guide.md`](project-guide.md) and [`content-guide.md`](content-guide.md).
+
+### Next-round notice
+
+`GET /api/round/current` includes a `nextRound` object — `{ id, title, meetingDate, suggestionsOpenAt,
+votingClosesAt }` — built from the next round whose id is greater than the current round (storm code excluded).
+When the current round is revealed or voting has closed, `js/vote.js` shows this as a bilingual "next round"
+notice. Because the current round is the highest-id round today, `nextRound` is normally `null`; the field is
+forward-compatible groundwork for pre-created future rounds (Phase B voting automation), where it will populate.
 
 ## Round Schedule
 
@@ -176,4 +199,4 @@ wrangler d1 execute gamestormers --remote --file=./schema.sql
 
 ## Planned Phase 2
 
-Not built yet: scheduler automation for phase changes, Discord announcements of phase changes and winners, and generation of event-card/history-card values for the winning game. A Cloudflare Cron Trigger or GitHub Action could handle this later. Playtime should stay manual unless a reliable source becomes available. (New-suggestion Discord notifications are built, see Suggestion Notifications above.)
+Not built yet: scheduler automation for phase changes, Discord announcements of phase changes and winners, automated selected-game promotion/publication gating, and winner handoff artifacts for missing manual fields. A GitHub Action is the current Phase B plan. Playtime should stay manual unless a reliable source becomes available. (New-suggestion Discord notifications are built, see Suggestion Notifications above.)

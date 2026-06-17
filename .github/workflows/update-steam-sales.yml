@@ -24,54 +24,125 @@ jobs:
         uses: actions/github-script@v8
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          SITE_BASE_URL: ${{ vars.SITE_BASE_URL }}
         with:
           script: |
             const fs = require('fs/promises');
             const path = require('path');
 
-            const htmlFiles = ['index.html', 'en/index.html'];
             const steamAppIds = new Set();
             const gogProductIds = new Set();
-            // id -> { title, url }, used to build readable Discord notifications.
+            // id -> { title, date, url }, used to build readable Discord notifications.
             const steamMeta = {};
             const gogMeta = {};
-            const eventStoreLinksPattern = /<div class="event-store-links">([\s\S]*?)<\/div>/g;
-            const steamLinkPattern = /store\.steampowered\.com\/app\/(\d+)/g;
-            const steamHrefPattern = /href="(https:\/\/store\.steampowered\.com\/app\/(\d+)[^"]*)"/;
-            const gogIdPattern = /data-gog-id=["'](\d+)["']/g;
-            const gogAnchorPattern = /href="(https:\/\/www\.gog\.com\/[^"]*)"[^>]*data-gog-id=["'](\d+)["']/;
-            const titleAfterPattern = /<h3 class="event-title">([\s\S]*?)<\/h3>/;
-            const eventDatePattern = /<span class="event-detail-label">(?:Dato|Date)<\/span>\s*<span class="event-detail-value">([\s\S]*?)<\/span>/;
 
-            for (const file of htmlFiles) {
-              const html = await fs.readFile(file, 'utf8');
-              for (const blockMatch of html.matchAll(eventStoreLinksPattern)) {
-                const block = blockMatch[1];
-                // The game title sits in the <h3> right after the store-links block.
-                const after = html.slice(blockMatch.index + blockMatch[0].length);
-                const titleMatch = after.match(titleAfterPattern);
-                const title = titleMatch ? titleMatch[1].replace(/\s+/g, ' ').trim() : '';
-                // The meeting date is the first event-detail value after the block.
-                // en/index.html is scanned last, so the English date wins.
-                const dateMatch = after.match(eventDatePattern);
-                const date = dateMatch ? dateMatch[1].replace(/\s+/g, ' ').trim() : '';
+            // Preferred source: the D1-backed public meetings API. The homepage
+            // event/history cards are rendered from the same data, so the sale
+            // badges read whatever store links the API exposes for upcoming
+            // meetings. We fall back to parsing the static HTML cards when the
+            // API has no upcoming meetings yet (e.g. before the D1 backfill).
+            const siteBaseUrl = (process.env.SITE_BASE_URL || 'https://www.gamestormers.dk').replace(/\/+$/, '');
 
-                for (const match of block.matchAll(steamLinkPattern)) {
-                  steamAppIds.add(match[1]);
-                }
-                const steamHref = block.match(steamHrefPattern);
-                if (steamHref) {
-                  steamMeta[steamHref[2]] = { title, date, url: steamHref[1] };
+            function formatMeetingDate(isoDate) {
+              const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(isoDate || ''));
+              if (!match) return '';
+              const date = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
+              return new Intl.DateTimeFormat('en-GB', {
+                timeZone: 'UTC',
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+              }).format(date);
+            }
+
+            async function collectFromApi() {
+              const endpoint = `${siteBaseUrl}/api/meetings/public`;
+              let payload;
+              try {
+                const response = await fetch(endpoint, { headers: { accept: 'application/json' } });
+                if (!response.ok) throw new Error(`status ${response.status}`);
+                payload = await response.json();
+              } catch (error) {
+                core.warning(`Could not read meetings from ${endpoint}: ${error.message}`);
+                return 0;
+              }
+              const upcoming = (payload && payload.meetings && payload.meetings.upcoming) || [];
+              let count = 0;
+              for (const meeting of upcoming) {
+                const game = meeting && meeting.game;
+                if (!game) continue;
+                const title = String(game.title || '').trim();
+                const date = formatMeetingDate(meeting.meetingDate);
+
+                const steamId = String(game.steamAppId || '').trim();
+                if (/^\d+$/.test(steamId)) {
+                  steamAppIds.add(steamId);
+                  steamMeta[steamId] = {
+                    title,
+                    date,
+                    url: game.storeUrl || `https://store.steampowered.com/app/${steamId}/`,
+                  };
+                  count += 1;
                 }
 
-                for (const match of block.matchAll(gogIdPattern)) {
-                  gogProductIds.add(match[1]);
-                }
-                const gogAnchor = block.match(gogAnchorPattern);
-                if (gogAnchor) {
-                  gogMeta[gogAnchor[2]] = { title, date, url: gogAnchor[1] };
+                const gogId = String(game.gogId || '').trim();
+                if (/^\d+$/.test(gogId)) {
+                  gogProductIds.add(gogId);
+                  gogMeta[gogId] = { title, date, url: game.gogUrl || '' };
+                  count += 1;
                 }
               }
+              return count;
+            }
+
+            async function collectFromHtml() {
+              const htmlFiles = ['index.html', 'en/index.html'];
+              const eventStoreLinksPattern = /<div class="event-store-links">([\s\S]*?)<\/div>/g;
+              const steamLinkPattern = /store\.steampowered\.com\/app\/(\d+)/g;
+              const steamHrefPattern = /href="(https:\/\/store\.steampowered\.com\/app\/(\d+)[^"]*)"/;
+              const gogIdPattern = /data-gog-id=["'](\d+)["']/g;
+              const gogAnchorPattern = /href="(https:\/\/www\.gog\.com\/[^"]*)"[^>]*data-gog-id=["'](\d+)["']/;
+              const titleAfterPattern = /<h3 class="event-title">([\s\S]*?)<\/h3>/;
+              const eventDatePattern = /<span class="event-detail-label">(?:Dato|Date)<\/span>\s*<span class="event-detail-value">([\s\S]*?)<\/span>/;
+
+              for (const file of htmlFiles) {
+                const html = await fs.readFile(file, 'utf8');
+                for (const blockMatch of html.matchAll(eventStoreLinksPattern)) {
+                  const block = blockMatch[1];
+                  // The game title sits in the <h3> right after the store-links block.
+                  const after = html.slice(blockMatch.index + blockMatch[0].length);
+                  const titleMatch = after.match(titleAfterPattern);
+                  const title = titleMatch ? titleMatch[1].replace(/\s+/g, ' ').trim() : '';
+                  // The meeting date is the first event-detail value after the block.
+                  // en/index.html is scanned last, so the English date wins.
+                  const dateMatch = after.match(eventDatePattern);
+                  const date = dateMatch ? dateMatch[1].replace(/\s+/g, ' ').trim() : '';
+
+                  for (const match of block.matchAll(steamLinkPattern)) {
+                    steamAppIds.add(match[1]);
+                  }
+                  const steamHref = block.match(steamHrefPattern);
+                  if (steamHref) {
+                    steamMeta[steamHref[2]] = { title, date, url: steamHref[1] };
+                  }
+
+                  for (const match of block.matchAll(gogIdPattern)) {
+                    gogProductIds.add(match[1]);
+                  }
+                  const gogAnchor = block.match(gogAnchorPattern);
+                  if (gogAnchor) {
+                    gogMeta[gogAnchor[2]] = { title, date, url: gogAnchor[1] };
+                  }
+                }
+              }
+            }
+
+            const apiCount = await collectFromApi();
+            if (apiCount > 0) {
+              core.info(`Read ${apiCount} store link(s) from ${siteBaseUrl}/api/meetings/public.`);
+            } else {
+              core.info('No upcoming meetings from the API; parsing static HTML cards instead.');
+              await collectFromHtml();
             }
 
             function sortNumericIds(ids) {

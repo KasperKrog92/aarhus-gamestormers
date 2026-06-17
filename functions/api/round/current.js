@@ -1,7 +1,15 @@
 // GET /api/round/current — public view of the current round + approved games.
 // Vote tallies are returned ONLY once the round is revealed (avoids bandwagon).
 import { json, fail } from '../../_lib/http.js';
-import { ensureRoundScheduleColumns, getCurrentRound, getSuggestions, getTallies, toCard } from '../../_lib/db.js';
+import {
+  ensureRoundScheduleColumns,
+  getCurrentRound,
+  getNextRound,
+  getSuggestions,
+  getTallies,
+  toCard,
+  toNextRoundNotice,
+} from '../../_lib/db.js';
 import {
   DEFAULT_SUGGESTIONS_OPEN_MONTHS_BEFORE,
   DEFAULT_VOTING_CLOSES_MONTHS_BEFORE,
@@ -23,6 +31,10 @@ export async function onRequestGet({ env }) {
 
   const cards = suggestions.map((s) => toCard(s, revealed ? tallies[s.id] || 0 : null));
 
+  // Surface the next round so the vote page can point people there once this
+  // round is decided. Storm code stays internal (toNextRoundNotice omits it).
+  const nextRound = toNextRoundNotice(await getNextRound(db, round.id));
+
   return json({
     round: {
       id: round.id,
@@ -38,6 +50,7 @@ export async function onRequestGet({ env }) {
       winnerSuggestionId: round.winner_suggestion_id,
     },
     suggestions: cards,
+    nextRound,
     // storm_code is intentionally NOT exposed here.
   });
 }

@@ -1,8 +1,8 @@
 # Phase B Voting Automation Plan
 
-Updated 2026-06-16 after the voting system grew beyond the original Phase B draft.
+Updated 2026-06-17 after the database-backed homepage and meetings plan was reviewed as implemented.
 
-Prerequisite: implement `docs/plans/2026-06-16-database-backed-homepage-and-meetings.md` first if the target workflow is full automation from pre-created rounds to homepage event cards.
+Prerequisite status: the database-backed homepage and meetings work is implemented. Phase B should build on the existing `meetings` / `games` / `meeting_copy` model and admin selected-game routes instead of generating homepage HTML changes.
 
 ## Goal
 
@@ -33,6 +33,12 @@ Already built:
   - Suggestions are blocked before `suggestions_open_at`.
   - Votes are blocked after `voting_closes_at`, with the close date inclusive.
 - Public current-round API hides `storm_code`.
+- Public current-round API can return `nextRound` metadata for the vote page notice.
+- Database-backed homepage data exists through `GET /api/meetings/public`.
+- Admin selected-game flow exists:
+  - `POST /api/admin/round/:id/select` copies a suggestion into `games`, attaches it to `meetings`, confirms `winner_suggestion_id`, and reveals the round unless already closed.
+  - `PATCH /api/admin/meeting/:id` edits selected-game public metadata and localized meeting copy.
+  - Admin round responses include `selectedGame`, `meetingCopy`, and `publishReadiness`.
 - New-suggestion Discord notifications via Cloudflare Pages env var `DISCORD_SUGGESTIONS_WEBHOOK_URL`.
 - Existing sale-alert GitHub Action already uses a separate GitHub secret named `DISCORD_WEBHOOK_URL`.
 
@@ -43,8 +49,9 @@ Not built yet:
 - Winner selection in automation.
 - Idempotency records for scheduled automation.
 - Discord notifications for phase changes or winners.
-- Winner promotion into homepage meeting/game data.
-- Winner handoff generation for missing manual fields.
+- Automated use of the selected-game promotion endpoint.
+- A publication gate for missing manual fields, so automation does not accidentally expose an incomplete homepage card.
+- Winner handoff generation for any manual fields that still need maintainer review.
 - Public archive of old rounds.
 
 ## Decisions
@@ -59,6 +66,7 @@ Not built yet:
 - Use a dedicated GitHub Actions secret named `DISCORD_VOTING_WEBHOOK_URL` for phase/winner announcements. Do not reuse the sale-alert `DISCORD_WEBHOOK_URL`, and do not reuse the Cloudflare Pages suggestion-notification secret.
 - Record automation events in D1 so reruns and manual workflow dispatches do not duplicate Discord posts or handoffs.
 - Do not auto-open the next round in Phase B. The maintainer should be able to create a batch of future rounds/meetings ahead of time, then automation operates on those prepared records.
+- Treat homepage publication as a separate step from vote-result reveal. The existing selected-game endpoint can make a game public immediately, so Phase B must either add a draft/not-public promotion mode or only call that endpoint when the selected game will be publish-ready.
 - Defer the public archive. The current product need is phase automation and handoff. Archive can be Phase C once the result shape and page design are worth exposing.
 
 ## Required Secrets
@@ -230,7 +238,10 @@ Purpose: isolate side effects from scheduler logic.
 - [ ] Create `automation/voting/api-client.mjs`.
 - [ ] Support:
   - `getCurrentRound()`
+  - `getAdminRound(roundId)`
   - `patchRound(roundId, body)`
+  - `selectWinner(roundId, suggestionId, options)`
+  - `patchMeeting(roundId, body)`
   - `recordAutomationEvent(body)`
 - [ ] Use bearer auth from `VOTING_ADMIN_TOKEN`.
 - [ ] Create `automation/voting/discord.mjs`.
@@ -242,11 +253,21 @@ Purpose: isolate side effects from scheduler logic.
 - [ ] Test request URLs, headers, JSON bodies, and message payloads.
 - [ ] Run `npm test`.
 
-## Task 7: Generate Winner Handoff
+## Task 7: Promote Winner And Generate Handoff
 
-Purpose: give the maintainer the right publishing data without mutating site content.
+Purpose: move the winning suggestion toward the database-backed homepage without losing maintainer control over incomplete public meeting cards.
 
 - [ ] Create `automation/voting/handoff.mjs`.
+- [ ] Add a pure `winnerPublicationPlan({ roundPayload, winnerSuggestionId })` helper that reports:
+  - whether the winner is already selected
+  - whether the selected game is publish-ready
+  - which manual fields are missing from `publishReadiness`
+  - whether automation may safely call selected-game promotion
+- [ ] Before enabling scheduled promotion, add one of these safety paths:
+  - extend `POST /api/admin/round/:id/select` with a draft/not-public mode that copies the winner into `games` and `meetings` without exposing it through `/api/meetings/public`
+  - or keep promotion manual unless the selected-game data is already publish-ready
+- [ ] When promotion is allowed, call the existing selected-game API instead of editing `games` / `meetings` directly.
+- [ ] After promotion, refetch the admin round payload and use `publishReadiness` to decide whether a handoff artifact is needed.
 - [ ] Generate Markdown containing:
   - Meeting number/title/date
   - Winner title
@@ -256,11 +277,12 @@ Purpose: give the maintainer the right publishing data without mutating site con
   - Genres/platforms
   - Pitch and suggested-by
   - Current vote tally
-  - Explicit HowLongToBeat reminder
+  - `publishReadiness.missing`
+  - Explicit HowLongToBeat and localized-description reminders when missing
   - Checklist pointing to `MEETING_WORKFLOW.md`
 - [ ] Write the handoff to a temporary workflow path such as `automation-output/meeting-19-winner.md`.
 - [ ] Upload it as a GitHub Actions artifact. Do not commit it from the scheduled workflow.
-- [ ] Test the Markdown builder.
+- [ ] Test the publication planner and Markdown builder.
 - [ ] Run `npm test`.
 
 ## Task 8: Wire The Runner
@@ -277,8 +299,12 @@ Purpose: execute the decisions safely from GitHub Actions.
   1. Fetch current admin round state.
   2. Decide actions.
   3. For `open_voting`, patch the round phase to `voting`, record `voting_opened`, then post Discord.
-  4. For `reveal_winner`, patch winner + phase to `revealed`, record `winner_revealed`, post Discord, generate handoff, then record `handoff_generated`.
-  5. For blocked states, log clearly and exit 0 so the schedule does not become noisy.
+  4. For `reveal_winner`, patch winner + phase to `revealed`, record `winner_revealed`, then post Discord.
+  5. Run the winner publication planner.
+  6. If promotion is allowed, call the selected-game API, refetch the admin payload, and generate a handoff only when manual fields remain missing.
+  7. If promotion is not allowed, generate the handoff and leave homepage publication to `MEETING_WORKFLOW.md`.
+  8. Record `handoff_generated` when an artifact is produced.
+  9. For blocked states, log clearly and exit 0 so the schedule does not become noisy.
 - [ ] Prefer patching phase before posting Discord so a failed rerun does not repeat a successful announcement.
 - [ ] If event recording fails after a successful phase patch, log loudly because the next manual rerun may need maintainer attention.
 - [ ] Test env validation and runner behavior with mocked client/Discord/handoff dependencies.

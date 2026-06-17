@@ -368,6 +368,79 @@ export function buildHistoryCard(meeting, lang) {
   );
 }
 
+// ── JSON-LD (schema.org Event) ──────────────────────────────────────────────
+// First-pass SEO: built from the same public meeting data and injected client
+// side once meetings load. The static <script type="application/ld+json"> stays
+// as the no-JS source until the D1 backfill lands (see plan Task 10).
+
+const JSONLD_BASE = 'https://www.gamestormers.dk';
+const ORG_ID = JSONLD_BASE + '/#organization';
+
+// Split "Grønnegade 10, 8000 Aarhus C" into schema.org PostalAddress fields.
+// Falls back to the whole string as streetAddress when it does not match.
+function parseAddress(address) {
+  const value = String(address || '').trim();
+  if (!value) return null;
+  const parts = value.split(',').map((p) => p.trim()).filter(Boolean);
+  const street = parts[0] || value;
+  const rest = parts.slice(1).join(', ');
+  const match = /^(\S+)\s+(.+)$/.exec(rest);
+  const postal = { '@type': 'PostalAddress', streetAddress: street };
+  if (match) {
+    postal.postalCode = match[1];
+    postal.addressLocality = match[2];
+  } else if (rest) {
+    postal.addressLocality = rest;
+  }
+  postal.addressCountry = 'DK';
+  return postal;
+}
+
+export function buildEventJsonLd(meeting, lang) {
+  if (!meeting || !meeting.game) return null;
+  const game = meeting.game;
+  const tz = meeting.timezone || 'Europe/Copenhagen';
+  const copy = meetingCopy(meeting, lang);
+  const description =
+    copy.eventDescription || (lang === 'en' ? game.descriptionEn : game.descriptionDa) || '';
+  const eventsUrl = JSONLD_BASE + (lang === 'en' ? '/en/#events' : '/#events');
+  const node = {
+    '@type': 'Event',
+    '@id': JSONLD_BASE + '/#event-' + meeting.id + '-' + meeting.meetingDate,
+    name: 'Aarhus Gamestormers: ' + game.title,
+    description: description,
+    startDate: localIso(meeting.startsAtUtc, tz),
+    endDate: localIso(meeting.endsAtUtc, tz),
+    eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
+    eventStatus: 'https://schema.org/EventScheduled',
+    image: game.image || undefined,
+    url: eventsUrl,
+    location: {
+      '@type': 'Place',
+      name: (meeting.venue && meeting.venue.name) || '',
+    },
+    organizer: { '@id': ORG_ID },
+  };
+  const address = parseAddress(meeting.venue && meeting.venue.address);
+  if (address) node.location.address = address;
+  return node;
+}
+
+export function buildEventsJsonLd(meetings, lang) {
+  return (meetings || [])
+    .map((meeting) => buildEventJsonLd(meeting, lang))
+    .filter(Boolean);
+}
+
+// Rewrites the page's JSON-LD @graph: keep every non-Event node (the
+// Organization) and replace the Event nodes with ones generated from D1.
+export function mergeEventsIntoGraph(graph, events) {
+  const kept = (Array.isArray(graph) ? graph : []).filter(
+    (node) => !node || node['@type'] !== 'Event'
+  );
+  return kept.concat(events);
+}
+
 export function buildEventCards(meetings, lang) {
   return (meetings || []).map((meeting) => buildEventCard(meeting, lang)).join('');
 }
@@ -380,20 +453,46 @@ function pageLang() {
   return document.documentElement.lang === 'en' ? 'en' : 'da';
 }
 
+// Replace the Event nodes in the page's JSON-LD with ones built from D1, leaving
+// the Organization node untouched. No-op when the page has no JSON-LD block.
+function injectEventsJsonLd(upcoming, lang) {
+  const script = document.querySelector('script[type="application/ld+json"]');
+  if (!script) return;
+  let parsed;
+  try {
+    parsed = JSON.parse(script.textContent);
+  } catch (err) {
+    return;
+  }
+  if (!parsed || !Array.isArray(parsed['@graph'])) return;
+  const events = buildEventsJsonLd(upcoming, lang);
+  parsed['@graph'] = mergeEventsIntoGraph(parsed['@graph'], events);
+  script.textContent = JSON.stringify(parsed, null, 2);
+}
+
 function renderMeetings(data) {
   const meetings = data && data.meetings;
   if (!meetings) return false;
   const lang = pageLang();
   let rendered = false;
+  const hasSelectedMeetings =
+    (Array.isArray(meetings.upcoming) && meetings.upcoming.length > 0) ||
+    (Array.isArray(meetings.history) && meetings.history.length > 0);
+
+  // Keep the static fallback only while D1 has no selected meeting content.
+  // Once D1 is the active source, an empty upcoming/history group should clear
+  // stale fallback cards instead of leaving old events visible.
+  if (!hasSelectedMeetings) return false;
 
   const eventsGrid = document.querySelector('.events-grid');
-  if (eventsGrid && Array.isArray(meetings.upcoming) && meetings.upcoming.length) {
+  if (eventsGrid && Array.isArray(meetings.upcoming)) {
     eventsGrid.innerHTML = buildEventCards(meetings.upcoming, lang);
+    injectEventsJsonLd(meetings.upcoming, lang);
     rendered = true;
   }
 
   const historyGrid = document.querySelector('.history-grid');
-  if (historyGrid && Array.isArray(meetings.history) && meetings.history.length) {
+  if (historyGrid && Array.isArray(meetings.history)) {
     historyGrid.innerHTML = buildHistoryCards(meetings.history, lang);
     const sub = document.querySelector('.history-sub[data-count-template]');
     if (sub) sub.textContent = sub.dataset.countTemplate.replace(/\{n\}/g, meetings.history.length);

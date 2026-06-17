@@ -1,6 +1,6 @@
 # Project Guide
 
-Aarhus Gamestormers is a static HTML website for a monthly video game discussion club in Aarhus, Denmark. The club works like a book club: members play the selected game at home, then meet to discuss it.
+Aarhus Gamestormers is a mostly static HTML website for a monthly video game discussion club in Aarhus, Denmark. The club works like a book club: members play the selected game at home, then meet to discuss it. The page shell is static; the homepage event/history sections and the voting feature are database-backed through Cloudflare D1.
 
 ## Structure
 
@@ -18,6 +18,7 @@ Aarhus Gamestormers is a static HTML website for a monthly video game discussion
 |   `-- style.css
 |-- js/
 |   |-- script.js
+|   |-- meetings.js
 |   `-- vote.js
 |-- en/
 |   |-- index.html
@@ -31,7 +32,9 @@ Aarhus Gamestormers is a static HTML website for a monthly video game discussion
 |-- img/
 |-- favicon/
 |-- scripts/
+|   |-- build-backfill-sql.mjs
 |   `-- prepare-pages-deploy.mjs
+|-- backfill-meetings.sql
 |-- schema.sql
 |-- wrangler.toml
 |-- robots.txt
@@ -40,12 +43,22 @@ Aarhus Gamestormers is a static HTML website for a monthly video game discussion
 
 ## Technology
 
-- Static HTML/CSS for the public pages. There is no bundler, framework, or CMS.
+- Static HTML/CSS for the public page shell. There is no bundler, framework, or CMS.
 - Minimal npm metadata exists so Cloudflare Pages can run its install/deploy phase.
-- Vanilla JS in `js/script.js` handles the copyright year, calendar dropdowns, countdown timer, history reveal behavior, and store sale badges.
+- Vanilla JS in `js/script.js` handles the copyright year, calendar dropdowns, countdown timer, history reveal behavior, and store sale badges. Its first-load behaviors are re-runnable through `window.GS.refresh()` so they also apply to dynamically injected cards.
+- `js/meetings.js` renders the homepage event and history cards from `GET /api/meetings/public` (see "Database-backed homepage" below).
 - `js/vote.js` drives the suggestion and voting UI.
-- The voting feature is the only dynamic part. It uses Cloudflare Pages Functions under `functions/` and D1 via the `DB` binding.
+- The voting feature and the meetings data both use Cloudflare Pages Functions under `functions/` and D1 via the `DB` binding.
 - Hosting is Cloudflare Pages at `www.gamestormers.dk`; pushing to `main` deploys automatically.
+
+## Database-backed Homepage
+
+The homepage upcoming-events and history sections are database-backed. D1 is the source of truth for meetings and their selected games (tables `meetings`, `games`, `meeting_copy`; see [`voting-system.md`](voting-system.md) and `schema.sql`).
+
+- `js/meetings.js` is an ES module loaded just before `js/script.js`. On load it fetches `GET /api/meetings/public` and, when the API returns meetings, replaces the `.events-grid` and `.history-grid` contents with rendered cards, then calls `window.GS.refresh()` so countdown, calendar dropdowns, history accordion, and sale badges re-bind. It also rewrites the page's JSON-LD `@graph`, replacing the `Event` nodes with ones generated from the same data while leaving the `Organization` node intact.
+- The renderer is bilingual: it picks `da`/`en` from `document.documentElement.lang` and mirrors the static card markup exactly, so the CSS component contracts below are unchanged.
+- The static event/history cards in `index.html` and `en/index.html` remain as a no-JS and empty-database fallback. The renderer leaves them in place only while D1 has no selected meeting content. Once D1 returns selected meetings, it treats D1 as the active source of truth and clears stale fallback cards for empty `upcoming` or `history` groups. Backfill the live database before relying on the dynamic path (see [`deployment-guide.md`](deployment-guide.md)).
+- Maintainers add and edit meeting content through `vote-admin.html`, not by hand-editing HTML. See [`../MEETING_WORKFLOW.md`](../MEETING_WORKFLOW.md).
 
 ## Pages
 
@@ -134,4 +147,4 @@ Language switching is link-based:
 - Danish: `index.html`
 - English: `en/index.html`
 
-Keep Danish and English files structurally synchronized. Descriptions can be language-specific, but event IDs, dates, app IDs, calendar data, JSON-LD, reveal dates, and sitemap freshness must match.
+Keep the Danish and English static shells structurally synchronized. The shared renderer in `js/meetings.js` keeps the dynamic event/history cards in sync across languages automatically, so meeting data lives in D1 (one record per meeting) rather than being duplicated per language. Localized event/history descriptions live in `meeting_copy`. For any remaining static fallback cards, event IDs, dates, app IDs, calendar data, JSON-LD, reveal dates, and sitemap freshness must still match across the two files.

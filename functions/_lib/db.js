@@ -102,6 +102,24 @@ export function getRoundById(db, id) {
   return db.prepare('SELECT * FROM rounds WHERE id = ?').bind(id).first();
 }
 
+// The next round after `afterId` (smallest id strictly greater). Used to point
+// people from a revealed/closed round toward the next one when it exists.
+export function getNextRound(db, afterId) {
+  return db.prepare('SELECT * FROM rounds WHERE id > ? ORDER BY id ASC LIMIT 1').bind(Number(afterId)).first();
+}
+
+// Public-safe metadata for the "next round" notice. Never exposes the storm code.
+export function toNextRoundNotice(round) {
+  if (!round) return null;
+  return {
+    id: round.id,
+    title: round.title || null,
+    meetingDate: round.meeting_date || null,
+    suggestionsOpenAt: round.suggestions_open_at || null,
+    votingClosesAt: round.voting_closes_at || null,
+  };
+}
+
 export async function getSuggestions(db, roundId, { approvedOnly = false } = {}) {
   const sql = approvedOnly
     ? "SELECT * FROM suggestions WHERE round_id = ? AND status = 'approved' ORDER BY created_at ASC, id ASC"

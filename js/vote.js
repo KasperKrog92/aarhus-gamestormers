@@ -22,6 +22,11 @@ var STRINGS = {
     scheduleMeetingDate: 'Mødedato',
     scheduleSuggestionsOpen: 'Forslag åbner ({months} måneder før mødet)',
     scheduleVotingCloses: 'Afstemning lukker ({months} måneder før mødet)',
+    nextRoundHeading: 'Næste runde',
+    nextRoundIntro: 'Vil du være med igen? Her er den næste runde.',
+    nextRoundMeeting: 'Næste møde',
+    nextRoundSuggestionsOpen: 'Forslag åbner',
+    nextRoundVotingCloses: 'Afstemning lukker',
     formTitle: 'Foreslå et spil',
     suggestToggle: 'Foreslå nyt spil',
     hideSuggest: 'Skjul formular',
@@ -96,6 +101,11 @@ var STRINGS = {
     scheduleMeetingDate: 'Meeting date',
     scheduleSuggestionsOpen: 'Suggestions open ({months} months before the meeting)',
     scheduleVotingCloses: 'Voting closes ({months} months before the meeting)',
+    nextRoundHeading: 'Next round',
+    nextRoundIntro: 'Want to join again? Here is the next round.',
+    nextRoundMeeting: 'Next meeting',
+    nextRoundSuggestionsOpen: 'Suggestions open',
+    nextRoundVotingCloses: 'Voting closes',
     formTitle: 'Suggest a game',
     suggestToggle: 'Suggest new game',
     hideSuggest: 'Hide form',
@@ -264,6 +274,30 @@ var STRINGS = {
         el('dd', { text: formatDate(item[1]) }),
       ]);
     }));
+  }
+
+  // A small box pointing to the next round once this one is decided. Reuses the
+  // guidelines/schedule styling so no new CSS is needed. Returns null when there
+  // is no next round or it has no usable dates yet.
+  function nextRoundNotice(nextRound) {
+    if (!nextRound) return null;
+    var rows = [
+      [T.nextRoundMeeting, roundLabel(nextRound)],
+      [T.scheduleMeetingDate, formatDate(nextRound.meetingDate)],
+      [T.nextRoundSuggestionsOpen, formatDate(nextRound.suggestionsOpenAt)],
+      [T.nextRoundVotingCloses, formatDate(nextRound.votingClosesAt)],
+    ].filter(function (row) { return row[1]; });
+    if (rows.length < 2) return null; // need more than just the meeting label
+    return el('aside', { class: 'vote-guidelines vote-next-round' }, [
+      el('h2', { class: 'vote-guidelines-title', text: T.nextRoundHeading }),
+      el('p', { class: 'vote-intro', text: T.nextRoundIntro }),
+      el('dl', { class: 'vote-schedule' }, rows.map(function (row) {
+        return el('div', { class: 'vote-schedule-item' }, [
+          el('dt', { text: row[0] }),
+          el('dd', { text: row[1] }),
+        ]);
+      })),
+    ]);
   }
 
   // ── Turnstile (explicit render so it survives dynamic DOM) ─────────────────
@@ -612,7 +646,11 @@ var STRINGS = {
     var schedule = scheduleDetails(data.round);
     if (schedule) app.appendChild(schedule);
     app.appendChild(el('p', { class: 'vote-intro', html: votingOpen ? T.introVoting : T.introVotingClosed }));
-    if (!votingOpen) return;
+    if (!votingOpen) {
+      var closedNotice = nextRoundNotice(data.nextRound);
+      if (closedNotice) app.appendChild(closedNotice);
+      return;
+    }
 
     if (!data.suggestions.length) {
       app.appendChild(el('p', { class: 'vote-empty', text: T.noGames }));
@@ -679,6 +717,8 @@ var STRINGS = {
 
     if (!data.suggestions.length) {
       app.appendChild(el('p', { class: 'vote-empty', text: T.noGames }));
+      var emptyNotice = nextRoundNotice(data.nextRound);
+      if (emptyNotice) app.appendChild(emptyNotice);
       return;
     }
 
@@ -692,6 +732,9 @@ var STRINGS = {
 
     var sorted = data.suggestions.slice().sort(function (a, b) { return (b.votes || 0) - (a.votes || 0); });
     app.appendChild(grid(sorted.map(function (s) { return card(s, 'result', { maxVotes: maxVotes, winnerId: winnerId }); })));
+
+    var notice = nextRoundNotice(data.nextRound);
+    if (notice) app.appendChild(notice);
   }
 
   function field(label, control, hint) {
