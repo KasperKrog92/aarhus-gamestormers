@@ -214,8 +214,17 @@ Apply the schema to production only when intentionally changing production D1:
 wrangler d1 execute gamestormers --remote --file=./schema.sql
 ```
 
-## Planned Voting Scheduler Work
+## Voting Scheduler Modules
 
-Built so far for the Voting Scheduler And Handoff project: the `automation_events` idempotency store and its admin API surface (see Automation Events above).
+The Voting Scheduler And Handoff project lives under `automation/voting/` as plain Node ES modules (run by GitHub Actions, not by Pages Functions). They are kept side-effect-free where possible so the decision rules stay testable. Each module has a sibling `*.test.mjs` run by `npm test`.
 
-Not built yet: the scheduler decision logic and runner, Discord announcements of phase changes and winners, automated selected-game promotion/publication gating, winner handoff artifacts for missing manual fields, and the GitHub Actions workflow that drives them. Playtime should stay manual unless a reliable source becomes available. (New-suggestion Discord notifications are built, see Suggestion Notifications above.)
+- `scheduler.mjs`: pure `decideRoundActions({ today, round, suggestions, tallies, automationEvents })`. Given a round's current state it returns one decision:
+  - `open_voting` when the round is `suggesting`, `today` has reached `voting_opens_at` (inclusive), and `voting_opened` is not already recorded.
+  - `reveal_winner` (with `winnerSuggestionId` and the winning `{ id, title, votes }`) when the round is `voting`, `today` is past `voting_closes_at` (the close date is still an open voting day), `winner_revealed` is not recorded, and the tally has a single clear leader.
+  - `blocked` when a reveal is due but cannot complete automatically: `no_votes` (no ballots) or `tie` (the reason names the tied suggestions). The runner should log these and leave the round for the maintainer.
+  - `noop` otherwise (nothing due, the event is already recorded, or the phase is `revealed`/`closed`). The scheduler never closes a round automatically.
+  The date comparisons reuse `functions/_lib/schedule.js` so they match the public schedule boundaries exactly.
+- `api-client.mjs`: `createApiClient({ baseUrl, adminToken, fetch })` wraps the admin API (`getCurrentRound`, `getAdminRound`, `patchRound`, `selectWinner`, `patchMeeting`, `recordAutomationEvent`). Both reads use the admin endpoints because the scheduler needs tallies and `automationEvents`, which the public `/api/round/current` withholds. Every call sends `Authorization: Bearer <VOTING_ADMIN_TOKEN>` (the same value as the Cloudflare Pages `ADMIN_TOKEN`).
+- `discord.mjs`: pure message builders (`votingOpenedMessage`, `winnerRevealedMessage`, `blockedMessage`) plus `postDiscord`, which sends a `{ content, allowed_mentions: { parse: [] } }` payload and is a no-op without a webhook URL. These phase/winner announcements use their own webhook, `DISCORD_VOTING_WEBHOOK_URL` (a GitHub Actions secret), kept separate from the new-suggestion `DISCORD_SUGGESTIONS_WEBHOOK_URL` and the sale-alert `DISCORD_WEBHOOK_URL`.
+
+Not built yet: the runner (`run-scheduler.mjs`) that wires these together, automated selected-game promotion with publication gating, winner handoff artifacts for missing manual fields, and the GitHub Actions workflow that drives them on a schedule. Playtime should stay manual unless a reliable source becomes available. (New-suggestion Discord notifications are built, see Suggestion Notifications above.)

@@ -1,6 +1,6 @@
 # Voting Scheduler And Handoff Plan
 
-Updated 2026-06-17 after the database-backed homepage/meetings work, explicit voting-start schedule fields, the automation-event storage layer (Task 3), and the admin automation API surface (Task 4) were implemented. Tasks 1-4 are complete; Tasks 5-10 remain.
+Updated 2026-06-17 after the database-backed homepage/meetings work, explicit voting-start schedule fields, the automation-event storage layer (Task 3), and the admin automation API surface (Task 4) were implemented, the pure scheduler decision logic (Task 5), and the API client plus Discord message builders (Task 6) were added. Tasks 1-6 are complete; Tasks 7-10 remain.
 
 Prerequisite status: the database-backed homepage and meetings work is implemented. This automation project should build on the existing `meetings` / `games` / `meeting_copy` model and admin selected-game routes instead of generating homepage HTML changes.
 
@@ -228,39 +228,39 @@ Purpose: let GitHub Actions operate only through authenticated Pages Functions.
 
 Purpose: keep phase decisions pure and testable before wiring network calls.
 
-- [ ] Create `automation/voting/scheduler.mjs`.
-- [ ] Implement `decideRoundActions({ today, round, suggestions, tallies, automationEvents })`.
-- [ ] Rules:
+- [x] Create `automation/voting/scheduler.mjs`.
+- [x] Implement `decideRoundActions({ today, round, suggestions, tallies, automationEvents })`.
+- [x] Rules:
   - If phase is `suggesting`, `today >= voting_opens_at`, and `voting_opened` is not recorded, return `open_voting`.
   - If phase is `voting`, `today > voting_closes_at`, and `winner_revealed` is not recorded, compute the winner from tallies.
   - If there are no votes, return a blocked/no-op result that explains why.
   - If there is a tie for first place, return a blocked/no-op result that names the tied suggestions.
   - Otherwise return `reveal_winner` with `winnerSuggestionId`.
-- [ ] Do not close rounds automatically in the first scheduler pass.
-- [ ] Cover the rules with `node:test`.
-- [ ] Run `npm test`.
+- [x] Do not close rounds automatically in the first scheduler pass.
+- [x] Cover the rules with `node:test`.
+- [x] Run `npm test`.
 
 ## Task 6: Build API Client And Discord Messages
 
 Purpose: isolate side effects from scheduler logic.
 
-- [ ] Create `automation/voting/api-client.mjs`.
-- [ ] Support:
+- [x] Create `automation/voting/api-client.mjs`.
+- [x] Support:
   - `getCurrentRound()`
   - `getAdminRound(roundId)`
   - `patchRound(roundId, body)`
   - `selectWinner(roundId, suggestionId, options)`
   - `patchMeeting(roundId, body)`
   - `recordAutomationEvent(body)`
-- [ ] Use bearer auth from `VOTING_ADMIN_TOKEN`.
-- [ ] Create `automation/voting/discord.mjs`.
-- [ ] Messages:
+- [x] Use bearer auth from `VOTING_ADMIN_TOKEN`.
+- [x] Create `automation/voting/discord.mjs`.
+- [x] Messages:
   - Voting opened: concise link to `/vote`.
   - Winner revealed: winner title, meeting label, and link to `/vote`.
   - Blocked tie/no-votes: optional maintainer-facing message, only if we choose to alert the admin channel.
-- [ ] Use `allowed_mentions: { parse: [] }`.
-- [ ] Test request URLs, headers, JSON bodies, and message payloads.
-- [ ] Run `npm test`.
+- [x] Use `allowed_mentions: { parse: [] }`.
+- [x] Test request URLs, headers, JSON bodies, and message payloads.
+- [x] Run `npm test`.
 
 ## Task 7: Promote Winner And Generate Handoff
 
