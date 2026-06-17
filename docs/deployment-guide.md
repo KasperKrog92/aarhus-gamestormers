@@ -73,6 +73,28 @@ wrangler d1 execute gamestormers --remote --file=./backfill-meetings.sql
 - `backfill-meetings.sql` and `scripts/` are not in the Pages deploy allowlist (`scripts/prepare-pages-deploy.mjs`),
   so they are never published as public assets.
 
+The voting scheduler relies on the `voting_opens_at` column and the `automation_events` table. Both are part of
+`schema.sql`, so applying the schema remotely (above) is enough to migrate them into the production database. The
+`ensure*` helpers also add them on demand, but apply the schema before enabling the scheduled workflow so the first
+automated run does not race the lazy migration.
+
+## Voting Automation (GitHub Actions)
+
+The voting scheduler runs from `.github/workflows/voting-automation.yml` (hourly and on manual dispatch). It talks to
+the live admin API over HTTPS and needs these **GitHub Actions secrets** (Settings, Secrets and variables, Actions):
+
+- `VOTING_BASE_URL`: `https://www.gamestormers.dk`
+- `VOTING_ADMIN_TOKEN`: the same value as the Cloudflare Pages `ADMIN_TOKEN`
+- `DISCORD_VOTING_WEBHOOK_URL`: Discord webhook for voting phase/winner announcements. Optional; if unset, the
+  scheduler still changes phases and writes handoffs, it just skips the announcements.
+
+These are distinct from the sales workflow's `DISCORD_WEBHOOK_URL` and from the Cloudflare Pages
+`DISCORD_SUGGESTIONS_WEBHOOK_URL`, so phase/winner posts, sale alerts, and new-suggestion posts can target different
+channels. Before trusting the hourly cadence, run `workflow_dispatch` once against the current round and confirm the
+Discord post lands in the intended channel. The workflow has read-only permissions and never commits to the repo; the
+winner handoff is uploaded as the `winner-handoff` artifact and homepage publication stays manual via
+[`../MEETING_WORKFLOW.md`](../MEETING_WORKFLOW.md). See [`voting-system.md`](voting-system.md) for the runner flow.
+
 ## Cloudflare Pages Settings
 
 - Project root: `/`

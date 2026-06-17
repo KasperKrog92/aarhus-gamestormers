@@ -1,6 +1,6 @@
 # Voting Scheduler And Handoff Plan
 
-Updated 2026-06-17 after the database-backed homepage/meetings work, explicit voting-start schedule fields, the automation-event storage layer (Task 3), and the admin automation API surface (Task 4) were implemented, the pure scheduler decision logic (Task 5), the API client plus Discord message builders (Task 6) were added, and the winner-publication planner plus handoff Markdown builder (Task 7) were implemented. Tasks 1-7 are complete; the runner wiring that actually calls promotion and uploads the handoff artifact lives in Tasks 8-9, which remain along with Task 10.
+Updated 2026-06-17. All tasks are complete. Tasks 1-7 (database-backed schedule fields, automation-event storage, admin automation API, pure scheduler decisions, API client, Discord builders, winner-publication planner, and handoff Markdown builder) were implemented first. Task 8 added the runner (`automation/voting/run-scheduler.mjs`) that wires those together and calls promotion when `mayPromote` is true; Task 9 added the GitHub Actions workflow (`.github/workflows/voting-automation.yml`) that drives it hourly and uploads the handoff artifact; Task 10 updated the docs and ran verification. The full suite is 100 tests passing.
 
 Prerequisite status: the database-backed homepage and meetings work is implemented. This automation project should build on the existing `meetings` / `games` / `meeting_copy` model and admin selected-game routes instead of generating homepage HTML changes.
 
@@ -52,15 +52,19 @@ Already built:
 - Idempotency storage for scheduled automation: `automation_events` table (`UNIQUE (round_id, event_type)`) plus `functions/_lib/db.js` helpers `ensureAutomationEventTable`, `getAutomationEvents`, `recordAutomationEvent` (returns `{ duplicate }` on unique-constraint hits), `toAutomationEvent`, and `isUniqueConstraintError`. Covered by `test/automation-events.test.mjs`.
 - Admin automation API surface: `GET /api/admin/round` and `GET /api/admin/round/:id` return `automationEvents`, and `POST /api/admin/automation-event` records an event (admin-only, returns `{ ok, duplicate, id }`, treats a unique-constraint hit as a non-fatal duplicate). Covered by `test/admin-automation-event.test.mjs`.
 
-Not built yet:
+Now built (Tasks 5-9):
 
-- Automated transition from `suggesting` to `voting`.
-- Automated transition from `voting` to `revealed`.
-- Winner selection in automation.
-- Discord notifications for phase changes or winners.
-- Automated use of the selected-game promotion endpoint.
-- A publication gate for missing manual fields, so automation does not accidentally expose an incomplete homepage card.
-- Winner handoff generation for any manual fields that still need maintainer review.
+- Automated transition from `suggesting` to `voting` (runner `open_voting`).
+- Automated transition from `voting` to `revealed` (runner `reveal_winner`).
+- Winner selection in automation (pure `decideRoundActions`, with blocked tie/no-vote handling).
+- Discord notifications for phase changes and winners (separate `DISCORD_VOTING_WEBHOOK_URL`).
+- Automated use of the selected-game promotion endpoint, but only as a safe idempotent re-confirm when the card is already publish-ready.
+- A publication gate for missing manual fields, so automation does not expose an incomplete homepage card (`winnerPublicationPlan`, `mayPromote`).
+- Winner handoff generation for any manual fields that still need maintainer review (`buildHandoffMarkdown`, uploaded as a workflow artifact).
+- Hourly + manual GitHub Actions workflow driving the runner.
+
+Still deferred:
+
 - Public archive of old rounds.
 
 ## Decisions
@@ -276,8 +280,8 @@ Purpose: move the winning suggestion toward the database-backed homepage without
   - extend `POST /api/admin/round/:id/select` with a draft/not-public mode that copies the winner into `games` and `meetings` without exposing it through `/api/meetings/public`
   - or keep promotion manual unless the selected-game data is already publish-ready
   - Chosen: keep promotion manual. `mayPromote` is only true when the winner is already selected and the card is publish-ready (an idempotent re-confirm). A game freshly copied from a suggestion always lacks the HowLongToBeat URL, so the normal reveal flow never auto-publishes; no select-endpoint change was needed.
-- [ ] When promotion is allowed, call the existing selected-game API instead of editing `games` / `meetings` directly. (Runner wiring, Task 8; the planner exposes `mayPromote` and the API client already has `selectWinner`.)
-- [ ] After promotion, refetch the admin round payload and use `publishReadiness` to decide whether a handoff artifact is needed. (Runner wiring, Task 8.)
+- [x] When promotion is allowed, call the existing selected-game API instead of editing `games` / `meetings` directly. (Done in Task 8: the runner calls `client.selectWinner` only when `plan.mayPromote` is true.)
+- [x] After promotion, refetch the admin round payload and use `publishReadiness` to decide whether a handoff artifact is needed. (Done in Task 8: the runner re-fetches via `getAdminRound`, recomputes the plan, and only writes a handoff when `plan.needsHandoff` is true.)
 - [x] Generate Markdown containing:
   - Meeting number/title/date
   - Winner title
@@ -291,7 +295,7 @@ Purpose: move the winning suggestion toward the database-backed homepage without
   - Explicit HowLongToBeat and localized-description reminders when missing
   - Checklist pointing to `MEETING_WORKFLOW.md`
 - [x] Write the handoff to a temporary workflow path such as `automation-output/meeting-19-winner.md`. (`writeHandoff` + `handoffArtifactPath` provide this; the runner calls them in Task 8.)
-- [ ] Upload it as a GitHub Actions artifact. Do not commit it from the scheduled workflow. (Workflow, Task 9.)
+- [x] Upload it as a GitHub Actions artifact. Do not commit it from the scheduled workflow. (Done in Task 9: the workflow uploads `automation-output/*.md`; `automation-output/` is gitignored so it is never committed.)
 - [x] Test the publication planner and Markdown builder. (`automation/voting/handoff.test.mjs`, 12 cases.)
 - [x] Run `npm test`.
 
@@ -299,13 +303,13 @@ Purpose: move the winning suggestion toward the database-backed homepage without
 
 Purpose: execute the decisions safely from GitHub Actions.
 
-- [ ] Create `automation/voting/run-scheduler.mjs`.
-- [ ] Required env:
+- [x] Create `automation/voting/run-scheduler.mjs`.
+- [x] Required env:
   - `VOTING_BASE_URL`
   - `VOTING_ADMIN_TOKEN`
-- [ ] Optional env:
+- [x] Optional env:
   - `DISCORD_VOTING_WEBHOOK_URL`
-- [ ] Flow:
+- [x] Flow:
   1. Fetch current admin round state.
   2. Decide actions.
   3. For `open_voting`, patch the round phase to `voting`, record `voting_opened`, then post Discord.
@@ -315,17 +319,17 @@ Purpose: execute the decisions safely from GitHub Actions.
   7. If promotion is not allowed, generate the handoff and leave homepage publication to `MEETING_WORKFLOW.md`.
   8. Record `handoff_generated` when an artifact is produced.
   9. For blocked states, log clearly and exit 0 so the schedule does not become noisy.
-- [ ] Prefer patching phase before posting Discord so a failed rerun does not repeat a successful announcement.
-- [ ] If event recording fails after a successful phase patch, log loudly because the next manual rerun may need maintainer attention.
-- [ ] Test env validation and runner behavior with mocked client/Discord/handoff dependencies.
-- [ ] Run `npm test`.
+- [x] Prefer patching phase before posting Discord so a failed rerun does not repeat a successful announcement. (The `recordAutomationEvent` `{ duplicate }` result is the test-and-set lock: only the run that first records the event posts the announcement.)
+- [x] If event recording fails after a successful phase patch, log loudly because the next manual rerun may need maintainer attention. (`patchPhaseAndRecord` logs an error and re-throws so it surfaces as a red run.)
+- [x] Test env validation and runner behavior with mocked client/Discord/handoff dependencies. (`automation/voting/run-scheduler.test.mjs`, 10 cases.)
+- [x] Run `npm test`.
 
 ## Task 9: Add GitHub Actions Workflow
 
 Purpose: run the automation on a predictable cadence and manually on demand.
 
-- [ ] Create `.github/workflows/voting-automation.yml`.
-- [ ] Use:
+- [x] Create `.github/workflows/voting-automation.yml`.
+- [x] Use:
 
 ```yaml
 on:
@@ -334,29 +338,29 @@ on:
     - cron: "17 * * * *"
 ```
 
-- [ ] Use Node 24 to match current GitHub Actions examples in the repo.
-- [ ] Run `npm test` before the scheduler.
-- [ ] Run `node automation/voting/run-scheduler.mjs`.
-- [ ] Upload handoff Markdown artifacts when generated.
-- [ ] Keep permissions minimal:
+- [x] Use Node 24 to match current GitHub Actions examples in the repo.
+- [x] Run `npm test` before the scheduler.
+- [x] Run `node automation/voting/run-scheduler.mjs`.
+- [x] Upload handoff Markdown artifacts when generated. (`actions/upload-artifact@v4` with `path: automation-output/*.md` and `if-no-files-found: ignore` so no-op runs stay green.)
+- [x] Keep permissions minimal:
   - `contents: read`
-  - `actions: read` unless artifact upload needs more
-- [ ] Do not grant `contents: write` unless a later task intentionally creates PRs.
+  - `actions: read` (artifact upload uses the run token and needs no more)
+- [x] Do not grant `contents: write` unless a later task intentionally creates PRs.
 
 ## Task 10: Documentation And Verification
 
 Purpose: keep project memory aligned with the implemented workflow.
 
-- [ ] Update `docs/voting-system.md`:
+- [x] Update `docs/voting-system.md`:
   - document `voting_opens_at`
   - document automation events
-  - document scheduler behavior and blocked tie/no-vote behavior
+  - document scheduler behavior and blocked tie/no-vote behavior (added a runner-flow/idempotency and scheduled-workflow subsection)
   - keep suggestion notifications separate from voting phase notifications
-- [ ] Update `docs/deployment-guide.md`:
-  - add the GitHub Actions secrets
+- [x] Update `docs/deployment-guide.md`:
+  - add the GitHub Actions secrets (new "Voting Automation (GitHub Actions)" section)
   - mention remote schema migration when deploying the new D1 columns/table
-- [ ] Update `README.md` automation section.
-- [ ] Run:
+- [x] Update `README.md` automation section.
+- [x] Run:
 
 ```powershell
 npm test
@@ -367,18 +371,9 @@ node --check automation/voting/handoff.mjs
 node --check automation/voting/scheduler.mjs
 ```
 
-- [ ] Run local Pages verification:
+All passed: 100 tests green, all five modules syntax-clean. The runner CLI also fails fast (exit 1) on missing env.
 
-```powershell
-wrangler d1 execute gamestormers --local --file=./schema.sql
-npm run dev
-```
-
-- [ ] Verify in a real browser:
-  - `http://127.0.0.1:8788/vote.html`
-  - `http://127.0.0.1:8788/en/vote.html`
-  - `http://127.0.0.1:8788/vote-admin.html`
-- [ ] Use local admin token `test` from `.dev.vars`.
+- [~] Local Pages verification (`wrangler d1 execute ... --file=./schema.sql`, `npm run dev`) and browser checks of `vote.html` / `en/vote.html` / `vote-admin.html`: not applicable to the Task 8-10 work. The runner is a standalone Node script run by GitHub Actions, not by Pages, and Tasks 8-10 added no HTML/JS/Pages-Function changes. The vote pages and APIs were already verified as part of Tasks 1-7. The runner is covered by unit tests plus a CLI smoke test. Before the scheduled workflow is trusted in production, run it once via `workflow_dispatch` (see Deployment Notes).
 
 ## Deployment Notes
 

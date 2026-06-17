@@ -1,0 +1,57 @@
+name: Voting automation
+
+# Runs the voting scheduler against the live admin API. It moves a round from
+# suggestions to voting on its scheduled open date, reveals the winner from the
+# D1 tallies after voting closes, posts the matching Discord announcements, and
+# uploads a maintainer handoff artifact when a revealed winner still needs manual
+# fields before its homepage card can be published.
+#
+# The scheduler is idempotent (D1 automation_events guard each transition), so the
+# hourly cadence and any manual workflow_dispatch reruns will not duplicate phase
+# changes, Discord posts, or handoffs. Final homepage publication stays manual via
+# MEETING_WORKFLOW.md; this workflow never edits HTML or commits to the repo.
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Hourly at :17 to avoid the top-of-the-hour scheduling crowd.
+    - cron: "17 * * * *"
+
+# Read-only: the scheduler talks to the site over HTTPS and only uploads an
+# artifact. It never needs to write to the repository.
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  schedule:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Run unit tests
+        run: npm test
+
+      - name: Run the voting scheduler
+        env:
+          VOTING_BASE_URL: ${{ secrets.VOTING_BASE_URL }}
+          VOTING_ADMIN_TOKEN: ${{ secrets.VOTING_ADMIN_TOKEN }}
+          DISCORD_VOTING_WEBHOOK_URL: ${{ secrets.DISCORD_VOTING_WEBHOOK_URL }}
+        run: node automation/voting/run-scheduler.mjs
+
+      - name: Upload winner handoff
+        # Only runs when the scheduler wrote a handoff into automation-output/.
+        # if-no-files-found: ignore keeps a no-op run (most hours) green.
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: winner-handoff
+          path: automation-output/*.md
+          if-no-files-found: ignore
+          retention-days: 30
