@@ -1,6 +1,6 @@
 # Voting Scheduler And Handoff Plan
 
-Updated 2026-06-17 after the database-backed homepage/meetings work, explicit voting-start schedule fields, the automation-event storage layer (Task 3), and the admin automation API surface (Task 4) were implemented, the pure scheduler decision logic (Task 5), and the API client plus Discord message builders (Task 6) were added. Tasks 1-6 are complete; Tasks 7-10 remain.
+Updated 2026-06-17 after the database-backed homepage/meetings work, explicit voting-start schedule fields, the automation-event storage layer (Task 3), and the admin automation API surface (Task 4) were implemented, the pure scheduler decision logic (Task 5), the API client plus Discord message builders (Task 6) were added, and the winner-publication planner plus handoff Markdown builder (Task 7) were implemented. Tasks 1-7 are complete; the runner wiring that actually calls promotion and uploads the handoff artifact lives in Tasks 8-9, which remain along with Task 10.
 
 Prerequisite status: the database-backed homepage and meetings work is implemented. This automation project should build on the existing `meetings` / `games` / `meeting_copy` model and admin selected-game routes instead of generating homepage HTML changes.
 
@@ -266,18 +266,19 @@ Purpose: isolate side effects from scheduler logic.
 
 Purpose: move the winning suggestion toward the database-backed homepage without losing maintainer control over incomplete public meeting cards.
 
-- [ ] Create `automation/voting/handoff.mjs`.
-- [ ] Add a pure `winnerPublicationPlan({ roundPayload, winnerSuggestionId })` helper that reports:
-  - whether the winner is already selected
-  - whether the selected game is publish-ready
-  - which manual fields are missing from `publishReadiness`
-  - whether automation may safely call selected-game promotion
-- [ ] Before enabling scheduled promotion, add one of these safety paths:
+- [x] Create `automation/voting/handoff.mjs`.
+- [x] Add a pure `winnerPublicationPlan({ roundPayload, winnerSuggestionId })` helper that reports:
+  - whether the winner is already selected (`winnerAlreadySelected`, plus a `conflict` flag when a different suggestion is attached)
+  - whether the selected game is publish-ready (`publishReady`)
+  - which manual fields are missing from `publishReadiness` (`missing`)
+  - whether automation may safely call selected-game promotion (`mayPromote`, with `needsHandoff` and a human-readable `reason`)
+- [x] Before enabling scheduled promotion, add one of these safety paths:
   - extend `POST /api/admin/round/:id/select` with a draft/not-public mode that copies the winner into `games` and `meetings` without exposing it through `/api/meetings/public`
   - or keep promotion manual unless the selected-game data is already publish-ready
-- [ ] When promotion is allowed, call the existing selected-game API instead of editing `games` / `meetings` directly.
-- [ ] After promotion, refetch the admin round payload and use `publishReadiness` to decide whether a handoff artifact is needed.
-- [ ] Generate Markdown containing:
+  - Chosen: keep promotion manual. `mayPromote` is only true when the winner is already selected and the card is publish-ready (an idempotent re-confirm). A game freshly copied from a suggestion always lacks the HowLongToBeat URL, so the normal reveal flow never auto-publishes; no select-endpoint change was needed.
+- [ ] When promotion is allowed, call the existing selected-game API instead of editing `games` / `meetings` directly. (Runner wiring, Task 8; the planner exposes `mayPromote` and the API client already has `selectWinner`.)
+- [ ] After promotion, refetch the admin round payload and use `publishReadiness` to decide whether a handoff artifact is needed. (Runner wiring, Task 8.)
+- [x] Generate Markdown containing:
   - Meeting number/title/date
   - Winner title
   - Steam app ID and store URL
@@ -289,10 +290,10 @@ Purpose: move the winning suggestion toward the database-backed homepage without
   - `publishReadiness.missing`
   - Explicit HowLongToBeat and localized-description reminders when missing
   - Checklist pointing to `MEETING_WORKFLOW.md`
-- [ ] Write the handoff to a temporary workflow path such as `automation-output/meeting-19-winner.md`.
-- [ ] Upload it as a GitHub Actions artifact. Do not commit it from the scheduled workflow.
-- [ ] Test the publication planner and Markdown builder.
-- [ ] Run `npm test`.
+- [x] Write the handoff to a temporary workflow path such as `automation-output/meeting-19-winner.md`. (`writeHandoff` + `handoffArtifactPath` provide this; the runner calls them in Task 8.)
+- [ ] Upload it as a GitHub Actions artifact. Do not commit it from the scheduled workflow. (Workflow, Task 9.)
+- [x] Test the publication planner and Markdown builder. (`automation/voting/handoff.test.mjs`, 12 cases.)
+- [x] Run `npm test`.
 
 ## Task 8: Wire The Runner
 
