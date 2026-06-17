@@ -26,6 +26,7 @@ It is the site's only dynamic feature. It runs on Cloudflare Pages Functions and
 - `meeting_copy`: localized public event/history copy for a meeting.
 - `suggestions`: submitted games and imported metadata.
 - `votes`: approval-voting rows, one row per selected game, with optional self-reported `voter_name`.
+- `automation_events`: idempotency log for the voting scheduler. One row per automated action on a round, with a `UNIQUE (round_id, event_type)` constraint so reruns cannot duplicate a Discord post or handoff.
 
 ## API Routes
 
@@ -35,11 +36,12 @@ It is the site's only dynamic feature. It runs on Cloudflare Pages Functions and
 | `/api/meetings/public` | GET | Public-safe meeting data for the homepage: `upcoming`, `history`, and `planned` groups with their selected games and localized copy. Drives `js/meetings.js`. Storm codes, ballots, and pending/rejected suggestions are never exposed. |
 | `/api/suggest` | POST | Submit a suggestion. Steam suggestions are imported server-side and auto-approved. Non-Steam suggestions are pending until maintainer approval. |
 | `/api/vote` | POST | Cast an approval ballot with optional voter name. |
-| `/api/admin/round` | GET/POST/PATCH | Read full round, open a new round, change phase, winner, code, meeting date, schedule windows, or public meeting basics. The GET response also includes the selected game, localized meeting copy, and a publish-readiness check. |
+| `/api/admin/round` | GET/POST/PATCH | Read full round, open a new round, change phase, winner, code, meeting date, schedule windows, or public meeting basics. The GET response also includes the selected game, localized meeting copy, a publish-readiness check, and the round's `automationEvents`. |
 | `/api/admin/round/:id/select` | POST | Promote a suggestion to the meeting's selected game (body: `suggestionId`). Copies the suggestion into `games`, attaches it to the meeting, confirms `winner_suggestion_id`, and reveals the round unless it is already closed. |
 | `/api/admin/meeting/:id` | PATCH | Edit the selected game's public metadata (GOG URL/ID, HowLongToBeat URL/hours, genres, platforms, title, cover, store URL, price) and the localized event/history descriptions in `meeting_copy`. |
 | `/api/admin/suggestion/:id` | PATCH/DELETE | Approve, reject, edit, or delete a suggestion. |
 | `/api/admin/ballot/:ballotId` | DELETE | Remove a single ballot and all its votes. |
+| `/api/admin/automation-event` | POST | Record a scheduler automation event (body: `roundId`, `eventType`, optional `payload`). `eventType` is one of `voting_opened`, `winner_revealed`, `handoff_generated`. Returns `{ ok, duplicate, id }`; a repeat of an already-recorded event returns `{ ok: true, duplicate: true, id: null }` instead of failing. |
 
 ## Phases
 
@@ -106,6 +108,18 @@ The public vote page shows the meeting date and the resulting suggestion/voting 
 - Suggestions are rejected before `suggestions_open_at` when the round is in `suggesting`.
 - Votes are rejected before `voting_opens_at` when the round is in `voting`.
 - Votes are rejected after `voting_closes_at` when the round is in `voting`; the close date itself is inclusive for the whole day.
+
+## Automation Events
+
+The `automation_events` table is the idempotency log for the planned voting scheduler. Each row records one automated action taken on a round, keyed by a `UNIQUE (round_id, event_type)` constraint. `event_type` is constrained to `voting_opened`, `winner_revealed`, or `handoff_generated`, and an optional JSON `payload` can capture context (for example, whether a Discord post was sent).
+
+The `functions/_lib/db.js` helpers manage this table:
+
+- `ensureAutomationEventTable(db)` creates the table and index on demand, matching the lazy-provisioning pattern used by the other `ensure*` helpers.
+- `getAutomationEvents(db, roundId)` returns shaped events (`{ id, roundId, eventType, payload, createdAt }`, payload parsed from JSON), oldest first.
+- `recordAutomationEvent(db, roundId, eventType, payload)` inserts an event and returns `{ duplicate, id }`. A unique-constraint hit is reported as `{ duplicate: true, id: null }` rather than thrown, so a rerun is a safe no-op. `isUniqueConstraintError(err)` distinguishes that case from real DB errors, which still propagate.
+
+The scheduler reaches this only through the admin API (`GET /api/admin/round` exposes `automationEvents`; `POST /api/admin/automation-event` records them), never by touching D1 directly. This keeps all automation authenticated through the existing Bearer `ADMIN_TOKEN` gate.
 
 ## Vote Integrity
 
@@ -202,4 +216,6 @@ wrangler d1 execute gamestormers --remote --file=./schema.sql
 
 ## Planned Voting Scheduler Work
 
-Not built yet: scheduler automation for phase changes, Discord announcements of phase changes and winners, automated selected-game promotion/publication gating, and winner handoff artifacts for missing manual fields. A GitHub Action is the current plan for the Voting Scheduler And Handoff project. Playtime should stay manual unless a reliable source becomes available. (New-suggestion Discord notifications are built, see Suggestion Notifications above.)
+Built so far for the Voting Scheduler And Handoff project: the `automation_events` idempotency store and its admin API surface (see Automation Events above).
+
+Not built yet: the scheduler decision logic and runner, Discord announcements of phase changes and winners, automated selected-game promotion/publication gating, winner handoff artifacts for missing manual fields, and the GitHub Actions workflow that drives them. Playtime should stay manual unless a reliable source becomes available. (New-suggestion Discord notifications are built, see Suggestion Notifications above.)

@@ -2,6 +2,7 @@
 let descriptionColumnsChecked = false;
 let roundScheduleColumnsChecked = false;
 let meetingContentTablesChecked = false;
+let automationEventTableChecked = false;
 
 async function columnExists(db, table, column) {
   const { results } = await db.prepare('PRAGMA table_info(' + table + ')').all();
@@ -93,6 +94,26 @@ export async function ensureMeetingContentTables(db) {
   await db.prepare('CREATE INDEX IF NOT EXISTS idx_meetings_date ON meetings(starts_at_utc, ends_at_utc)').run();
   await db.prepare('CREATE INDEX IF NOT EXISTS idx_meetings_status ON meetings(status)').run();
   meetingContentTablesChecked = true;
+}
+
+export async function ensureAutomationEventTable(db) {
+  if (automationEventTableChecked) return;
+  await db
+    .prepare(
+      `CREATE TABLE IF NOT EXISTS automation_events (
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        round_id     INTEGER NOT NULL REFERENCES rounds(id) ON DELETE CASCADE,
+        event_type   TEXT NOT NULL CHECK (event_type IN ('voting_opened','winner_revealed','handoff_generated')),
+        payload_json TEXT,
+        created_at   TEXT NOT NULL DEFAULT (datetime('now')),
+        UNIQUE (round_id, event_type)
+      )`
+    )
+    .run();
+  await db
+    .prepare('CREATE INDEX IF NOT EXISTS idx_automation_events_round ON automation_events(round_id, event_type)')
+    .run();
+  automationEventTableChecked = true;
 }
 
 // The "current" round is simply the most recently opened one (highest id).
@@ -370,6 +391,64 @@ export async function getBallots(db, roundId) {
     createdAt: r.created_at,
     suggestionIds: (r.suggestion_ids || '').split(',').map(Number).filter(Number.isInteger),
   }));
+}
+
+// SQLite/D1 raise "UNIQUE constraint failed: ..." when a (round_id, event_type)
+// pair is recorded twice. Distinguish that from other DB errors so the scheduler
+// can treat a re-run as a no-op instead of crashing.
+export function isUniqueConstraintError(err) {
+  return String(err && err.message)
+    .toLowerCase()
+    .includes('unique constraint');
+}
+
+// Shape an automation_events row for callers: camelCase keys and a parsed
+// payload. Malformed JSON falls back to null rather than throwing.
+export function toAutomationEvent(row) {
+  let payload = null;
+  if (row.payload_json) {
+    try {
+      payload = JSON.parse(row.payload_json);
+    } catch {
+      payload = null;
+    }
+  }
+  return {
+    id: row.id,
+    roundId: row.round_id,
+    eventType: row.event_type,
+    payload,
+    createdAt: row.created_at,
+  };
+}
+
+export async function getAutomationEvents(db, roundId) {
+  await ensureAutomationEventTable(db);
+  const { results } = await db
+    .prepare(
+      'SELECT id, round_id, event_type, payload_json, created_at FROM automation_events WHERE round_id = ? ORDER BY created_at ASC, id ASC'
+    )
+    .bind(Number(roundId))
+    .all();
+  return (results || []).map(toAutomationEvent);
+}
+
+// Record an automation event idempotently. Returns { duplicate: true } when the
+// (round_id, event_type) pair already exists so the scheduler can skip a repeat
+// Discord post or handoff without treating it as a failure.
+export async function recordAutomationEvent(db, roundId, eventType, payload) {
+  await ensureAutomationEventTable(db);
+  const payloadJson = payload == null ? null : JSON.stringify(payload);
+  try {
+    const result = await db
+      .prepare('INSERT INTO automation_events (round_id, event_type, payload_json) VALUES (?, ?, ?)')
+      .bind(Number(roundId), eventType, payloadJson)
+      .run();
+    return { duplicate: false, id: (result.meta && result.meta.last_row_id) || null };
+  } catch (err) {
+    if (isUniqueConstraintError(err)) return { duplicate: true, id: null };
+    throw err;
+  }
 }
 
 function splitList(value) {

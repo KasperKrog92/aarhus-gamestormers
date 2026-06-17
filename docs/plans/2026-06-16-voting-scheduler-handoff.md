@@ -1,6 +1,6 @@
 # Voting Scheduler And Handoff Plan
 
-Updated 2026-06-17 after the database-backed homepage/meetings work and explicit voting-start schedule fields were implemented.
+Updated 2026-06-17 after the database-backed homepage/meetings work, explicit voting-start schedule fields, the automation-event storage layer (Task 3), and the admin automation API surface (Task 4) were implemented. Tasks 1-4 are complete; Tasks 5-10 remain.
 
 Prerequisite status: the database-backed homepage and meetings work is implemented. This automation project should build on the existing `meetings` / `games` / `meeting_copy` model and admin selected-game routes instead of generating homepage HTML changes.
 
@@ -49,13 +49,14 @@ Already built:
   - Admin round responses include `selectedGame`, `meetingCopy`, and `publishReadiness`.
 - New-suggestion Discord notifications via Cloudflare Pages env var `DISCORD_SUGGESTIONS_WEBHOOK_URL`.
 - Existing sale-alert GitHub Action already uses a separate GitHub secret named `DISCORD_WEBHOOK_URL`.
+- Idempotency storage for scheduled automation: `automation_events` table (`UNIQUE (round_id, event_type)`) plus `functions/_lib/db.js` helpers `ensureAutomationEventTable`, `getAutomationEvents`, `recordAutomationEvent` (returns `{ duplicate }` on unique-constraint hits), `toAutomationEvent`, and `isUniqueConstraintError`. Covered by `test/automation-events.test.mjs`.
+- Admin automation API surface: `GET /api/admin/round` and `GET /api/admin/round/:id` return `automationEvents`, and `POST /api/admin/automation-event` records an event (admin-only, returns `{ ok, duplicate, id }`, treats a unique-constraint hit as a non-fatal duplicate). Covered by `test/admin-automation-event.test.mjs`.
 
 Not built yet:
 
 - Automated transition from `suggesting` to `voting`.
 - Automated transition from `voting` to `revealed`.
 - Winner selection in automation.
-- Idempotency records for scheduled automation.
 - Discord notifications for phase changes or winners.
 - Automated use of the selected-game promotion endpoint.
 - A publication gate for missing manual fields, so automation does not accidentally expose an incomplete homepage card.
@@ -174,7 +175,7 @@ Purpose: let the maintainer inspect and override the automation date.
 
 Purpose: make scheduled and manual reruns idempotent.
 
-- [ ] Add `automation_events` to `schema.sql`:
+- [x] Add `automation_events` to `schema.sql`:
 
 ```sql
 CREATE TABLE IF NOT EXISTS automation_events (
@@ -189,26 +190,26 @@ CREATE TABLE IF NOT EXISTS automation_events (
 CREATE INDEX IF NOT EXISTS idx_automation_events_round ON automation_events(round_id, event_type);
 ```
 
-- [ ] Add DB helpers:
+- [x] Add DB helpers:
   - `ensureAutomationEventTable(db)`
   - `getAutomationEvents(db, roundId)`
   - `recordAutomationEvent(db, roundId, eventType, payload)`
-  - duplicate-event detection for D1 unique failures
-- [ ] Add focused tests for helper shaping and duplicate handling.
-- [ ] Run the local schema once:
+  - duplicate-event detection for D1 unique failures (`isUniqueConstraintError`)
+- [x] Add focused tests for helper shaping and duplicate handling.
+- [x] Run the local schema once:
 
 ```powershell
 wrangler d1 execute gamestormers --local --file=./schema.sql
 ```
 
-- [ ] Run `npm test`.
+- [x] Run `npm test`.
 
 ## Task 4: Add Admin Automation API Surface
 
 Purpose: let GitHub Actions operate only through authenticated Pages Functions.
 
-- [ ] Extend `GET /api/admin/round` and `GET /api/admin/round/:id` to include `automationEvents`.
-- [ ] Add `POST /api/admin/automation-event` with body:
+- [x] Extend `GET /api/admin/round` and `GET /api/admin/round/:id` to include `automationEvents`.
+- [x] Add `POST /api/admin/automation-event` with body:
 
 ```json
 {
@@ -218,10 +219,10 @@ Purpose: let GitHub Actions operate only through authenticated Pages Functions.
 }
 ```
 
-- [ ] Return success for duplicate events without failing the scheduler, but make it clear in JSON that the event already existed.
-- [ ] Keep this route admin-only via existing bearer auth.
-- [ ] Add tests for event recording and duplicate behavior where practical.
-- [ ] Run `npm test`.
+- [x] Return success for duplicate events without failing the scheduler, but make it clear in JSON that the event already existed (`{ ok: true, duplicate: true, id: null }`).
+- [x] Keep this route admin-only via existing bearer auth.
+- [x] Add tests for event recording and duplicate behavior where practical (`test/admin-automation-event.test.mjs`).
+- [x] Run `npm test`.
 
 ## Task 5: Build Scheduler Decisions
 

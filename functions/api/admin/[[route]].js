@@ -29,6 +29,8 @@ import {
   setMeetingStatus,
   gameInputFromSuggestion,
   gameRowToInput,
+  getAutomationEvents,
+  recordAutomationEvent,
 } from '../../_lib/db.js';
 import {
   DEFAULT_MEETING_TIMEZONE,
@@ -45,6 +47,7 @@ import {
 
 const PHASES = ['suggesting', 'voting', 'revealed', 'closed'];
 const STATUSES = ['pending', 'approved', 'rejected'];
+const AUTOMATION_EVENT_TYPES = ['voting_opened', 'winner_revealed', 'handoff_generated'];
 const DEFAULT_VENUE_NAME = 'Folkehuset Møllestien';
 const DEFAULT_VENUE_ADDRESS = 'Grønnegade 10, 8000 Aarhus C';
 const DEFAULT_DISCORD_INVITE = 'https://discord.gg/N2h6DJxVDF';
@@ -87,6 +90,9 @@ export async function onRequest(context) {
   if (resource === 'ballot' && id) {
     if (method === 'DELETE') return adminDeleteBallot(db, id);
   }
+  if (resource === 'automation-event' && !id) {
+    if (method === 'POST') return adminRecordAutomationEvent(db, request);
+  }
   return fail('Not found', 404);
 }
 
@@ -113,6 +119,7 @@ async function roundPayload(db, round) {
   const suggestions = await getSuggestions(db, round.id);
   const tallies = await getTallies(db, round.id);
   const ballots = await getBallots(db, round.id);
+  const automationEvents = await getAutomationEvents(db, round.id);
   const meetingRow = await getMeetingById(db, round.id);
   const gameRow = meetingRow && meetingRow.selected_game_id != null ? await getGameById(db, meetingRow.selected_game_id) : null;
   const meetingCopy = meetingRow ? await getMeetingCopy(db, round.id) : null;
@@ -125,6 +132,7 @@ async function roundPayload(db, round) {
     suggestions,
     tallies,
     ballots,
+    automationEvents,
   };
 }
 
@@ -140,6 +148,7 @@ async function adminGetRound(db) {
       suggestions: [],
       tallies: {},
       ballots: [],
+      automationEvents: [],
     });
   }
   return json(await roundPayload(db, round));
@@ -555,4 +564,22 @@ async function adminDeleteBallot(db, ballotId) {
   if (!id) return fail('Invalid ballot id');
   await db.prepare('DELETE FROM votes WHERE ballot_id = ?').bind(id).run();
   return json({ ok: true });
+}
+
+// Idempotency log for the GitHub Actions scheduler. Recording an event that
+// already exists is not an error: the unique (round_id, event_type) constraint
+// makes it a no-op and we report `duplicate: true` so a rerun can skip the
+// matching Discord post or handoff without failing the workflow.
+async function adminRecordAutomationEvent(db, request) {
+  const body = await readJson(request);
+  if (!body) return fail('Invalid body');
+  const roundId = Number(body.roundId);
+  if (!Number.isInteger(roundId) || roundId <= 0) return fail('roundId required');
+  const eventType = clean(body.eventType, 40);
+  if (!AUTOMATION_EVENT_TYPES.includes(eventType)) return fail('Invalid eventType');
+  if (body.payload != null && typeof body.payload !== 'object') return fail('payload must be an object');
+  if (!(await getRoundById(db, roundId))) return fail('Round not found', 404);
+
+  const result = await recordAutomationEvent(db, roundId, eventType, body.payload ?? null);
+  return json({ ok: true, duplicate: result.duplicate, id: result.id });
 }

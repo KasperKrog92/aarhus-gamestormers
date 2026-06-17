@@ -111,8 +111,22 @@ CREATE TABLE IF NOT EXISTS votes (
   created_at    TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- One row per automated phase action taken on a round. The UNIQUE (round_id,
+-- event_type) constraint makes the scheduler idempotent: a rerun or manual
+-- workflow dispatch that tries to record an already-handled event hits the
+-- constraint instead of duplicating a Discord post or handoff.
+CREATE TABLE IF NOT EXISTS automation_events (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  round_id     INTEGER NOT NULL REFERENCES rounds(id) ON DELETE CASCADE,
+  event_type   TEXT NOT NULL CHECK (event_type IN ('voting_opened','winner_revealed','handoff_generated')),
+  payload_json TEXT,
+  created_at   TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE (round_id, event_type)
+);
+
 CREATE INDEX IF NOT EXISTS idx_suggestions_round ON suggestions(round_id, status);
 CREATE INDEX IF NOT EXISTS idx_votes_round       ON votes(round_id, suggestion_id);
 CREATE INDEX IF NOT EXISTS idx_votes_ballot      ON votes(round_id, ballot_id);
 CREATE INDEX IF NOT EXISTS idx_meetings_date     ON meetings(starts_at_utc, ends_at_utc);
 CREATE INDEX IF NOT EXISTS idx_meetings_status   ON meetings(status);
+CREATE INDEX IF NOT EXISTS idx_automation_events_round ON automation_events(round_id, event_type);
