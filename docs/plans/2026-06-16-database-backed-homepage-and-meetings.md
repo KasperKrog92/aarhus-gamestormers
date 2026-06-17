@@ -47,6 +47,17 @@ Added the shared frontend renderer layer:
 
 Homepage wiring (loading the module, mount points, removing static fallback cards) and browser verification are deferred to Task 5.
 
+### 2026-06-17 Task 5 Complete
+
+Wired the shared renderer into both front pages:
+
+- Loaded `js/meetings.js` as a `type="module"` script just before `js/script.js` on `index.html` (relative path) and `en/index.html` (absolute path), matching each page's existing convention.
+- No new mount points were needed: `.events-grid`, `.history-grid`, and the `data-count-template` on `.history-sub` already exist from Task 4, and the renderer targets them.
+- Kept the static event/history cards in place as a no-JS / empty-DB fallback. The renderer only replaces a grid's `innerHTML` when the API actually returns meetings for that grid, so the static shell stays visible until D1 is backfilled. Removing the duplicated static cards is intentionally held for Task 10, after the backfill lands, so the live site cannot go empty.
+- Verified end to end through `npm run dev` (Pages dev on `127.0.0.1:8788`). Seeded two temporary local-only D1 rows (one upcoming, one past), confirmed `/api/meetings/public` returned them, and confirmed both `/` and `/en/` replaced the static cards with the dynamic ones: localized meeting number ("99. møde" / "Meeting 99"), Steam link, Windows/Apple platform icons, genres, playtime link, DST-correct local time range "18:30-~21:30", and the updated history count line. `window.GS.refresh()` re-bound the calendar dropdown (aria-expanded toggled on the dynamic card). No console warnings or errors. Removed the seed rows and temp SQL afterward, leaving local D1 clean.
+- No `css/style.css` change, so no `?v=N` bump was required. Bumped `js/meetings.js` cache string is `?v=1` (first load).
+- Ran `npm test`, passing 17/17 tests.
+
 Deferred to later phases:
 
 - Homepage dynamic rendering.
@@ -267,13 +278,13 @@ Note: verified via `npx --yes wrangler pages dev . --port 8788`; the route retur
 
 ## Task 5: Homepage Integration
 
-- [ ] Add dynamic mount points to `index.html` and `en/index.html` if needed.
-- [ ] Load `js/meetings.js` before or alongside `js/script.js`.
-- [ ] Keep existing static event/history markup during the first migration as fallback.
-- [ ] Once dynamic rendering is verified, remove duplicated static event/history cards.
-- [ ] Keep Danish and English static shells structurally synchronized.
-- [ ] If `css/style.css` changes, bump query strings on both front pages.
-- [ ] Verify in a real browser through `npm run dev`.
+- [x] Add dynamic mount points to `index.html` and `en/index.html` if needed. (Already present from Task 4; no new mounts required.)
+- [x] Load `js/meetings.js` before or alongside `js/script.js`.
+- [x] Keep existing static event/history markup during the first migration as fallback.
+- [ ] Once dynamic rendering is verified, remove duplicated static event/history cards. (Held for Task 10, after D1 backfill, so the live site cannot render empty.)
+- [x] Keep Danish and English static shells structurally synchronized.
+- [x] If `css/style.css` changes, bump query strings on both front pages. (No CSS change this task.)
+- [x] Verify in a real browser through `npm run dev`.
 
 ## Task 6: Admin Selected Game Flow
 
