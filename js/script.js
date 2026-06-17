@@ -1,21 +1,33 @@
 document.getElementById('year').textContent = new Date().getFullYear();
 
-// Calendar dropdowns
-document.querySelectorAll('.cal-btn').forEach(function(btn) {
-  btn.addEventListener('click', function(e) {
-    e.stopPropagation();
-    var wrap = this.closest('.cal-wrap');
-    var isOpen = wrap.classList.contains('open');
-    document.querySelectorAll('.cal-wrap.open').forEach(function(w) {
-      w.classList.remove('open');
-      w.querySelector('.cal-btn').setAttribute('aria-expanded', 'false');
+function parseIcsDate(s) {
+  return new Date(Date.UTC(
+    +s.slice(0,4), +s.slice(4,6)-1, +s.slice(6,8),
+    +s.slice(9,11), +s.slice(11,13), +s.slice(13,15)
+  ));
+}
+
+// Calendar dropdowns. Bound per-button so it is safe to call again after
+// dynamic event cards are inserted; the data-gs-bound guard avoids duplicates.
+function initCalDropdowns() {
+  document.querySelectorAll('.cal-btn').forEach(function(btn) {
+    if (btn.dataset.gsBound) return;
+    btn.dataset.gsBound = '1';
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      var wrap = this.closest('.cal-wrap');
+      var isOpen = wrap.classList.contains('open');
+      document.querySelectorAll('.cal-wrap.open').forEach(function(w) {
+        w.classList.remove('open');
+        w.querySelector('.cal-btn').setAttribute('aria-expanded', 'false');
+      });
+      if (!isOpen) {
+        wrap.classList.add('open');
+        this.setAttribute('aria-expanded', 'true');
+      }
     });
-    if (!isOpen) {
-      wrap.classList.add('open');
-      this.setAttribute('aria-expanded', 'true');
-    }
   });
-});
+}
 
 document.addEventListener('click', function() {
   document.querySelectorAll('.cal-wrap.open').forEach(function(w) {
@@ -33,53 +45,50 @@ document.addEventListener('keydown', function(e) {
   }
 });
 
-document.querySelectorAll('.cal-ics').forEach(function(link) {
-  link.addEventListener('click', function(e) {
-    e.preventDefault();
-    var d = this.dataset;
-    function esc(s) {
-      return s.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
-    }
-    var stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '');
-    var ics = [
-      'BEGIN:VCALENDAR',
-      'VERSION:2.0',
-      'PRODID:-//Aarhus Gamestormers//gamestormers.dk//DA',
-      'CALSCALE:GREGORIAN',
-      'METHOD:PUBLISH',
-      'BEGIN:VEVENT',
-      'DTSTAMP:' + stamp,
-      'UID:' + d.uid,
-      'DTSTART:' + d.start,
-      'DTEND:' + d.end,
-      'SUMMARY:' + esc(d.title),
-      'DESCRIPTION:' + esc(d.description),
-      'LOCATION:' + esc(d.location),
-      'URL:' + window.location.href,
-      'END:VEVENT',
-      'END:VCALENDAR'
-    ].join('\r\n');
-    var blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
-    var url = URL.createObjectURL(blob);
-    var a = document.createElement('a');
-    a.href = url;
-    a.download = d.filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+function initCalIcs() {
+  document.querySelectorAll('.cal-ics').forEach(function(link) {
+    if (link.dataset.gsBound) return;
+    link.dataset.gsBound = '1';
+    link.addEventListener('click', function(e) {
+      e.preventDefault();
+      var d = this.dataset;
+      function esc(s) {
+        return s.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
+      }
+      var stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '');
+      var ics = [
+        'BEGIN:VCALENDAR',
+        'VERSION:2.0',
+        'PRODID:-//Aarhus Gamestormers//gamestormers.dk//DA',
+        'CALSCALE:GREGORIAN',
+        'METHOD:PUBLISH',
+        'BEGIN:VEVENT',
+        'DTSTAMP:' + stamp,
+        'UID:' + d.uid,
+        'DTSTART:' + d.start,
+        'DTEND:' + d.end,
+        'SUMMARY:' + esc(d.title),
+        'DESCRIPTION:' + esc(d.description),
+        'LOCATION:' + esc(d.location),
+        'URL:' + window.location.href,
+        'END:VEVENT',
+        'END:VCALENDAR'
+      ].join('\r\n');
+      var blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = d.filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    });
   });
-});
-
-function parseIcsDate(s) {
-  return new Date(Date.UTC(
-    +s.slice(0,4), +s.slice(4,6)-1, +s.slice(6,8),
-    +s.slice(9,11), +s.slice(11,13), +s.slice(13,15)
-  ));
 }
 
 // Reveal scheduled history cards after their event end time, and update the subtitle count
-(function() {
+function revealHistoryCards() {
   var revealed = false;
   document.querySelectorAll('.history-card[data-reveal]').forEach(function(card) {
     if (Date.now() > parseIcsDate(card.dataset.reveal).getTime()) {
@@ -92,19 +101,21 @@ function parseIcsDate(s) {
     var sub = document.querySelector('.history-sub[data-count-template]');
     if (sub) sub.textContent = sub.dataset.countTemplate.replace(/\{n\}/g, total);
   }
-})();
+}
 
 // Hide past event cards once their end time has passed
-document.querySelectorAll('.event-card').forEach(function(card) {
-  var ics = card.querySelector('.cal-ics[data-end]');
-  if (!ics) return;
-  if (Date.now() > parseIcsDate(ics.dataset.end).getTime()) {
-    card.hidden = true;
-  }
-});
+function hidePastEvents() {
+  document.querySelectorAll('.event-card').forEach(function(card) {
+    var ics = card.querySelector('.cal-ics[data-end]');
+    if (!ics) return;
+    if (Date.now() > parseIcsDate(ics.dataset.end).getTime()) {
+      card.hidden = true;
+    }
+  });
+}
 
 // Mark upcoming store links when the locally generated sale data says a game is discounted.
-(function() {
+function initSaleBadges() {
   if (!window.fetch) return;
 
   var stores = [
@@ -181,12 +192,17 @@ document.querySelectorAll('.event-card').forEach(function(card) {
   stores.forEach(function(store) {
     applySaleBadges(store);
   });
-})();
+}
 
-// Countdown to next meeting — reads dates from existing .cal-ics data-start attributes
-(function() {
+// Countdown to next meeting — reads dates from .cal-ics data-start attributes.
+// Re-runnable: a stored interval is cleared before a fresh one starts so dynamic
+// event cards can update the target without stacking timers.
+var gsCountdownTimer = null;
+function initCountdown() {
   var el = document.getElementById('gs-countdown');
   if (!el) return;
+  if (gsCountdownTimer) { clearInterval(gsCountdownTimer); gsCountdownTimer = null; }
+  el.hidden = false;
 
   var dates = [];
   document.querySelectorAll('.cal-ics[data-start]').forEach(function(l) {
@@ -234,23 +250,43 @@ document.querySelectorAll('.event-card').forEach(function(card) {
   }
 
   tick();
-  setInterval(tick, 1000);
-})();
+  gsCountdownTimer = setInterval(tick, 1000);
+}
 
-document.querySelectorAll('.history-toggle').forEach(function(btn) {
-  btn.addEventListener('click', function() {
-    var card = this.closest('.history-card');
-    var isOpen = card.classList.contains('open');
+function initHistoryToggles() {
+  document.querySelectorAll('.history-toggle').forEach(function(btn) {
+    if (btn.dataset.gsBound) return;
+    btn.dataset.gsBound = '1';
+    btn.addEventListener('click', function() {
+      var card = this.closest('.history-card');
+      var isOpen = card.classList.contains('open');
 
-    document.querySelectorAll('.history-card.open').forEach(function(c) {
-      c.classList.remove('open');
-      var toggle = c.querySelector('.history-toggle');
-      if (toggle) toggle.setAttribute('aria-expanded', 'false');
+      document.querySelectorAll('.history-card.open').forEach(function(c) {
+        c.classList.remove('open');
+        var toggle = c.querySelector('.history-toggle');
+        if (toggle) toggle.setAttribute('aria-expanded', 'false');
+      });
+
+      if (!isOpen) {
+        card.classList.add('open');
+        this.setAttribute('aria-expanded', 'true');
+      }
     });
-
-    if (!isOpen) {
-      card.classList.add('open');
-      this.setAttribute('aria-expanded', 'true');
-    }
   });
-});
+}
+
+// Wire up everything that depends on event/history card markup. Safe to call
+// again after js/meetings.js injects database-backed cards.
+function gsRefresh() {
+  initCalDropdowns();
+  initCalIcs();
+  initHistoryToggles();
+  revealHistoryCards();
+  hidePastEvents();
+  initCountdown();
+  initSaleBadges();
+}
+
+window.GS = { refresh: gsRefresh };
+
+gsRefresh();

@@ -29,6 +29,24 @@ Connected voting rounds to public meeting records:
 - Updated `docs/voting-system.md` with the round/meeting relationship.
 - Ran `npm test`, passing 11/11 tests.
 
+### 2026-06-16 Task 4 Complete
+
+Added the shared frontend renderer layer:
+
+- Added `js/meetings.js` as an ES module with pure builder functions (`buildEventCard`, `buildHistoryCard`, `buildEventCards`, `buildHistoryCards`, `escapeHtml`) plus a DOM-guarded browser bootstrap that fetches `/api/meetings/public` and injects cards.
+- Renderer markup mirrors the static event/history cards so existing CSS class contracts (`event-card`, `event-store-links`, `cal-ics`, `history-card`, `history-toggle`, `history-sub`) stay intact.
+- Platform icons reuse the existing `#gs-icon-windows`/`#gs-icon-apple`/`#gs-icon-linux` SVG symbols.
+- Google Calendar, Apple/ICS, and Outlook links are generated from D1 dates, with Copenhagen-local times and offsets derived via `Intl` (handles DST).
+- Sale badges keep working: Steam links carry the `store.steampowered.com/app/` href and GOG links carry `data-gog-id`.
+- Bilingual output (da/en) chosen from `document.documentElement.lang`, including localized meeting numbers, labels, date formatting, playtime suffix, and calendar copy.
+- Untrusted game/meeting content is HTML-escaped before insertion.
+- Refactored `js/script.js` so countdown, history accordion, calendar dropdowns, cal-ics download, sale badges, and past-event hiding are re-runnable via `window.GS.refresh()`; the countdown clears its prior interval and per-element binders use a `data-gs-bound` guard. First-load behavior is unchanged.
+- `js/meetings.js` calls `window.GS.refresh()` after injecting dynamic cards.
+- Added `test/meetings-render.test.mjs` confirming emitted class names, data attributes, localization, and escaping.
+- Ran `npm test`, passing 17/17 tests.
+
+Homepage wiring (loading the module, mount points, removing static fallback cards) and browser verification are deferred to Task 5.
+
 Deferred to later phases:
 
 - Homepage dynamic rendering.
@@ -229,23 +247,23 @@ Note: verified via `npx --yes wrangler pages dev . --port 8788`; the route retur
 
 ## Task 4: Shared Frontend Renderers
 
-- [ ] Add a small renderer module, for example `js/meetings.js`.
-- [ ] Render upcoming event cards into the existing `.gs-events` section.
-- [ ] Render history cards into the existing `.history-grid`.
-- [ ] Preserve existing CSS class contracts:
+- [x] Add a small renderer module, for example `js/meetings.js`.
+- [x] Render upcoming event cards into the existing `.gs-events` section.
+- [x] Render history cards into the existing `.history-grid`.
+- [x] Preserve existing CSS class contracts:
   - `.event-card`
   - `.event-store-links`
   - `.cal-ics`
   - `.history-card`
   - `.history-toggle`
   - `.history-sub`
-- [ ] Preserve platform icon rendering with the existing SVG symbols.
-- [ ] Generate Google Calendar, Apple/ICS, and Outlook links from DB dates.
-- [ ] Keep sale badges working by rendering Steam links and `data-gog-id` the same way the static HTML does.
-- [ ] Update countdown logic so it can run after dynamic event cards are inserted.
-- [ ] Update history accordion logic so it can run after dynamic history cards are inserted.
-- [ ] Add a static test that confirms the renderer emits the key class names and data attributes.
-- [ ] Run `npm test`.
+- [x] Preserve platform icon rendering with the existing SVG symbols.
+- [x] Generate Google Calendar, Apple/ICS, and Outlook links from DB dates.
+- [x] Keep sale badges working by rendering Steam links and `data-gog-id` the same way the static HTML does.
+- [x] Update countdown logic so it can run after dynamic event cards are inserted.
+- [x] Update history accordion logic so it can run after dynamic history cards are inserted.
+- [x] Add a static test that confirms the renderer emits the key class names and data attributes.
+- [x] Run `npm test`.
 
 ## Task 5: Homepage Integration
 
