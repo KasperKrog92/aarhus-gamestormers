@@ -21,6 +21,14 @@ import {
   getTallies,
   getBallots,
   upsertMeeting,
+  upsertGame,
+  upsertMeetingCopy,
+  attachGameToMeeting,
+  getGameById,
+  getMeetingCopy,
+  setMeetingStatus,
+  gameInputFromSuggestion,
+  gameRowToInput,
 } from '../../_lib/db.js';
 import {
   DEFAULT_MEETING_TIMEZONE,
@@ -49,7 +57,7 @@ export async function onRequest(context) {
   await ensureRoundScheduleColumns(db);
   await ensureMeetingContentTables(db);
   const segs = Array.isArray(params.route) ? params.route : params.route ? [params.route] : [];
-  const [resource, id] = segs;
+  const [resource, id, action] = segs;
   const method = request.method.toUpperCase();
 
   if (resource === 'rounds' && !id) {
@@ -59,12 +67,17 @@ export async function onRequest(context) {
     if (!id) {
       if (method === 'GET') return adminGetRound(db);
       if (method === 'POST') return adminOpenRound(db, request);
+    } else if (action === 'select') {
+      if (method === 'POST') return adminSelectGame(db, request, Number(id));
     } else {
       const numId = Number(id);
       if (method === 'GET') return adminGetRoundById(db, numId);
       if (method === 'PATCH') return adminPatchRound(db, request, numId);
       if (method === 'DELETE') return adminDeleteRound(db, numId);
     }
+  }
+  if (resource === 'meeting' && id && !action) {
+    if (method === 'PATCH') return adminPatchMeeting(db, request, Number(id));
   }
   if (resource === 'suggestion' && id) {
     if (method === 'PATCH') return adminPatchSuggestion(db, request, Number(id));
@@ -95,25 +108,47 @@ async function adminListRounds(db) {
   return json({ rounds: results || [] });
 }
 
-async function adminGetRound(db) {
-  const round = await getCurrentRound(db);
-  if (!round) return json({ round: null, meeting: null, suggestions: [], tallies: {}, ballots: [] });
+async function roundPayload(db, round) {
   const suggestions = await getSuggestions(db, round.id);
   const tallies = await getTallies(db, round.id);
   const ballots = await getBallots(db, round.id);
-  const meeting = await getMeetingById(db, round.id);
-  return json({ round, meeting: toAdminMeeting(meeting), suggestions, tallies, ballots });
+  const meetingRow = await getMeetingById(db, round.id);
+  const gameRow = meetingRow && meetingRow.selected_game_id != null ? await getGameById(db, meetingRow.selected_game_id) : null;
+  const meetingCopy = meetingRow ? await getMeetingCopy(db, round.id) : null;
+  return {
+    round,
+    meeting: toAdminMeeting(meetingRow),
+    selectedGame: toAdminGame(gameRow),
+    meetingCopy,
+    publishReadiness: meetingPublishReadiness(meetingRow, gameRow, meetingCopy),
+    suggestions,
+    tallies,
+    ballots,
+  };
+}
+
+async function adminGetRound(db) {
+  const round = await getCurrentRound(db);
+  if (!round) {
+    return json({
+      round: null,
+      meeting: null,
+      selectedGame: null,
+      meetingCopy: null,
+      publishReadiness: null,
+      suggestions: [],
+      tallies: {},
+      ballots: [],
+    });
+  }
+  return json(await roundPayload(db, round));
 }
 
 async function adminGetRoundById(db, id) {
   if (!Number.isInteger(id) || id <= 0) return fail('Invalid id');
   const round = await getRoundById(db, id);
   if (!round) return fail('Round not found', 404);
-  const suggestions = await getSuggestions(db, round.id);
-  const tallies = await getTallies(db, round.id);
-  const ballots = await getBallots(db, round.id);
-  const meeting = await getMeetingById(db, round.id);
-  return json({ round, meeting: toAdminMeeting(meeting), suggestions, tallies, ballots });
+  return json(await roundPayload(db, round));
 }
 
 async function adminDeleteRound(db, id) {
@@ -255,6 +290,151 @@ function toAdminMeeting(row) {
     status: row.status,
     hasSelectedGame: row.selected_game_id != null,
   };
+}
+
+function toAdminGame(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    steamAppId: row.steam_appid || '',
+    title: row.title || '',
+    image: row.header_image || '',
+    storeUrl: row.store_url || '',
+    gogUrl: row.gog_url || '',
+    gogId: row.gog_id || '',
+    genres: row.genres || '',
+    platforms: row.platforms || '',
+    price: row.price || '',
+    playtimeHours: row.playtime_hours != null ? row.playtime_hours : '',
+    hltbUrl: row.hltb_url || '',
+    descriptionDa: row.description_da || '',
+    descriptionEn: row.description_en || '',
+  };
+}
+
+// A meeting card is publish-ready once the selected game and the fields the
+// homepage event/history cards rely on are all present. History descriptions are
+// optional because the renderer falls back to the event description.
+function meetingPublishReadiness(meetingRow, gameRow, copy) {
+  if (!meetingRow) return { ready: false, missing: ['public meeting record'] };
+  if (!gameRow) return { ready: false, missing: ['selected game'] };
+  const missing = [];
+  if (!gameRow.title) missing.push('title');
+  if (!gameRow.header_image) missing.push('cover image');
+  if (!gameRow.store_url && !gameRow.gog_url) missing.push('store link');
+  if (!gameRow.genres) missing.push('genres');
+  if (!gameRow.platforms) missing.push('platforms');
+  if (gameRow.playtime_hours == null) missing.push('playtime hours');
+  if (!gameRow.hltb_url) missing.push('HowLongToBeat URL');
+  const daEvent = (copy && copy.da && copy.da.eventDescription) || gameRow.description_da;
+  const enEvent = (copy && copy.en && copy.en.eventDescription) || gameRow.description_en;
+  if (!daEvent) missing.push('Danish event description');
+  if (!enEvent) missing.push('English event description');
+  return { ready: missing.length === 0, missing };
+}
+
+// Promote a suggestion into the meeting's selected game, confirm the winner,
+// and reveal the round when appropriate.
+async function adminSelectGame(db, request, id) {
+  if (!Number.isInteger(id) || id <= 0) return fail('Invalid round id');
+  const body = await readJson(request);
+  if (!body) return fail('Invalid body');
+  const suggestionId = Number(body.suggestionId);
+  if (!Number.isInteger(suggestionId) || suggestionId <= 0) return fail('suggestionId required');
+
+  const round = await getRoundById(db, id);
+  if (!round) return fail('Round not found', 404);
+  const meeting = await getMeetingById(db, id);
+  if (!meeting) return fail('This round has no public meeting record yet. Save the round event basics first.', 409);
+  const suggestion = await getSuggestionById(db, suggestionId);
+  if (!suggestion) return fail('Suggestion not found', 404);
+  if (Number(suggestion.round_id) !== id) return fail('Suggestion belongs to a different round');
+
+  // Reuse the existing game row when re-promoting so we do not pile up rows.
+  const gameInput = gameInputFromSuggestion(suggestion);
+  if (meeting.selected_game_id != null) gameInput.id = meeting.selected_game_id;
+  const gameId = await upsertGame(db, gameInput);
+  await attachGameToMeeting(db, id, gameId, suggestionId);
+
+  const sets = ['winner_suggestion_id = ?'];
+  const vals = [suggestionId];
+  let nextPhase = round.phase;
+  if (round.phase !== 'closed' && round.phase !== 'revealed') {
+    sets.push('phase = ?');
+    vals.push('revealed');
+    nextPhase = 'revealed';
+  }
+  vals.push(id);
+  await db.prepare('UPDATE rounds SET ' + sets.join(', ') + ' WHERE id = ?').bind(...vals).run();
+  await setMeetingStatus(db, id, phaseToMeetingStatus(nextPhase));
+
+  return json({ ok: true, gameId });
+}
+
+// Edit the selected game's metadata and the localized event/history copy.
+async function adminPatchMeeting(db, request, id) {
+  if (!Number.isInteger(id) || id <= 0) return fail('Invalid meeting id');
+  const body = await readJson(request);
+  if (!body) return fail('Invalid body');
+  const meeting = await getMeetingById(db, id);
+  if (!meeting) return fail('Meeting not found', 404);
+
+  const gameKeys = [
+    'title', 'image', 'storeUrl', 'price', 'genres', 'platforms',
+    'gogUrl', 'gogId', 'hltbUrl', 'playtimeHours', 'descriptionDa', 'descriptionEn',
+  ];
+  const copyKeys = ['eventDescriptionDa', 'eventDescriptionEn', 'historyDescriptionDa', 'historyDescriptionEn'];
+  const touchesGame = hasAny(body, gameKeys);
+  const touchesCopy = hasAny(body, copyKeys);
+  if (!touchesGame && !touchesCopy) return fail('Nothing to update');
+
+  if (touchesGame) {
+    if (meeting.selected_game_id == null) return fail('Select a winning game before editing game details', 409);
+    const existing = await getGameById(db, meeting.selected_game_id);
+    if (!existing) return fail('Selected game record missing', 404);
+    const input = gameRowToInput(existing);
+    if (body.title !== undefined) input.title = clean(body.title, 200) || existing.title;
+    if (body.image !== undefined) input.image = clean(body.image, 400) || null;
+    if (body.storeUrl !== undefined) input.storeUrl = clean(body.storeUrl, 400) || null;
+    if (body.price !== undefined) input.price = clean(body.price, 60) || null;
+    if (body.genres !== undefined) input.genres = clean(body.genres, 200) || null;
+    if (body.platforms !== undefined) input.platforms = clean(body.platforms, 160) || null;
+    if (body.gogUrl !== undefined) input.gogUrl = clean(body.gogUrl, 300) || null;
+    if (body.gogId !== undefined) input.gogId = clean(body.gogId, 80) || null;
+    if (body.hltbUrl !== undefined) input.hltbUrl = clean(body.hltbUrl, 300) || null;
+    if (body.playtimeHours !== undefined) {
+      if (body.playtimeHours === '' || body.playtimeHours === null) input.playtimeHours = null;
+      else {
+        const n = Number(body.playtimeHours);
+        if (!Number.isFinite(n)) return fail('Invalid playtime');
+        input.playtimeHours = Math.round(n);
+      }
+    }
+    if (body.descriptionDa !== undefined) input.descriptionDa = clean(body.descriptionDa, 2000) || null;
+    if (body.descriptionEn !== undefined) input.descriptionEn = clean(body.descriptionEn, 2000) || null;
+    await upsertGame(db, input);
+  }
+
+  if (touchesCopy) {
+    const existingCopy = await getMeetingCopy(db, id);
+    if (hasAny(body, ['eventDescriptionDa', 'historyDescriptionDa'])) {
+      await upsertMeetingCopy(db, id, 'da', {
+        eventDescription: body.eventDescriptionDa !== undefined ? clean(body.eventDescriptionDa, 2000) : existingCopy.da.eventDescription,
+        historyDescription: body.historyDescriptionDa !== undefined ? clean(body.historyDescriptionDa, 2000) : existingCopy.da.historyDescription,
+      });
+    }
+    if (hasAny(body, ['eventDescriptionEn', 'historyDescriptionEn'])) {
+      await upsertMeetingCopy(db, id, 'en', {
+        eventDescription: body.eventDescriptionEn !== undefined ? clean(body.eventDescriptionEn, 2000) : existingCopy.en.eventDescription,
+        historyDescription: body.historyDescriptionEn !== undefined ? clean(body.historyDescriptionEn, 2000) : existingCopy.en.historyDescription,
+      });
+    }
+  }
+
+  const refreshed = await getMeetingById(db, id);
+  const gameRow = refreshed && refreshed.selected_game_id != null ? await getGameById(db, refreshed.selected_game_id) : null;
+  const copy = await getMeetingCopy(db, id);
+  return json({ ok: true, publishReadiness: meetingPublishReadiness(refreshed, gameRow, copy) });
 }
 
 function meetingFromInput(body, round, existing = null) {

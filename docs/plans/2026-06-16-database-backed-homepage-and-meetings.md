@@ -67,6 +67,22 @@ Deferred to later phases:
 - Sale workflow migration.
 - Documentation migration and D1 backfill.
 
+### 2026-06-17 Task 6 Complete
+
+Added the admin selected-game flow:
+
+- Added `POST /api/admin/round/:id/select`: copies the chosen suggestion into a `games` row (reusing the meeting's existing game row on re-promotion), attaches it via `meetings.selected_game_id`/`selected_suggestion_id`, confirms `rounds.winner_suggestion_id`, and reveals the round (and syncs meeting status) unless it is already `closed`.
+- Added `PATCH /api/admin/meeting/:id`: maintainer edits for the selected game (GOG URL/ID, HowLongToBeat URL/hours, genres, platforms, title, cover, store URL, price) and the localized event/history descriptions in `meeting_copy`. Game edits load-merge-upsert so untouched columns are preserved.
+- Added DB helpers `getGameById`, `getMeetingCopy`, `setMeetingStatus`, `gameInputFromSuggestion`, and `gameRowToInput`.
+- Admin round GET responses now include `selectedGame`, `meetingCopy`, and a `publishReadiness` (`{ ready, missing }`) check. A card is not publish-ready until the game has a title, cover, store link, genres, platforms, playtime hours, HowLongToBeat URL, and Danish + English event descriptions.
+- Added a "Selected game" section to `vote-admin.html`: a winner dropdown (most-voted first) with a promote button, the publish-readiness banner, and an editor for the game fields and localized copy.
+- Non-Steam approval stays manual; promotion does not auto-change a suggestion's status.
+- Added `test/admin-select-game.test.mjs` (promote/reveal, closed-round preservation, cross-round and missing-meeting guards, meeting patch merge + copy upsert, game-edit-without-selection guard). Ran `npm test`, passing 23/23.
+- Verified end to end through `npm run dev`: opened a round (created its meeting), seeded an approved suggestion, promoted it (game created, round revealed, meeting status revealed), patched in HLTB/GOG/descriptions, watched `publishReadiness` flip to ready, and confirmed `/api/meetings/public` served the upcoming event with the new fields. Drove `vote-admin.html` in the preview browser: the "Selected game" section rendered the promote dropdown, "Homepage card is publish-ready." banner, and the prefilled game/copy editor with no console errors. Removed the temporary local D1 rows afterward.
+- Updated `docs/voting-system.md` with the new routes and a "Selecting The Winning Game" section.
+
+No `css/style.css` change (reused existing admin classes), so no `?v=N` bump was required.
+
 ## Goal
 
 Make meetings and selected games database-backed so the maintainer can create future rounds with known meeting numbers and dates, then let the site handle the public lifecycle:
@@ -288,14 +304,14 @@ Note: verified via `npx --yes wrangler pages dev . --port 8788`; the route retur
 
 ## Task 6: Admin Selected Game Flow
 
-- [ ] Add an admin action to promote a suggestion to the selected game for its meeting.
-- [ ] On promotion:
+- [x] Add an admin action to promote a suggestion to the selected game for its meeting.
+- [x] On promotion:
   - copy suggestion metadata into `games`
   - attach the game to `meetings.selected_game_id`
   - set `meetings.selected_suggestion_id`
   - set or confirm `rounds.winner_suggestion_id`
   - set the round phase to `revealed` when appropriate
-- [ ] Allow maintainer edits for:
+- [x] Allow maintainer edits for:
   - GOG URL and GOG product ID
   - HowLongToBeat URL and hours
   - Danish event description
@@ -303,8 +319,8 @@ Note: verified via `npx --yes wrangler pages dev . --port 8788`; the route retur
   - Danish history description
   - English history description
   - genres and platforms if Steam import needs correction
-- [ ] Keep non-Steam suggestion approval manual.
-- [ ] Add admin validation that the homepage card is not considered publish-ready until required fields are present.
+- [x] Keep non-Steam suggestion approval manual.
+- [x] Add admin validation that the homepage card is not considered publish-ready until required fields are present.
 
 ## Task 7: Voting Page Next-Round Notice
 

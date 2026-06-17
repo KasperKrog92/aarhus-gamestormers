@@ -117,6 +117,11 @@
       </details>
 
       <details class="admin-section">
+        <summary class="admin-section-summary">Selected game</summary>
+        <div id="selected-game"></div>
+      </details>
+
+      <details class="admin-section">
         <summary class="admin-section-summary">Suggestions</summary>
         <div id="suggestions"></div>
       </details>
@@ -275,6 +280,7 @@
   function applyData(data) {
     currentRoundId = data.round ? data.round.id : null;
     renderRound(data.round, data.tallies || {}, data.meeting || null);
+    renderSelectedGame(data);
     renderSuggestions(data.suggestions || [], data.tallies || {});
     renderBallots(data.ballots || [], data.suggestions || []);
   }
@@ -411,6 +417,143 @@
       h('div', { class: 'admin-actions' }, [saveBtn, deleteBtn]),
       msg,
     ]));
+  }
+
+  // ── selected game (promote a winner, edit its public card) ─────────────────
+  function readinessBanner(readiness) {
+    if (!readiness) return null;
+    if (readiness.ready) return h('div', { class: 'admin-msg ok', text: 'Homepage card is publish-ready.' });
+    return h('div', { class: 'admin-msg err', text: 'Not publish-ready yet. Missing: ' + (readiness.missing || []).join(', ') + '.' });
+  }
+
+  function renderSelectedGame(data) {
+    var wrap = $('selected-game');
+    wrap.innerHTML = '';
+    var round = data.round;
+    var meeting = data.meeting;
+    var selectedGame = data.selectedGame;
+    var copy = data.meetingCopy;
+
+    if (!round) {
+      wrap.appendChild(h('div', { class: 'admin-card' }, [h('p', { class: 'admin-meta', text: 'No round selected.' })]));
+      return;
+    }
+    if (!meeting) {
+      wrap.appendChild(h('div', { class: 'admin-card' }, [
+        h('p', { class: 'admin-meta', text: 'This round has no public meeting record yet. Save the round (event basics) above to create one before selecting a game.' }),
+      ]));
+      return;
+    }
+
+    var suggestions = data.suggestions || [];
+    var tallies = data.tallies || {};
+    var msg = h('div', { class: 'admin-msg', hidden: 'hidden' });
+
+    // Most-voted first, then approved before pending/rejected, then by id.
+    var order = { approved: 0, pending: 1, rejected: 2 };
+    var sorted = suggestions.slice().sort(function (a, b) {
+      return ((tallies[b.id] || 0) - (tallies[a.id] || 0)) || (order[a.status] - order[b.status]) || (a.id - b.id);
+    });
+    var select = h('select', { class: 'admin-select' }, [h('option', { value: '', text: '— choose a suggestion —' })].concat(
+      sorted.map(function (s) {
+        return h('option', {
+          value: s.id,
+          text: '#' + s.id + ' · ' + s.title + ' · ' + (tallies[s.id] || 0) + ' votes' + (s.status !== 'approved' ? ' (' + s.status + ')' : ''),
+          selected: round.winner_suggestion_id === s.id ? 'selected' : null,
+        });
+      })
+    ));
+
+    var promoteBtn = h('button', { class: 'admin-btn primary', onclick: function () {
+      var sid = Number(select.value);
+      if (!sid) { showMsg(msg, 'Choose a suggestion first.', false); return; }
+      authedFetch('/round/' + round.id + '/select', { method: 'POST', body: JSON.stringify({ suggestionId: sid }) })
+        .then(function () { showMsg(msg, 'Selected game set.', true); load(); })
+        .catch(function (e) { showMsg(msg, e.message, false); });
+    } }, [selectedGame ? 'Update selected game' : 'Set as selected game']);
+
+    wrap.appendChild(h('div', { class: 'admin-card' }, [
+      h('h2', { text: 'Selected game' }),
+      h('p', { class: 'admin-meta', text: 'Promoting copies the chosen suggestion into the meeting, confirms it as the winner, and reveals the round (unless already closed).' }),
+      readinessBanner(data.publishReadiness),
+      field('Winning suggestion', select),
+      h('div', { class: 'admin-actions' }, [promoteBtn]),
+      msg,
+    ]));
+
+    if (selectedGame) wrap.appendChild(selectedGameEditor(round.id, selectedGame, copy));
+  }
+
+  function selectedGameEditor(meetingId, game, copy) {
+    copy = copy || { da: {}, en: {} };
+    var msg = h('div', { class: 'admin-msg', hidden: 'hidden' });
+    var inputs = {
+      title: h('input', { class: 'admin-input', type: 'text', value: game.title || '' }),
+      image: h('input', { class: 'admin-input', type: 'url', value: game.image || '' }),
+      storeUrl: h('input', { class: 'admin-input', type: 'url', value: game.storeUrl || '' }),
+      price: h('input', { class: 'admin-input', type: 'text', value: game.price || '' }),
+      genres: h('input', { class: 'admin-input', type: 'text', value: game.genres || '' }),
+      platforms: h('input', { class: 'admin-input', type: 'text', value: game.platforms || '' }),
+      gogUrl: h('input', { class: 'admin-input', type: 'url', value: game.gogUrl || '' }),
+      gogId: h('input', { class: 'admin-input', type: 'text', value: game.gogId || '' }),
+      hltbUrl: h('input', { class: 'admin-input', type: 'url', value: game.hltbUrl || '' }),
+      playtimeHours: h('input', { class: 'admin-input', type: 'number', min: '0', value: game.playtimeHours != null && game.playtimeHours !== '' ? game.playtimeHours : '' }),
+      eventDa: h('textarea', { class: 'admin-textarea' }),
+      eventEn: h('textarea', { class: 'admin-textarea' }),
+      historyDa: h('textarea', { class: 'admin-textarea' }),
+      historyEn: h('textarea', { class: 'admin-textarea' }),
+    };
+    inputs.eventDa.value = (copy.da && copy.da.eventDescription) || '';
+    inputs.eventEn.value = (copy.en && copy.en.eventDescription) || '';
+    inputs.historyDa.value = (copy.da && copy.da.historyDescription) || '';
+    inputs.historyEn.value = (copy.en && copy.en.historyDescription) || '';
+
+    var saveBtn = h('button', { class: 'admin-btn primary', onclick: function () {
+      authedFetch('/meeting/' + meetingId, { method: 'PATCH', body: JSON.stringify({
+        title: inputs.title.value,
+        image: inputs.image.value,
+        storeUrl: inputs.storeUrl.value,
+        price: inputs.price.value,
+        genres: inputs.genres.value,
+        platforms: inputs.platforms.value,
+        gogUrl: inputs.gogUrl.value,
+        gogId: inputs.gogId.value,
+        hltbUrl: inputs.hltbUrl.value,
+        playtimeHours: inputs.playtimeHours.value,
+        eventDescriptionDa: inputs.eventDa.value,
+        eventDescriptionEn: inputs.eventEn.value,
+        historyDescriptionDa: inputs.historyDa.value,
+        historyDescriptionEn: inputs.historyEn.value,
+      }) }).then(function () { showMsg(msg, 'Saved.', true); load(); })
+        .catch(function (e) { showMsg(msg, e.message, false); });
+    } }, ['Save game details']);
+
+    return h('div', { class: 'admin-card' }, [
+      h('h2', { text: game.title || 'Selected game' }),
+      h('div', { class: 'admin-row' }, [
+        h('img', { class: 'admin-thumb', src: game.image || '', alt: game.title || '' }),
+        h('div', { class: 'admin-fields' }, [
+          h('div', { class: 'admin-grid' }, [
+            field('Title', inputs.title),
+            field('Cover image URL', inputs.image),
+            field('Steam store URL', inputs.storeUrl),
+            field('Price', inputs.price),
+            field('Genres (comma-separated)', inputs.genres),
+            field('Platforms (comma-separated)', inputs.platforms),
+            field('GOG URL', inputs.gogUrl),
+            field('GOG product ID', inputs.gogId),
+            field('HowLongToBeat URL', inputs.hltbUrl),
+            field('Playtime (hours)', inputs.playtimeHours),
+          ]),
+          field('Event description (Danish)', inputs.eventDa),
+          field('Event description (English)', inputs.eventEn),
+          field('History description (Danish)', inputs.historyDa),
+          field('History description (English)', inputs.historyEn),
+          h('div', { class: 'admin-actions' }, [saveBtn]),
+          msg,
+        ]),
+      ]),
+    ]);
   }
 
   // ── suggestions ──────────────────────────────────────────────────────────

@@ -34,7 +34,9 @@ It is the site's only dynamic feature. It runs on Cloudflare Pages Functions and
 | `/api/round/current` | GET | Current round and approved cards. Tallies are only exposed when revealed. The storm code is never exposed. |
 | `/api/suggest` | POST | Submit a suggestion. Steam suggestions are imported server-side and auto-approved. Non-Steam suggestions are pending until maintainer approval. |
 | `/api/vote` | POST | Cast an approval ballot with optional voter name. |
-| `/api/admin/round` | GET/POST/PATCH | Read full round, open a new round, change phase, winner, code, meeting date, schedule windows, or public meeting basics. |
+| `/api/admin/round` | GET/POST/PATCH | Read full round, open a new round, change phase, winner, code, meeting date, schedule windows, or public meeting basics. The GET response also includes the selected game, localized meeting copy, and a publish-readiness check. |
+| `/api/admin/round/:id/select` | POST | Promote a suggestion to the meeting's selected game (body: `suggestionId`). Copies the suggestion into `games`, attaches it to the meeting, confirms `winner_suggestion_id`, and reveals the round unless it is already closed. |
+| `/api/admin/meeting/:id` | PATCH | Edit the selected game's public metadata (GOG URL/ID, HowLongToBeat URL/hours, genres, platforms, title, cover, store URL, price) and the localized event/history descriptions in `meeting_copy`. |
 | `/api/admin/suggestion/:id` | PATCH/DELETE | Approve, reject, edit, or delete a suggestion. |
 | `/api/admin/ballot/:ballotId` | DELETE | Remove a single ballot and all its votes. |
 
@@ -51,6 +53,19 @@ The current round is the row with the highest `id`, which also maps to the meeti
 When the admin opens a round, the API also creates or updates the matching `meetings` row. The same numeric id is used for both records. The round keeps voting-specific fields such as the storm code, phase, and schedule offsets. The meeting stores public event basics: meeting date, Copenhagen-local start/end times converted to UTC, venue name, venue address, Discord invite, timezone, and public meeting status.
 
 `vote-admin.html` shows whether each round has a public meeting record. Saving a round with meeting basics updates the matching meeting record, which lets older rounds be repaired without touching the database manually.
+
+## Selecting The Winning Game
+
+Once a winner is known, the maintainer promotes it from the "Selected game" section of `vote-admin.html` (or via `POST /api/admin/round/:id/select`). Promotion:
+
+- Copies the chosen suggestion's metadata into a `games` row (re-promoting reuses the same row instead of creating duplicates).
+- Sets `meetings.selected_game_id` and `meetings.selected_suggestion_id`.
+- Confirms `rounds.winner_suggestion_id`.
+- Moves the round to `revealed` and the meeting to the matching status, unless the round is already `closed`.
+
+After promotion, the maintainer fills in fields that have no Steam source: GOG URL and product ID, HowLongToBeat URL and hours, genres/platforms corrections, and the localized event/history descriptions stored in `meeting_copy`. These edits go through `PATCH /api/admin/meeting/:id`.
+
+The admin GET responses include a `publishReadiness` object (`{ ready, missing }`). A homepage card is not considered publish-ready until the selected game has a title, cover image, store link, genres, platforms, playtime hours, a HowLongToBeat URL, and event descriptions in both Danish and English. The "Selected game" section surfaces this so a card is not revealed publicly with missing fields. Non-Steam suggestion approval stays manual; promotion does not change a suggestion's approval status.
 
 ## Round Schedule
 

@@ -218,6 +218,54 @@ export async function upsertGame(db, game) {
   return id || (result.meta && result.meta.last_row_id) || null;
 }
 
+export async function getGameById(db, id) {
+  await ensureMeetingContentTables(db);
+  if (id == null || id === '') return null;
+  return db.prepare('SELECT * FROM games WHERE id = ?').bind(Number(id)).first();
+}
+
+// camelCase game input (the shape upsertGame expects) from a suggestion row.
+// gog_id and hltb_url have no suggestion source, so they start empty and are
+// filled in later through admin edits.
+export function gameInputFromSuggestion(s) {
+  return {
+    steamAppId: s.steam_appid || null,
+    title: s.title,
+    image: s.header_image || null,
+    storeUrl: s.store_url || null,
+    gogUrl: s.gog_url || null,
+    gogId: null,
+    genres: s.genres || null,
+    platforms: s.platforms || null,
+    price: s.price || null,
+    playtimeHours: s.playtime_hours != null ? s.playtime_hours : null,
+    hltbUrl: null,
+    descriptionDa: s.description_da || null,
+    descriptionEn: s.description_en || null,
+  };
+}
+
+// camelCase game input from an existing games row, for partial admin edits:
+// load, merge the changed fields, then upsert the whole row back.
+export function gameRowToInput(row) {
+  return {
+    id: row.id,
+    steamAppId: row.steam_appid || null,
+    title: row.title,
+    image: row.header_image || null,
+    storeUrl: row.store_url || null,
+    gogUrl: row.gog_url || null,
+    gogId: row.gog_id || null,
+    genres: row.genres || null,
+    platforms: row.platforms || null,
+    price: row.price || null,
+    playtimeHours: row.playtime_hours != null ? row.playtime_hours : null,
+    hltbUrl: row.hltb_url || null,
+    descriptionDa: row.description_da || null,
+    descriptionEn: row.description_en || null,
+  };
+}
+
 export async function attachGameToMeeting(db, meetingId, gameId, suggestionId = null) {
   await ensureMeetingContentTables(db);
   await db
@@ -229,6 +277,35 @@ export async function attachGameToMeeting(db, meetingId, gameId, suggestionId = 
         WHERE id = ?`
     )
     .bind(Number(gameId), suggestionId == null ? null : Number(suggestionId), Number(meetingId))
+    .run();
+}
+
+export async function getMeetingCopy(db, meetingId) {
+  await ensureMeetingContentTables(db);
+  const { results } = await db
+    .prepare('SELECT lang, event_description, history_description FROM meeting_copy WHERE meeting_id = ?')
+    .bind(Number(meetingId))
+    .all();
+  const copy = {
+    da: { eventDescription: '', historyDescription: '' },
+    en: { eventDescription: '', historyDescription: '' },
+  };
+  for (const row of results || []) {
+    if (row.lang === 'da' || row.lang === 'en') {
+      copy[row.lang] = {
+        eventDescription: row.event_description || '',
+        historyDescription: row.history_description || '',
+      };
+    }
+  }
+  return copy;
+}
+
+export async function setMeetingStatus(db, meetingId, status) {
+  await ensureMeetingContentTables(db);
+  await db
+    .prepare("UPDATE meetings SET status = ?, updated_at = datetime('now') WHERE id = ?")
+    .bind(status, Number(meetingId))
     .run();
 }
 
