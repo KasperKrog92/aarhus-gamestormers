@@ -7,7 +7,7 @@
   <title>Vote admin – Aarhus Gamestormers</title>
   <link rel="icon" type="image/png" href="/favicon/favicon.png">
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=DM+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/style.css?v=13">
+  <link rel="stylesheet" href="/css/style.css?v=14">
   <meta name="theme-color" content="#2B2436">
 </head>
 
@@ -26,7 +26,14 @@
 
 <main class="gs-admin">
   <div class="wrap">
-    <h1 class="section-title">Vote admin</h1>
+    <div class="admin-hero">
+      <div>
+        <p class="admin-kicker">Admin console</p>
+        <h1 class="section-title">Vote admin</h1>
+        <p class="admin-hero-copy">Curate rounds, promote the winning game, and keep the public meeting card ready for launch.</p>
+      </div>
+      <a class="admin-hero-link" href="/vote" target="_blank" rel="noopener">Open vote page</a>
+    </div>
 
     <!-- Token gate -->
     <div class="admin-card" id="auth-card">
@@ -41,7 +48,10 @@
 
     <div id="admin-body" hidden>
       <div class="admin-picker-row">
-        <select class="admin-select" id="round-select"></select>
+        <div class="admin-picker-main">
+          <label class="admin-field-label" for="round-select">Current round</label>
+          <select class="admin-select" id="round-select"></select>
+        </div>
         <button class="admin-btn primary" id="btn-new-round" type="button" aria-expanded="false" aria-controls="new-round-panel">+ New round</button>
       </div>
 
@@ -120,22 +130,22 @@
       </div>
 
       <details class="admin-section" open>
-        <summary class="admin-section-summary">Round</summary>
+        <summary class="admin-section-summary"><span>Round</span><span class="admin-section-count" id="round-section-count"></span></summary>
         <div id="round-area"></div>
       </details>
 
       <details class="admin-section">
-        <summary class="admin-section-summary">Selected game</summary>
+        <summary class="admin-section-summary"><span>Selected game</span><span class="admin-section-count" id="selected-section-count"></span></summary>
         <div id="selected-game"></div>
       </details>
 
       <details class="admin-section">
-        <summary class="admin-section-summary">Suggestions</summary>
+        <summary class="admin-section-summary"><span>Suggestions</span><span class="admin-section-count" id="suggestions-section-count"></span></summary>
         <div id="suggestions"></div>
       </details>
 
       <details class="admin-section">
-        <summary class="admin-section-summary">Votes</summary>
+        <summary class="admin-section-summary"><span>Votes</span><span class="admin-section-count" id="votes-section-count"></span></summary>
         <div id="ballots"></div>
       </details>
     </div>
@@ -240,6 +250,26 @@
     node.hidden = false;
   }
 
+  function plural(count, singular, pluralText) {
+    return count + ' ' + (count === 1 ? singular : (pluralText || singular + 's'));
+  }
+
+  function updateSectionCounts(data) {
+    var suggestions = data.suggestions || [];
+    var ballots = data.ballots || [];
+    var pending = suggestions.filter(function (s) { return s.status === 'pending'; }).length;
+    var totalApprovals = ballots.reduce(function (n, b) { return n + b.suggestionIds.length; }, 0);
+
+    $('round-section-count').textContent = data.round
+      ? data.round.phase + (data.round.meeting_date ? ' · ' + data.round.meeting_date : '')
+      : 'No round';
+    $('selected-section-count').textContent = data.selectedGame
+      ? data.selectedGame.title
+      : 'Not selected';
+    $('suggestions-section-count').textContent = plural(suggestions.length, 'suggestion') + (pending ? ' · ' + pending + ' pending' : '');
+    $('votes-section-count').textContent = plural(ballots.length, 'ballot') + ' · ' + plural(totalApprovals, 'approval');
+  }
+
   function connect() {
     token = $('token').value.trim();
     if (!token) return;
@@ -294,6 +324,7 @@
 
   function applyData(data) {
     currentRoundId = data.round ? data.round.id : null;
+    updateSectionCounts(data);
     renderRound(data.round, data.tallies || {}, data.meeting || null);
     renderSelectedGame(data);
     renderSuggestions(data.suggestions || [], data.tallies || {});
@@ -425,7 +456,11 @@
 
     area.appendChild(h('div', { class: 'admin-card' }, [
       h('h2', { text: 'Round #' + round.id + (round.title ? ' — ' + round.title : '') }),
-      h('p', { class: 'admin-meta', html: 'Public URL: <a href="/vote" target="_blank" rel="noopener">/vote</a> · phase controls what visitors see (suggesting → voting → revealed).' }),
+      h('p', { class: 'admin-meta' }, [
+        'Public URL: ',
+        h('a', { href: '/vote', target: '_blank', rel: 'noopener' }, ['/vote']),
+        ' · phase controls what visitors see (suggesting -> voting -> revealed).',
+      ]),
       h('p', { class: 'admin-meta', text: meeting ? 'Public meeting record: yes (' + meeting.status + ')' : 'Public meeting record: missing. Save this round to create one from the event basics below.' }),
       h('div', { class: 'admin-grid' }, [
         h('div', null, [h('label', { class: 'admin-field-label', text: 'Title' }), titleInput]),
@@ -604,7 +639,7 @@
   }
 
   function field(label, control) {
-    return h('div', null, [h('label', { class: 'admin-field-label', text: label }), control]);
+    return h('div', { class: 'admin-field' }, [h('label', { class: 'admin-field-label', text: label }), control]);
   }
 
   function suggestionCard(s, votes) {
@@ -661,12 +696,22 @@
       } }, ['Delete']),
     ]);
 
-    var header = h('div', { class: 'admin-actions', style: 'justify-content:space-between;margin-bottom:10px' }, [
-      h('span', null, [
-        h('span', { class: 'admin-badge ' + s.status, text: s.status }),
-        s.steam_appid ? null : h('span', { class: 'admin-badge nonsteam', style: 'margin-left:6px', text: 'non-Steam' }),
+    var badges = h('span', { class: 'admin-badge-row' }, [
+      h('span', { class: 'admin-badge ' + s.status, text: s.status }),
+      s.steam_appid ? null : h('span', { class: 'admin-badge nonsteam', text: 'non-Steam' }),
+    ]);
+
+    var summary = h('summary', { class: 'admin-suggestion-summary' }, [
+      h('img', { class: 'admin-suggestion-thumb', src: s.header_image || '', alt: '' }),
+      h('span', { class: 'admin-suggestion-title-wrap' }, [
+        badges,
+        h('span', { class: 'admin-suggestion-title', text: s.title || 'Untitled suggestion' }),
+        h('span', { class: 'admin-suggestion-sub', text: '#' + s.id + (s.suggested_by ? ' · suggested by ' + s.suggested_by : '') }),
       ]),
-      h('span', { class: 'admin-meta', style: 'margin:0', html: '#' + s.id + ' · <span class="admin-votes">' + votes + ' votes</span>' }),
+      h('span', { class: 'admin-suggestion-votes' }, [
+        h('strong', { text: String(votes) }),
+        ' votes',
+      ]),
     ]);
 
     var fields = h('div', { class: 'admin-grid' }, [
@@ -681,18 +726,15 @@
       field('Suggested by', inputs.suggestedBy),
     ]);
 
-    return h('div', { class: 'admin-card' }, [
-      header,
-      h('div', { class: 'admin-row' }, [
-        h('img', { class: 'admin-thumb', src: s.header_image || '', alt: s.title || '' }),
-        h('div', { class: 'admin-fields' }, [
-          fields,
-          field('Description (Danish)', inputs.descriptionDa),
-          field('Description (English)', inputs.descriptionEn),
-          field('Pitch', inputs.pitch),
-          actions,
-          msg,
-        ]),
+    return h('details', { class: 'admin-card admin-suggestion-card' }, [
+      summary,
+      h('div', { class: 'admin-suggestion-body' }, [
+        fields,
+        field('Description (Danish)', inputs.descriptionDa),
+        field('Description (English)', inputs.descriptionEn),
+        field('Pitch', inputs.pitch),
+        actions,
+        msg,
       ]),
     ]);
   }
