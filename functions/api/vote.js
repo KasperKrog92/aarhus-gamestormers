@@ -1,11 +1,16 @@
 // POST /api/vote — cast an approval ballot (tick one or more approved games).
-// Body: { suggestionIds: number[], voterName?, stormCode, turnstileToken }
+// Body: { suggestionIds: number[], voterName?, stormCode, turnstileToken, ballotId? }
 // Gated by: phase === 'voting', voting schedule window, correct storm code, Turnstile pass.
 // voterName is optional and self-reported (helps the admin spot funky ballots).
 import { json, fail, readJson, clean } from '../_lib/http.js';
 import { ensureRoundScheduleColumns, getCurrentRound, getSuggestions } from '../_lib/db.js';
 import { roundScheduleState } from '../_lib/schedule.js';
 import { verifyTurnstile } from '../_lib/turnstile.js';
+
+function cleanBallotId(value) {
+  const id = clean(value, 80);
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id) ? id : '';
+}
 
 export async function onRequestPost({ request, env }) {
   const db = env.DB;
@@ -38,10 +43,14 @@ export async function onRequestPost({ request, env }) {
   const valid = [...new Set(requested)].filter((id) => approvedIds.has(id));
   if (!valid.length) return fail('Those games are not on the ballot');
 
-  const ballotId = crypto.randomUUID();
+  const previousBallotId = cleanBallotId(body.ballotId);
+  const ballotId = previousBallotId || crypto.randomUUID();
   const voterName = clean(body.voterName, 80) || null;
+  if (previousBallotId) {
+    await db.prepare('DELETE FROM votes WHERE round_id = ? AND ballot_id = ?').bind(round.id, previousBallotId).run();
+  }
   const stmt = db.prepare('INSERT INTO votes (round_id, suggestion_id, ballot_id, voter_name) VALUES (?, ?, ?, ?)');
   await db.batch(valid.map((id) => stmt.bind(round.id, id, ballotId, voterName)));
 
-  return json({ ok: true, ballotId, counted: valid.length }, 201);
+  return json({ ok: true, ballotId, counted: valid.length, replaced: !!previousBallotId }, previousBallotId ? 200 : 201);
 }

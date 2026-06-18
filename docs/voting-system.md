@@ -35,7 +35,7 @@ It is the site's only dynamic feature. It runs on Cloudflare Pages Functions and
 | `/api/round/current` | GET | Current round and approved cards. Tallies are only exposed when revealed. The storm code is never exposed. Also returns `nextRound` (public metadata for the next round, if one exists) for the vote page's next-round notice. |
 | `/api/meetings/public` | GET | Public-safe meeting data for the homepage: `upcoming`, `history`, and `planned` groups with their selected games and localized copy. Drives `js/meetings.js`. Storm codes, ballots, and pending/rejected suggestions are never exposed. |
 | `/api/suggest` | POST | Submit a suggestion. Steam suggestions are imported server-side and auto-approved. Non-Steam suggestions are pending until maintainer approval. |
-| `/api/vote` | POST | Cast an approval ballot with optional voter name. |
+| `/api/vote` | POST | Cast an approval ballot with optional voter name. If the client sends a previously returned `ballotId` for the current round, that same-browser ballot is replaced so only the latest local submission counts. |
 | `/api/admin/round` | GET/POST/PATCH | Read full round, open a new round, change phase, winner, code, meeting date, schedule windows, Discord event URL, or public meeting basics. The GET response also includes the selected game, localized meeting copy, publish-readiness and Discord-announcement readiness checks, and the round's `automationEvents`. |
 | `/api/admin/round/:id/select` | POST | Promote a suggestion to the meeting's selected game (body: `suggestionId`). Copies the suggestion into `games`, attaches it to the meeting, confirms `winner_suggestion_id`, and reveals the round unless it is already closed. |
 | `/api/admin/round/:id/announce-winner` | POST | Post the final public Discord winner/meeting announcement after the round is revealed and all announcement fields are ready. Records `winner_announcement_posted` so the button is idempotent. Requires `DISCORD_VOTING_WEBHOOK_URL` in Cloudflare Pages. |
@@ -142,9 +142,9 @@ The system deliberately uses lightweight safeguards:
 
 - Per-round storm code as a soft Discord gate.
 - Cloudflare Turnstile for bot checks.
-- Random `ballot_id` returned to the client and stored in localStorage only for "you already voted" UX.
+- Random `ballot_id` returned to the client and stored in localStorage for same-browser vote updates.
 
-The `ballot_id` is not an identity system and is not enforced server-side as one-vote-per-person. That is intentional. Stronger enforcement would require identity such as Discord login, which is out of scope.
+The `ballot_id` is not an identity system and is not enforced as one-vote-per-person across devices. When the same browser votes again, it sends the stored `ballotId`; the API deletes the old rows for that `round_id` + `ballot_id` and inserts the new choices, so accidental repeat votes from one browser become vote updates. Clearing localStorage, using private browsing, or switching devices still creates a new ballot. Stronger enforcement would require per-voter codes or identity such as Discord login, which is out of scope for now.
 
 Admin moderation compensates for the low-friction flow:
 

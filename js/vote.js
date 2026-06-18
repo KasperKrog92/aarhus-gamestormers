@@ -87,6 +87,7 @@ var STRINGS = {
     approvedSoFar: 'Spilforslag',
     castBallot: 'Din stemme',
     btnVote: 'Stem',
+    btnUpdateVote: 'Opdater stemme',
     btnVoted: 'Stemme afgivet ✓',
     alreadyVoted: 'Det ser ud til, at du allerede har stemt i denne runde. Du kan stemme igen, men kun den seneste tæller for dig.',
     voteThanks: 'Tak for din stemme!',
@@ -186,6 +187,7 @@ var STRINGS = {
     approvedSoFar: 'Game suggestions',
     castBallot: 'Your vote',
     btnVote: 'Vote',
+    btnUpdateVote: 'Update vote',
     btnVoted: 'Vote cast ✓',
     alreadyVoted: 'Looks like you already voted in this round. You can vote again, but only your latest ballot counts for you.',
     voteThanks: 'Thanks for voting!',
@@ -277,6 +279,35 @@ var STRINGS = {
   }
 
   function votedKey(roundId) { return 'gs-voted-r' + roundId; }
+
+  function readStoredVote(roundId) {
+    var raw;
+    try {
+      raw = localStorage.getItem(votedKey(roundId));
+    } catch {
+      return null;
+    }
+    if (!raw) return null;
+    try {
+      var parsed = JSON.parse(raw);
+      var ids = Array.isArray(parsed.suggestionIds)
+        ? parsed.suggestionIds.map(Number).filter(Number.isInteger)
+        : [];
+      return parsed && typeof parsed.ballotId === 'string'
+        ? { ballotId: parsed.ballotId, suggestionIds: ids }
+        : null;
+    } catch {
+      return { ballotId: raw, suggestionIds: [] };
+    }
+  }
+
+  function writeStoredVote(roundId, ballotId, suggestionIds) {
+    try {
+      localStorage.setItem(votedKey(roundId), JSON.stringify({ ballotId: ballotId, suggestionIds: suggestionIds }));
+    } catch {
+      // localStorage can fail in private browsing; the server still counts the vote.
+    }
+  }
 
   function roundNumberText(round) {
     return (lang === 'en' ? 'Meeting ' : 'Møde ') + round.id;
@@ -877,17 +908,25 @@ var STRINGS = {
       return;
     }
 
+    var storedVote = readStoredVote(data.round.id);
+    var storedIds = new Set(storedVote ? storedVote.suggestionIds : []);
     var cards = data.suggestions.map(function (s) { return card(s, 'vote'); });
+    cards.forEach(function (node) {
+      var cb = node.querySelector('input[type=checkbox]');
+      if (cb && storedIds.has(Number(cb.value))) {
+        cb.checked = true;
+        node.classList.add('selected');
+      }
+    });
     app.appendChild(grid(cards));
 
     var name = el('input', { class: 'vote-input', type: 'text', placeholder: T.namePlaceholder, maxlength: '80' });
     var code = el('input', { class: 'vote-input', type: 'text', placeholder: T.codePlaceholder, maxlength: '40' });
     var tsBox = el('div');
     var box = msgBox();
-    var btn = el('button', { class: 'btn-green', type: 'submit', text: T.btnVote });
+    var btn = el('button', { class: 'btn-green', type: 'submit', text: storedVote ? T.btnUpdateVote : T.btnVote });
 
-    var alreadyVoted = !!localStorage.getItem(votedKey(data.round.id));
-    var note = alreadyVoted ? el('p', { class: 'vote-hint', text: T.alreadyVoted }) : null;
+    var note = storedVote ? el('p', { class: 'vote-hint', text: T.alreadyVoted }) : null;
 
     var form = el('form', { class: 'vote-panel' }, [
       el('h2', { class: 'vote-panel-title', text: T.castBallot }),
@@ -910,10 +949,17 @@ var STRINGS = {
       api('/vote', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ suggestionIds: ids, voterName: name.value, stormCode: code.value, turnstileToken: tsToken }),
+        body: JSON.stringify({
+          suggestionIds: ids,
+          voterName: name.value,
+          stormCode: code.value,
+          turnstileToken: tsToken,
+          ballotId: storedVote && storedVote.ballotId,
+        }),
       })
         .then(function (res) {
-          localStorage.setItem(votedKey(data.round.id), res.ballotId);
+          writeStoredVote(data.round.id, res.ballotId, ids);
+          storedVote = { ballotId: res.ballotId, suggestionIds: ids };
           showMsg(box, T.voteThanks, true);
           btn.textContent = T.btnVoted;
         })

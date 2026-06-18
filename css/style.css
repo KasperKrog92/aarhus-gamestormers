@@ -1358,8 +1358,20 @@ img { display: block; max-width: 100%; height: auto; }
   background: rgba(247,244,238,0.16);
 }
 .vote-phase-timeline::after {
+  top: 25px;
   width: var(--vote-progress, 0%);
+  height: 10px;
+  border-radius: 0;
   background: rgba(150,195,141,0.72);
+  clip-path: polygon(
+    0 4px,
+    calc(100% - 8px) 4px,
+    calc(100% - 8px) 0,
+    100% 5px,
+    calc(100% - 8px) 10px,
+    calc(100% - 8px) 6px,
+    0 6px
+  );
 }
 .vote-phase-step {
   position: relative;
