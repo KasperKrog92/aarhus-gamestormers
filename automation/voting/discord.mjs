@@ -2,6 +2,12 @@
 // (they return a content string) so they are easy to test; postDiscord wraps a
 // content string in the webhook payload and sends it.
 //
+// House style (see the Discord-announcement templates): a leading `#` header for
+// the title, masked links with the URL wrapped in <...> so Discord suppresses
+// the auto-preview card, English /en/ link targets, the round's storm code shown
+// as inline code, and plain hyphens (no em dashes). Masked links render in
+// webhook/bot messages even though normal user messages cannot use them.
+//
 // allowed_mentions parse [] means a game title containing @everyone or a role
 // mention can never actually ping the channel. These phase/winner announcements
 // use their own webhook (DISCORD_VOTING_WEBHOOK_URL), kept separate from the
@@ -9,12 +15,32 @@
 
 const DISCORD_CONTENT_LIMIT = 2000;
 
+// The club always meets at the same venue, so the map link is a fixed short URL
+// (the same one the website links the venue name to).
+const VENUE_MAP_URL = 'https://maps.app.goo.gl/8fqwBqEZA7x3TUgR6';
+
+// Standard club meeting window in Copenhagen local time. Used as a fallback when
+// a caller passes a meeting object without explicit times.
+const DEFAULT_START_TIME = '18:30';
+const DEFAULT_END_TIME = '21:00';
+
 function trimTrailingSlashes(value) {
   return String(value || '').replace(/\/+$/, '');
 }
 
+// English page targets: the club's Discord is English, so the announcements link
+// to the /en/ pages even though the site default is Danish at the root.
 function voteUrl(baseUrl) {
-  return `${trimTrailingSlashes(baseUrl)}/vote`;
+  return `${trimTrailingSlashes(baseUrl)}/en/vote`;
+}
+
+function frontUrl(baseUrl) {
+  return `${trimTrailingSlashes(baseUrl)}/en/`;
+}
+
+// Masked link with the auto-preview card suppressed (the <...> around the URL).
+function link(text, url) {
+  return `[${text}](<${url}>)`;
 }
 
 // "15 September 2026" from a YYYY-MM-DD string; '' when missing/invalid.
@@ -30,26 +56,176 @@ function formatMeetingDate(isoDate) {
   }).format(date);
 }
 
-// Accepts the raw admin round row (meeting_date) or a camelCase shape.
+// "Monday" from a YYYY-MM-DD string; '' when missing/invalid.
+function weekday(isoDate) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(isoDate || ''));
+  if (!match) return '';
+  const date = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
+  return new Intl.DateTimeFormat('en-GB', { timeZone: 'UTC', weekday: 'long' }).format(date);
+}
+
+// Accepts the raw admin round row (snake_case) or a camelCase shape.
+function meetingNumber(round) {
+  return round && round.id != null ? round.id : null;
+}
+
+function meetingDateOf(round) {
+  return round && (round.meeting_date || round.meetingDate);
+}
+
+function stormCodeOf(round) {
+  return round && (round.storm_code || round.stormCode);
+}
+
+// Joins message blocks with a blank line between them, dropping empty blocks so
+// optional sections collapse cleanly. Each block may itself be multi-line.
+function joinBlocks(blocks) {
+  return blocks.filter((block) => block && String(block).trim()).join('\n\n');
+}
+
+// "meeting #19 on 15 September 2026" / "meeting #19" / "our next meeting".
 function meetingLabel(round) {
-  const number = round && round.id != null ? `meeting #${round.id}` : 'our next meeting';
-  const date = formatMeetingDate(round && (round.meeting_date || round.meetingDate));
+  const n = meetingNumber(round);
+  const number = n != null ? `meeting #${n}` : 'our next meeting';
+  const date = formatMeetingDate(meetingDateOf(round));
   return date ? `${number} on ${date}` : number;
 }
 
-export function votingOpenedMessage({ round, baseUrl }) {
-  return [
-    `🗳️ Voting is now open for ${meetingLabel(round)}!`,
-    `Cast your vote here: ${voteUrl(baseUrl)}`,
+// Suggestions are open: invite pitches and hand out the meeting code. Posted when
+// a round reaches suggestions_open_at.
+export function suggestionsOpenedMessage({ round, baseUrl }) {
+  const n = meetingNumber(round);
+  const date = formatMeetingDate(meetingDateOf(round));
+  const opensAt = formatMeetingDate(round && (round.voting_opens_at || round.votingOpensAt));
+  const code = stormCodeOf(round);
+  const onDate = date ? ` on **${date}**` : '';
+
+  const title = n != null
+    ? `# 🎮 Game Suggestions Open - Club Meeting #${n}`
+    : '# 🎮 Game Suggestions Open';
+
+  const intro = n != null
+    ? `It's time to suggest games for our next meeting, Aarhus Gamestormers #${n}${onDate} 👾`
+    : `It's time to suggest games for our next meeting${onDate} 👾`;
+
+  const guidelines = [
+    'A few things to keep in mind:',
+    '- The game should be available on PC',
+    '- Aim for something finishable in around 10 hours or less',
+    '- Longer or "never-ending" games are welcome too, just say so in your pitch',
+    `- Check the ${link('frontpage', frontUrl(baseUrl))} for past games and what's coming up`,
+    '- If the game is on Steam, add a Steam link and your suggestion fills in the title, image, genres, and description automatically',
   ].join('\n');
+
+  const suggestBlock = [
+    'Suggest your games here:',
+    `🔗 ${link('the vote page', voteUrl(baseUrl))}`,
+    code ? `Meeting code: \`${code}\`` : '',
+  ].filter(Boolean).join('\n');
+
+  const closing = opensAt
+    ? `Voting opens on **${opensAt}**. Looking forward to seeing what you come up with!`
+    : 'Looking forward to seeing what you come up with!';
+
+  return joinBlocks([title, intro, guidelines, suggestBlock, closing]);
 }
 
-export function winnerRevealedMessage({ round, winner, baseUrl }) {
-  const title = (winner && winner.title) || 'the winning game';
-  return [
-    `🏆 The winner for ${meetingLabel(round)} is **${title}**!`,
-    `See the full results: ${voteUrl(baseUrl)}`,
+// Voting is open: list the lineup and repeat the code. `games` is an array of
+// approved suggestion titles; when omitted the lineup section is dropped.
+export function votingOpenedMessage({ round, baseUrl, games = [] }) {
+  const n = meetingNumber(round);
+  const date = formatMeetingDate(meetingDateOf(round));
+  const closesAt = formatMeetingDate(round && (round.voting_closes_at || round.votingClosesAt));
+  const code = stormCodeOf(round);
+  const onDate = date ? ` on **${date}**` : '';
+
+  const title = n != null
+    ? `# 🗳️ Voting Has Begun - Club Meeting #${n}`
+    : '# 🗳️ Voting Has Begun';
+
+  const intro = n != null
+    ? `The suggestion phase is over, and voting is now open for the Meeting #${n} game${onDate} 🎮`
+    : `The suggestion phase is over, and voting is now open${onDate} 🎮`;
+
+  const titles = (games || []).filter(Boolean);
+  const lineup = titles.length
+    ? ["Here's the lineup this time:", ...titles.map((t) => `- ${t}`)].join('\n')
+    : '';
+
+  const voteBlock = [
+    'Cast your votes here:',
+    `🔗 ${link('the vote page', voteUrl(baseUrl))}`,
   ].join('\n');
+
+  const codeLine = code
+    ? `You can vote for as many games as you like. The voting code is \`${code}\`.`
+    : 'You can vote for as many games as you like.';
+
+  const closing = closesAt
+    ? `Voting closes on **${closesAt}**. After that the winner will be revealed 🥁`
+    : 'The winner will be revealed once voting closes 🥁';
+
+  return joinBlocks([title, intro, lineup, voteBlock, codeLine, closing]);
+}
+
+// Winner / meeting announcement. Richer than the other two because it doubles as
+// the event sign-up post. Per the agreed flow this is posted after meeting setup
+// (Discord event created, HowLongToBeat link added), so the optional fields are
+// expected to be present then; each one still degrades gracefully when missing.
+//
+//   round    { id, meeting_date }
+//   winner   { title, description, steamUrl|storeUrl, hltbUrl }
+//   meeting  { startTime, endTime, venueName, venueAddress, venueMapUrl } (optional)
+//   eventUrl Discord scheduled-event link, pasted by the maintainer (optional)
+export function winnerRevealedMessage({ round, winner, meeting, eventUrl, baseUrl } = {}) {
+  const n = meetingNumber(round);
+  const title = (winner && winner.title) || 'the winning game';
+  const description = winner && (winner.description || winner.descriptionEn);
+  const steamUrl = winner && (winner.steamUrl || winner.storeUrl);
+  const hltbUrl = winner && winner.hltbUrl;
+
+  const date = formatMeetingDate(meetingDateOf(round) || (meeting && meeting.meetingDate));
+  const day = weekday(meetingDateOf(round) || (meeting && meeting.meetingDate));
+
+  const headerNum = n != null ? `Club Meeting #${n}` : 'Club Meeting';
+  const titleLine = `# 🏆 ${headerNum} - ${title}`;
+  const revealLine = `After the votes have been counted, the winner for ${headerNum} is...`;
+
+  const gameBlock = [`### 🎮 ${title}`, description ? String(description) : '']
+    .filter(Boolean)
+    .join('\n');
+
+  const dateLine = date ? `📅 ${day ? `${day}, ` : ''}${date}` : '';
+  let timeLine = '';
+  let venueLine = '';
+  if (meeting) {
+    const start = meeting.startTime || DEFAULT_START_TIME;
+    const end = meeting.endTime || DEFAULT_END_TIME;
+    timeLine = `⏰ ${start} to ~${end}`;
+    const venueLabel = [meeting.venueName, meeting.venueAddress].filter(Boolean).join(', ');
+    if (venueLabel) {
+      venueLine = `📍 ${link(venueLabel, meeting.venueMapUrl || VENUE_MAP_URL)}`;
+    }
+  }
+  const details = [dateLine, timeLine, venueLine].filter(Boolean).join('\n');
+
+  const signUp = eventUrl ? `Sign up here: ${link('Discord event', eventUrl)}` : '';
+
+  const agenda =
+    "As always, we'll start with a quick check-in, dive into the game discussion, " +
+    '(maybe) have a quiz, and wrap up with a space to share upcoming events or ideas.';
+
+  const usefulLinks = (steamUrl || hltbUrl)
+    ? [
+        'Useful links:',
+        steamUrl ? `🔗 ${link('Steam', steamUrl)}` : '',
+        hltbUrl ? `🔗 ${link('HowLongToBeat', hltbUrl)}` : '',
+      ].filter(Boolean).join('\n')
+    : '';
+
+  const closing = 'Looking forward to seeing everyone there ✨';
+
+  return joinBlocks([titleLine, revealLine, gameBlock, details, signUp, agenda, usefulLinks, closing]);
 }
 
 // Maintainer-facing heads-up for a blocked decision (tie or no votes). Reuses

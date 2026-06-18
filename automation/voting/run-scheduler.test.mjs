@@ -169,7 +169,7 @@ test('open_voting patches the phase, records the event, then announces', async (
   assert.deepEqual(client.calls.patchRound[0], { id: 19, body: { phase: 'voting' } });
   assert.equal(client.calls.recordAutomationEvent[0].eventType, 'voting_opened');
   assert.equal(discord.calls.length, 1);
-  assert.match(discord.calls[0].content, /Voting is now open/);
+  assert.match(discord.calls[0].content, /Voting Has Begun/);
   // patch happens before the announcement
   assert.equal(client.calls.patchRound.length, 1);
 });
