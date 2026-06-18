@@ -1099,14 +1099,12 @@ img { display: block; max-width: 100%; height: auto; }
   justify-content: space-between;
   gap: 18px;
   width: 100%;
-  max-width: 1040px;
   margin-bottom: 22px;
 }
 .vote-title-row .section-title {
   margin-bottom: 0;
 }
 .vote-round-hero {
-  max-width: 1040px;
   margin: 0 0 24px;
   padding: 22px 26px 24px;
   border: 1px solid rgba(150,195,141,0.24);
