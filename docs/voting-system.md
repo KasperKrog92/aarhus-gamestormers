@@ -51,7 +51,21 @@ Valid `rounds.phase` values:
 suggesting -> voting -> revealed -> closed
 ```
 
-The current round is the row with the highest `id`, which also maps to the meeting number.
+### Current round selection and the rolling pipeline
+
+The "current" round is the earliest round (lowest `id`, which also maps to the meeting number) that has not been closed. This selection drives the public vote page, the `/api/suggest` and `/api/vote` targets, the admin default view, and the scheduler's per-pass round. With a pre-created pipeline of future rounds (e.g. meetings 19-22), the soonest meeting is the focus and the cycle rolls forward on its own:
+
+1. **Before suggestions open**: the next meeting is shown with its meeting date and the date suggestions open. Phase is `suggesting`; the schedule gate (`suggestionsAreOpen`) keeps the form closed until `suggestions_open_at`.
+2. **Suggestions open**: members suggest; the date voting opens is shown.
+3. **Voting open** (`voting`, set by the scheduler at `voting_opens_at`): members vote; the date voting closes is shown.
+4. **Revealed** (set by the scheduler after `voting_closes_at`): the winning game is shown, along with the next round's suggestion-open date via the next-round notice. The winner stays the vote page's focus through this phase.
+5. **Closed**: the round closes at the **halfway point** between its `voting_closes_at` and the next round's `suggestions_open_at`. From then on the winner is no longer shown on the vote page and the next round becomes current, starting the cycle again.
+
+`getCurrentRound` performs the close lazily: on every read it first runs `closeDueRevealedRounds`, which moves any `revealed` round to `closed` once that halfway point has passed (only when a later round exists with both dates set, so the last revealed round keeps showing its winner until a successor is created). This makes the vote page deterministic regardless of when the daily scheduler runs. If every round is closed, `getCurrentRound` falls back to the highest `id` so the most recent result still shows.
+
+The halfway midpoint is computed by `midpointDateOnly(voting_closes_at, nextSuggestionsOpenAt)` in `functions/_lib/schedule.js`. `voting_closes_at` is used as the reveal anchor because the winner is revealed when voting closes and it is a stable stored value.
+
+Promoting the winner to a public upcoming-event card on the homepage stays a **manual** step (see [Selecting The Winning Game](#selecting-the-winning-game) and `MEETING_WORKFLOW.md`): the copied game lacks a HowLongToBeat URL/hours and localized descriptions, which are not auto-fetched, so the scheduler reveals the winner and writes a handoff instead of publishing an incomplete card.
 
 When the admin opens a round, the API also creates or updates the matching `meetings` row. The same numeric id is used for both records. The round keeps voting-specific fields such as the storm code, phase, and schedule offsets. The meeting stores public event basics: meeting date, Copenhagen-local start/end times converted to UTC, venue name, venue address, Discord invite, timezone, and public meeting status.
 
@@ -89,8 +103,8 @@ visible. See [`project-guide.md`](project-guide.md) and [`content-guide.md`](con
 `GET /api/round/current` includes a `nextRound` object — `{ id, title, meetingDate, suggestionsOpenAt,
 votingOpensAt, votingClosesAt }` — built from the next round whose id is greater than the current round (storm code excluded).
 When the current round is revealed or voting has closed, `js/vote.js` shows this as a bilingual "next round"
-notice. Because the current round is the highest-id round today, `nextRound` is normally `null`; the field is
-forward-compatible groundwork for the Voting Scheduler And Handoff project, where pre-created future rounds can populate it.
+notice. With a pre-created pipeline of future rounds, `nextRound` points at the round after whichever one is
+currently active.
 
 ## Round Schedule
 

@@ -108,6 +108,17 @@ export function isAfterDateOnly(date, boundary) {
   return Boolean(cleanDate && cleanBoundary && cleanDate > cleanBoundary);
 }
 
+// Date-only midpoint between two YYYY-MM-DD dates, floored to a whole day.
+// Used to retire a revealed round halfway between its voting-close date and the
+// next round's suggestions-open date. Returns '' if either input is invalid.
+export function midpointDateOnly(startDate, endDate) {
+  const start = parseDateOnly(startDate);
+  const end = parseDateOnly(endDate);
+  if (!start || !end) return '';
+  const diffDays = Math.round((end.getTime() - start.getTime()) / DAY_MS);
+  return dateOnly(addDays(start, Math.floor(diffDays / 2)));
+}
+
 export function roundScheduleState(round, now = new Date()) {
   const today = todayDateOnly(now);
   const votingHasStarted = !isBeforeDateOnly(today, round.voting_opens_at);

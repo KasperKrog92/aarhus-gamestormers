@@ -6,8 +6,11 @@
 -- ============================================================================
 
 -- A voting round maps 1:1 to an upcoming meeting (id = meeting number).
--- Exactly one round is "current": the one with the highest id. The admin opens
--- a new round to advance the cycle; phases move suggesting -> voting -> revealed.
+-- The "current" round (getCurrentRound) is the earliest round (lowest id) that
+-- is not yet closed, so a pre-created pipeline of future rounds rolls forward on
+-- its own. Phases move suggesting -> voting -> revealed -> closed; a revealed
+-- round closes automatically at the halfway point before the next round's
+-- suggestions open (see docs/voting-system.md).
 CREATE TABLE IF NOT EXISTS rounds (
   id                   INTEGER PRIMARY KEY,            -- = meeting number (e.g. 19)
   title                TEXT,                           -- optional human label

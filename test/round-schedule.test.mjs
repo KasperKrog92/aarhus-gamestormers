@@ -4,6 +4,7 @@ import test from 'node:test';
 import {
   defaultScheduleForMeetingDate,
   meetingUtcRange,
+  midpointDateOnly,
   roundScheduleState,
   timeOnlyInZone,
 } from '../functions/_lib/schedule.js';
@@ -54,6 +55,16 @@ test('round schedule state respects suggestion start and inclusive voting close 
     votingHasStarted: true,
     votingIsOpen: false,
   });
+});
+
+test('midpointDateOnly floors the halfway day between two dates', () => {
+  // Reveal anchor 2026-07-08, next suggestions open 2026-07-12 -> 4-day gap, midpoint 07-10.
+  assert.equal(midpointDateOnly('2026-07-08', '2026-07-12'), '2026-07-10');
+  // Odd gap floors toward the start date.
+  assert.equal(midpointDateOnly('2026-07-08', '2026-07-13'), '2026-07-10');
+  // Invalid input yields an empty string so callers skip the close.
+  assert.equal(midpointDateOnly('2026-07-08', ''), '');
+  assert.equal(midpointDateOnly('', '2026-07-12'), '');
 });
 
 test('meetingUtcRange converts Copenhagen meeting times to UTC with daylight saving', () => {

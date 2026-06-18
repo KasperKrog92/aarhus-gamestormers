@@ -1,4 +1,6 @@
 // D1 query helpers + card shaping. `db` is the D1 binding (env.DB).
+import { isBeforeDateOnly, midpointDateOnly, todayDateOnly } from './schedule.js';
+
 let descriptionColumnsChecked = false;
 let roundScheduleColumnsChecked = false;
 let meetingContentTablesChecked = false;
@@ -116,8 +118,49 @@ export async function ensureAutomationEventTable(db) {
   automationEventTableChecked = true;
 }
 
-// The "current" round is simply the most recently opened one (highest id).
-export function getCurrentRound(db) {
+// Retire revealed rounds whose winner has been on display long enough. A round
+// stays the vote page's focus while revealed (so members see the winner and the
+// next round's suggestion-open date), then closes at the halfway point between
+// its voting-close date and the next round's suggestions-open date. The close is
+// idempotent and only fires when a later round exists with both dates set, so the
+// last revealed round keeps showing its winner until a successor is created.
+export async function closeDueRevealedRounds(db, now = new Date()) {
+  const day = todayDateOnly(now);
+  const { results } = await db
+    .prepare(
+      `SELECT r.id AS id,
+              r.voting_closes_at AS closes_at,
+              (SELECT n.suggestions_open_at FROM rounds n WHERE n.id > r.id ORDER BY n.id ASC LIMIT 1) AS next_opens_at
+         FROM rounds r
+        WHERE r.phase = 'revealed'`
+    )
+    .all();
+
+  const dueIds = (results || [])
+    .map((row) => {
+      const midpoint = midpointDateOnly(row.closes_at, row.next_opens_at);
+      return midpoint && !isBeforeDateOnly(day, midpoint) ? row.id : null;
+    })
+    .filter((id) => id != null);
+
+  for (const id of dueIds) {
+    await db.prepare("UPDATE rounds SET phase = 'closed' WHERE id = ? AND phase = 'revealed'").bind(id).run();
+  }
+}
+
+// The "current" round is the one members act on now and the scheduler advances:
+// the earliest round (lowest id == soonest meeting) that has not been retired.
+// suggesting and voting rounds, plus a revealed round still inside its winner
+// display window (see closeDueRevealedRounds), all count. Once a round closes it
+// drops out and the next round becomes current, so a pre-created pipeline rolls
+// forward on its own. If every round is closed, fall back to the most recent one
+// so its result still shows.
+export async function getCurrentRound(db, now = new Date()) {
+  await closeDueRevealedRounds(db, now);
+  const active = await db
+    .prepare("SELECT * FROM rounds WHERE phase != 'closed' ORDER BY id ASC LIMIT 1")
+    .first();
+  if (active) return active;
   return db.prepare('SELECT * FROM rounds ORDER BY id DESC LIMIT 1').first();
 }
 
