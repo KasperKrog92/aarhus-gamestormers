@@ -7,6 +7,7 @@ const ENV = {
   VOTING_BASE_URL: 'https://www.gamestormers.dk',
   VOTING_ADMIN_TOKEN: 'secret-token',
   DISCORD_VOTING_WEBHOOK_URL: 'https://discord.example/webhook',
+  DISCORD_VOTING_ALERTS_WEBHOOK_URL: 'https://discord.example/alerts',
 };
 
 const SUGGESTIONS = [
@@ -34,6 +35,7 @@ function revealedAdminPayload(overrides = {}) {
     selectedGame: null,
     meetingCopy: null,
     publishReadiness: { ready: false, missing: ['selected game'] },
+    announcementReadiness: { ready: false, missing: ['selected game', 'Discord event URL'] },
     suggestions: SUGGESTIONS,
     tallies: { 101: 5, 102: 3, 103: 4 },
     automationEvents: [{ eventType: 'winner_revealed' }],
@@ -45,10 +47,25 @@ function revealedAdminPayload(overrides = {}) {
 function promotedAdminPayload(overrides = {}) {
   return {
     round: { id: 19, title: 'September meeting', meeting_date: '2026-09-15', phase: 'revealed', winner_suggestion_id: 101 },
-    meeting: { id: 19, meetingDate: '2026-09-15', hasSelectedGame: true },
-    selectedGame: { id: 5, title: 'Hollow Knight', hltbUrl: 'https://howlongtobeat.com/game/26606' },
+    meeting: {
+      id: 19,
+      meetingDate: '2026-09-15',
+      startTime: '18:30',
+      endTime: '21:00',
+      venueName: 'Folkehuset Møllestien',
+      venueAddress: 'Grønnegade 10, 8000 Aarhus C',
+      discordEventUrl: 'https://discord.com/events/111/222',
+      hasSelectedGame: true,
+    },
+    selectedGame: {
+      id: 5,
+      title: 'Hollow Knight',
+      storeUrl: 'https://store.steampowered.com/app/367520/',
+      hltbUrl: 'https://howlongtobeat.com/game/26606',
+    },
     meetingCopy: { da: { eventDescription: 'da' }, en: { eventDescription: 'en' } },
     publishReadiness: { ready: true, missing: [] },
+    announcementReadiness: { ready: true, missing: [] },
     suggestions: SUGGESTIONS,
     tallies: { 101: 5, 102: 3, 103: 4 },
     automationEvents: [{ eventType: 'winner_revealed' }],
@@ -135,8 +152,40 @@ test('readEnv requires the base url and admin token', () => {
 
 test('readEnv trims values and treats the webhook as optional', () => {
   const config = readEnv({ VOTING_BASE_URL: '  https://x  ', VOTING_ADMIN_TOKEN: ' t ' });
-  assert.deepEqual(config, { baseUrl: 'https://x', adminToken: 't', discordWebhookUrl: '' });
+  assert.deepEqual(config, { baseUrl: 'https://x', adminToken: 't', discordWebhookUrl: '', discordAlertsWebhookUrl: '' });
   assert.equal(readEnv(ENV).discordWebhookUrl, 'https://discord.example/webhook');
+  assert.equal(readEnv(ENV).discordAlertsWebhookUrl, 'https://discord.example/alerts');
+});
+
+test('announce_suggestions records the event and posts the suggestions-open template', async () => {
+  const client = makeClient({
+    current: {
+      round: {
+        id: 19,
+        phase: 'suggesting',
+        meeting_date: '2026-09-15',
+        suggestions_open_at: '2026-06-20',
+        voting_opens_at: '2026-06-30',
+        storm_code: 'storm19',
+      },
+      suggestions: [],
+      tallies: {},
+      automationEvents: [],
+    },
+    recordResults: [{ ok: true, duplicate: false, id: 1 }],
+  });
+  const discord = makeDiscord();
+  const { logger } = makeLogger();
+
+  const result = await runScheduler({
+    env: ENV,
+    today: '2026-06-20',
+    deps: { client, postDiscord: discord.fn, logger },
+  });
+
+  assert.equal(result.action, 'announce_suggestions');
+  assert.equal(client.calls.recordAutomationEvent[0].eventType, 'suggestions_opened');
+  assert.match(discord.calls[0].content, /Game Suggestions Open/);
 });
 
 test('no current round is a clean no-op', async () => {
@@ -152,7 +201,15 @@ test('no current round is a clean no-op', async () => {
 
 test('open_voting patches the phase, records the event, then announces', async () => {
   const client = makeClient({
-    current: { round: { id: 19, phase: 'suggesting', meeting_date: '2026-09-15', voting_opens_at: '2026-06-30' }, suggestions: [], tallies: {}, automationEvents: [] },
+    current: {
+      round: { id: 19, phase: 'suggesting', meeting_date: '2026-09-15', voting_opens_at: '2026-06-30' },
+      suggestions: [
+        { id: 101, title: 'Hollow Knight', status: 'approved' },
+        { id: 102, title: 'Pending Game', status: 'pending' },
+      ],
+      tallies: {},
+      automationEvents: [],
+    },
     recordResults: [{ ok: true, duplicate: false, id: 1 }],
   });
   const discord = makeDiscord();
@@ -170,6 +227,8 @@ test('open_voting patches the phase, records the event, then announces', async (
   assert.equal(client.calls.recordAutomationEvent[0].eventType, 'voting_opened');
   assert.equal(discord.calls.length, 1);
   assert.match(discord.calls[0].content, /Voting Has Begun/);
+  assert.match(discord.calls[0].content, /Hollow Knight/);
+  assert.doesNotMatch(discord.calls[0].content, /Pending Game/);
   // patch happens before the announcement
   assert.equal(client.calls.patchRound.length, 1);
 });
@@ -193,7 +252,7 @@ test('open_voting skips the announcement when the event was already recorded', a
   assert.equal(discord.calls.length, 0, 'no Discord post on a duplicate event');
 });
 
-test('reveal_winner reveals, announces, and writes a handoff in the normal (unpromoted) flow', async () => {
+test('reveal_winner reveals, alerts admins, and writes a handoff in the normal unpromoted flow', async () => {
   const client = makeClient({
     current: votingPayload(),
     adminSequence: [revealedAdminPayload()],
@@ -220,10 +279,12 @@ test('reveal_winner reveals, announces, and writes a handoff in the normal (unpr
   assert.deepEqual(client.calls.patchRound[0], { id: 19, body: { phase: 'revealed', winnerSuggestionId: 101 } });
   assert.equal(client.calls.selectWinner.length, 0, 'an unpromoted, not-ready card is never auto-promoted');
   assert.equal(handoff.calls.length, 1);
-  assert.match(discord.calls[0].content, /winner/i);
+  assert.equal(discord.calls.length, 1, 'posts only the private setup alert');
+  assert.equal(discord.calls[0].url, 'https://discord.example/alerts');
+  assert.match(discord.calls[0].content, /Winner announcement is waiting/);
 
   const eventTypes = client.calls.recordAutomationEvent.map((c) => c.eventType);
-  assert.deepEqual(eventTypes, ['winner_revealed', 'handoff_generated']);
+  assert.deepEqual(eventTypes, ['winner_revealed', 'winner_setup_needed_alerted', 'handoff_generated']);
 });
 
 test('reveal_winner re-confirms and skips the handoff when the card is already publish-ready', async () => {
@@ -247,8 +308,10 @@ test('reveal_winner re-confirms and skips the handoff when the card is already p
   assert.equal(result.handoffPath, null);
   assert.deepEqual(client.calls.selectWinner[0], { id: 19, suggestionId: 101, options: undefined });
   assert.equal(handoff.calls.length, 0, 'no handoff when the card is publish-ready');
-  // Only winner_revealed recorded; no handoff_generated event.
-  assert.deepEqual(client.calls.recordAutomationEvent.map((c) => c.eventType), ['winner_revealed']);
+  assert.equal(discord.calls.length, 1);
+  assert.equal(discord.calls[0].url, 'https://discord.example/webhook');
+  assert.match(discord.calls[0].content, /Sign up here/);
+  assert.deepEqual(client.calls.recordAutomationEvent.map((c) => c.eventType), ['winner_revealed', 'winner_announcement_posted']);
 });
 
 test('blocked states log a warning and never post to Discord', async () => {

@@ -46,6 +46,7 @@ jobs:
           VOTING_BASE_URL: ${{ secrets.VOTING_BASE_URL }}
           VOTING_ADMIN_TOKEN: ${{ secrets.VOTING_ADMIN_TOKEN }}
           DISCORD_VOTING_WEBHOOK_URL: ${{ secrets.DISCORD_VOTING_WEBHOOK_URL }}
+          DISCORD_VOTING_ALERTS_WEBHOOK_URL: ${{ secrets.DISCORD_VOTING_ALERTS_WEBHOOK_URL }}
         run: node automation/voting/run-scheduler.mjs
 
       - name: Upload winner handoff

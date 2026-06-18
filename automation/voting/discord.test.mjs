@@ -7,7 +7,9 @@ import {
   suggestionsOpenedMessage,
   toWebhookPayload,
   votingOpenedMessage,
+  winnerAnnouncementFromPayload,
   winnerRevealedMessage,
+  winnerSetupNeededMessage,
 } from './discord.mjs';
 
 const ROUND = {
@@ -62,6 +64,15 @@ test('voting opened message tolerates no lineup and no code', () => {
   assert.doesNotMatch(content, /voting code/);
 });
 
+test('voting opened message keeps the vote link and trims an oversized lineup', () => {
+  const games = Array.from({ length: 80 }, (_, i) => `Very Long Game Title ${i + 1} With Extra Words`);
+  const content = votingOpenedMessage({ round: ROUND, baseUrl: BASE, games });
+  assert.ok(content.length <= 2000);
+  assert.match(content, /\[the vote page\]\(<https:\/\/www\.gamestormers\.dk\/en\/vote>\)/);
+  assert.match(content, /The voting code is `storm19`\./);
+  assert.match(content, /And \d+ more\.\.\./);
+});
+
 test('winner message: full meeting announcement with event and useful links', () => {
   const content = winnerRevealedMessage({
     round: ROUND,
@@ -110,6 +121,41 @@ test('winner message degrades to title, reveal, and date when only the winner is
   assert.doesNotMatch(content, /📍/);
   assert.doesNotMatch(content, /Sign up here:/);
   assert.doesNotMatch(content, /Useful links:/);
+});
+
+test('winner announcement can be built from an admin round payload', () => {
+  const content = winnerAnnouncementFromPayload({
+    round: ROUND,
+    meeting: {
+      meetingDate: '2026-09-15',
+      startTime: '18:30',
+      endTime: '21:00',
+      venueName: 'Folkehuset Møllestien',
+      venueAddress: 'Grønnegade 10, 8000 Aarhus C',
+      discordEventUrl: 'https://discord.com/events/111/222',
+    },
+    selectedGame: {
+      title: 'Hollow Knight',
+      storeUrl: 'https://store.steampowered.com/app/367520/',
+      hltbUrl: 'https://howlongtobeat.com/game/26606',
+      descriptionEn: 'Fallback game description.',
+    },
+    meetingCopy: { en: { eventDescription: 'Curated event description.' }, da: { eventDescription: 'Dansk.' } },
+  }, { baseUrl: BASE });
+
+  assert.match(content, /Curated event description/);
+  assert.match(content, /Sign up here: \[Discord event\]/);
+  assert.match(content, /HowLongToBeat/);
+});
+
+test('winner setup needed message names missing fields and the admin URL', () => {
+  const content = winnerSetupNeededMessage({
+    round: ROUND,
+    missing: ['HowLongToBeat URL', 'Discord event URL'],
+    baseUrl: BASE,
+  });
+  assert.match(content, /HowLongToBeat URL, Discord event URL/);
+  assert.match(content, /https:\/\/www\.gamestormers\.dk\/vote-admin\//);
 });
 
 test('blocked message surfaces the scheduler reason', () => {

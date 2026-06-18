@@ -51,6 +51,7 @@ export async function ensureMeetingContentTables(db) {
         venue_name             TEXT NOT NULL,
         venue_address          TEXT,
         discord_invite         TEXT,
+        discord_event_url      TEXT,
         status                 TEXT NOT NULL DEFAULT 'planned'
                                  CHECK (status IN ('planned','suggesting','voting','revealed','completed','cancelled')),
         selected_suggestion_id INTEGER REFERENCES suggestions(id) ON DELETE SET NULL,
@@ -95,6 +96,7 @@ export async function ensureMeetingContentTables(db) {
     .run();
   await db.prepare('CREATE INDEX IF NOT EXISTS idx_meetings_date ON meetings(starts_at_utc, ends_at_utc)').run();
   await db.prepare('CREATE INDEX IF NOT EXISTS idx_meetings_status ON meetings(status)').run();
+  await addColumnIfMissing(db, 'meetings', 'discord_event_url', 'TEXT');
   meetingContentTablesChecked = true;
 }
 
@@ -105,7 +107,32 @@ export async function ensureAutomationEventTable(db) {
       `CREATE TABLE IF NOT EXISTS automation_events (
         id           INTEGER PRIMARY KEY AUTOINCREMENT,
         round_id     INTEGER NOT NULL REFERENCES rounds(id) ON DELETE CASCADE,
-        event_type   TEXT NOT NULL CHECK (event_type IN ('voting_opened','winner_revealed','handoff_generated')),
+        event_type   TEXT NOT NULL,
+        payload_json TEXT,
+        created_at   TEXT NOT NULL DEFAULT (datetime('now')),
+        UNIQUE (round_id, event_type)
+      )`
+    )
+    .run();
+  await rebuildAutomationEventsWithoutTypeCheck(db);
+  await db
+    .prepare('CREATE INDEX IF NOT EXISTS idx_automation_events_round ON automation_events(round_id, event_type)')
+    .run();
+  automationEventTableChecked = true;
+}
+
+async function rebuildAutomationEventsWithoutTypeCheck(db) {
+  const row = await db
+    .prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'automation_events'")
+    .first();
+  if (!row || !String(row.sql || '').includes('CHECK (event_type')) return;
+
+  await db
+    .prepare(
+      `CREATE TABLE IF NOT EXISTS automation_events_new (
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        round_id     INTEGER NOT NULL REFERENCES rounds(id) ON DELETE CASCADE,
+        event_type   TEXT NOT NULL,
         payload_json TEXT,
         created_at   TEXT NOT NULL DEFAULT (datetime('now')),
         UNIQUE (round_id, event_type)
@@ -113,9 +140,13 @@ export async function ensureAutomationEventTable(db) {
     )
     .run();
   await db
-    .prepare('CREATE INDEX IF NOT EXISTS idx_automation_events_round ON automation_events(round_id, event_type)')
+    .prepare(
+      `INSERT OR IGNORE INTO automation_events_new (id, round_id, event_type, payload_json, created_at)
+       SELECT id, round_id, event_type, payload_json, created_at FROM automation_events`
+    )
     .run();
-  automationEventTableChecked = true;
+  await db.prepare('DROP TABLE automation_events').run();
+  await db.prepare('ALTER TABLE automation_events_new RENAME TO automation_events').run();
 }
 
 // Retire revealed rounds whose winner has been on display long enough. A round
@@ -209,8 +240,8 @@ export async function upsertMeeting(db, meeting) {
   const result = await db
     .prepare(
       `INSERT INTO meetings
-         (id, meeting_date, starts_at_utc, ends_at_utc, timezone, venue_name, venue_address, discord_invite, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+         (id, meeting_date, starts_at_utc, ends_at_utc, timezone, venue_name, venue_address, discord_invite, discord_event_url, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(id) DO UPDATE SET
          meeting_date = excluded.meeting_date,
          starts_at_utc = excluded.starts_at_utc,
@@ -219,6 +250,7 @@ export async function upsertMeeting(db, meeting) {
          venue_name = excluded.venue_name,
          venue_address = excluded.venue_address,
          discord_invite = excluded.discord_invite,
+         discord_event_url = excluded.discord_event_url,
          status = excluded.status,
          updated_at = datetime('now')`
     )
@@ -231,6 +263,7 @@ export async function upsertMeeting(db, meeting) {
       meeting.venueName,
       meeting.venueAddress || null,
       meeting.discordInvite || null,
+      meeting.discordEventUrl || null,
       meeting.status || 'planned'
     )
     .run();
@@ -565,6 +598,7 @@ export async function getPublicMeetings(db, now = new Date()) {
          m.venue_name,
          m.venue_address,
          m.discord_invite,
+         m.discord_event_url,
          m.status,
          m.selected_suggestion_id,
          g.id AS game_id,

@@ -35,6 +35,37 @@ test('opens voting once the open date is reached', () => {
   assert.equal(decision.roundId, 19);
 });
 
+test('announces suggestions once the suggestions-open date is reached', () => {
+  const decision = decideRoundActions({
+    today: '2026-06-20',
+    round: {
+      id: 19,
+      phase: 'suggesting',
+      suggestions_open_at: '2026-06-20',
+      voting_opens_at: '2026-06-30',
+    },
+    automationEvents: [],
+  });
+
+  assert.equal(decision.action, 'announce_suggestions');
+  assert.equal(decision.roundId, 19);
+});
+
+test('does not repeat the suggestions-open announcement', () => {
+  const decision = decideRoundActions({
+    today: '2026-06-21',
+    round: {
+      id: 19,
+      phase: 'suggesting',
+      suggestions_open_at: '2026-06-20',
+      voting_opens_at: '2026-06-30',
+    },
+    automationEvents: [{ eventType: 'suggestions_opened' }],
+  });
+
+  assert.equal(decision.action, 'noop');
+});
+
 test('does not open voting before the open date', () => {
   const decision = decideRoundActions({
     today: '2026-06-29',

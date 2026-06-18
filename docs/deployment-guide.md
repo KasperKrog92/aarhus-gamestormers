@@ -73,7 +73,8 @@ wrangler d1 execute gamestormers --remote --file=./backfill-meetings.sql
 - `backfill-meetings.sql` and `scripts/` are not in the Pages deploy allowlist (`scripts/prepare-pages-deploy.mjs`),
   so they are never published as public assets.
 
-The voting scheduler relies on the `voting_opens_at` column and the `automation_events` table. Both are part of
+The voting scheduler relies on the schedule columns, the meeting `discord_event_url` column, and the
+`automation_events` table. These are part of
 `schema.sql`, so applying the schema remotely (above) is enough to migrate them into the production database. The
 `ensure*` helpers also add them on demand, but apply the schema before enabling the scheduled workflow so the first
 automated run does not race the lazy migration.
@@ -85,14 +86,18 @@ the live admin API over HTTPS and needs these **GitHub Actions secrets** (Settin
 
 - `VOTING_BASE_URL`: `https://www.gamestormers.dk`
 - `VOTING_ADMIN_TOKEN`: the same value as the Cloudflare Pages `ADMIN_TOKEN`
-- `DISCORD_VOTING_WEBHOOK_URL`: Discord webhook for voting phase/winner announcements. Optional; if unset, the
-  scheduler still changes phases and writes handoffs, it just skips the announcements.
+- `DISCORD_VOTING_WEBHOOK_URL`: public member-facing announcement channel webhook. Use the channel where members
+  should see suggestions-open, voting-open, and final winner/meeting reveal posts. Optional; if unset, the scheduler
+  still changes phases and writes handoffs, it just skips public announcements.
+- `DISCORD_VOTING_ALERTS_WEBHOOK_URL`: private maintainer/admin channel webhook. Use the channel where only
+  maintainers should see "winner setup needed" alerts for missing HowLongToBeat, copy, Discord event URL, or other
+  reveal fields. Optional; if unset, the scheduler still writes the handoff artifact and logs the missing setup.
 
 These are distinct from the sales workflow's `DISCORD_WEBHOOK_URL` and from the Cloudflare Pages
-`DISCORD_SUGGESTIONS_WEBHOOK_URL`, so phase/winner posts, sale alerts, and new-suggestion posts can target different
-channels. Before trusting the daily schedule, run `workflow_dispatch` once against the current round and confirm the
-Discord post lands in the intended channel. The workflow has read-only permissions and never commits to the repo; the
-winner handoff is uploaded as the `winner-handoff` artifact and homepage publication stays manual via
+`DISCORD_SUGGESTIONS_WEBHOOK_URL`, so voting lifecycle posts, private maintainer alerts, sale alerts, and
+new-suggestion posts can target different channels. Before trusting the daily schedule, run `workflow_dispatch` once
+against the current round and confirm the Discord post lands in the intended public channel. The workflow has read-only
+permissions and never commits to the repo; the winner handoff is uploaded as the `winner-handoff` artifact and homepage publication stays manual via
 [`../MEETING_WORKFLOW.md`](../MEETING_WORKFLOW.md). See [`voting-system.md`](voting-system.md) for the runner flow.
 
 ## Cloudflare Pages Settings
@@ -102,7 +107,10 @@ winner handoff is uploaded as the `winner-handoff` artifact and homepage publica
 - Pages build output directory: `.`
 - D1 binding: `DB`
 - Required encrypted environment variables: `TURNSTILE_SECRET`, `ADMIN_TOKEN`
-- Optional encrypted environment variable: `DISCORD_SUGGESTIONS_WEBHOOK_URL` (enables new-suggestion Discord notifications; distinct from the sales workflow's GitHub Actions secret `DISCORD_WEBHOOK_URL`)
+- Optional encrypted environment variables:
+  - `DISCORD_SUGGESTIONS_WEBHOOK_URL`: enables new-suggestion Discord notifications; distinct from the sales workflow's GitHub Actions secret `DISCORD_WEBHOOK_URL`
+  - `DISCORD_VOTING_WEBHOOK_URL`: public member-facing announcement channel webhook; lets the admin-only "Post Discord reveal" button send the final winner announcement after setup is complete
+  - `VOTING_BASE_URL`: used by the admin reveal endpoint for generated links; defaults to the request origin when unset
 
 Before production deployment, replace any placeholder D1 `database_id` in `wrangler.toml`.
 

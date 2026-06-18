@@ -80,6 +80,25 @@ test('recording an automation event inserts it and reports it as new', async () 
   assert.deepEqual(insert.args, [19, 'voting_opened', '{"posted":true}']);
 });
 
+test('recording accepts the winner announcement event type', async () => {
+  const db = makeDb({ round: { id: 19, phase: 'revealed' } });
+
+  const response = await onRequest({
+    request: adminRequest('https://example.com/api/admin/automation-event', 'POST', {
+      roundId: 19,
+      eventType: 'winner_announcement_posted',
+      payload: { source: 'admin' },
+    }),
+    env: { DB: db, ADMIN_TOKEN: 'test' },
+    params: { route: ['automation-event'] },
+  });
+
+  assert.equal(response.status, 200);
+  const insert = db.statements.find((s) => s.sql.includes('INSERT INTO automation_events'));
+  assert.deepEqual(insert.args, [19, 'winner_announcement_posted', '{"source":"admin"}']);
+});
+
+
 test('recording a duplicate automation event succeeds and flags it', async () => {
   const db = makeDb({
     round: { id: 19, phase: 'voting' },

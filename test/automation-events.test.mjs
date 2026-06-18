@@ -61,6 +61,16 @@ test('recordAutomationEvent stores a null payload when none is given', async () 
   assert.equal(insert.args[2], null);
 });
 
+test('recordAutomationEvent accepts newer Discord lifecycle event types', async () => {
+  const db = makeDb();
+  await recordAutomationEvent(db, 19, 'suggestions_opened', { posted: true });
+  await recordAutomationEvent(db, 19, 'winner_announcement_posted', { source: 'admin' });
+
+  const inserts = db.statements.filter((s) => s.sql.includes('INSERT INTO automation_events'));
+  assert.equal(inserts[0].args[1], 'suggestions_opened');
+  assert.equal(inserts[1].args[1], 'winner_announcement_posted');
+});
+
 test('recordAutomationEvent reports a duplicate instead of throwing on a unique violation', async () => {
   const db = makeDb({
     insertError: 'D1_ERROR: UNIQUE constraint failed: automation_events.round_id, automation_events.event_type',

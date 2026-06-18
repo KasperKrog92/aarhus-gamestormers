@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS meetings (
   venue_name             TEXT NOT NULL,
   venue_address          TEXT,
   discord_invite         TEXT,
+  discord_event_url      TEXT,
   status                 TEXT NOT NULL DEFAULT 'planned'
                            CHECK (status IN ('planned','suggesting','voting','revealed','completed','cancelled')),
   selected_suggestion_id INTEGER REFERENCES suggestions(id) ON DELETE SET NULL,
@@ -118,10 +119,12 @@ CREATE TABLE IF NOT EXISTS votes (
 -- event_type) constraint makes the scheduler idempotent: a rerun or manual
 -- workflow dispatch that tries to record an already-handled event hits the
 -- constraint instead of duplicating a Discord post or handoff.
+-- Known event_type values: suggestions_opened, voting_opened, winner_revealed,
+-- winner_setup_needed_alerted, winner_announcement_posted, handoff_generated.
 CREATE TABLE IF NOT EXISTS automation_events (
   id           INTEGER PRIMARY KEY AUTOINCREMENT,
   round_id     INTEGER NOT NULL REFERENCES rounds(id) ON DELETE CASCADE,
-  event_type   TEXT NOT NULL CHECK (event_type IN ('voting_opened','winner_revealed','handoff_generated')),
+  event_type   TEXT NOT NULL,
   payload_json TEXT,
   created_at   TEXT NOT NULL DEFAULT (datetime('now')),
   UNIQUE (round_id, event_type)

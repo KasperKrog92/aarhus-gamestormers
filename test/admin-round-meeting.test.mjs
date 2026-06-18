@@ -94,5 +94,6 @@ test('opening a round creates the matching public meeting row', async () => {
   assert.equal(meetingUpsert.args[5], 'Folkehuset Møllestien');
   assert.equal(meetingUpsert.args[6], 'Grønnegade 10, 8000 Aarhus C');
   assert.equal(meetingUpsert.args[7], 'https://discord.gg/N2h6DJxVDF');
-  assert.equal(meetingUpsert.args[8], 'suggesting');
+  assert.equal(meetingUpsert.args[8], null);
+  assert.equal(meetingUpsert.args[9], 'suggesting');
 });

@@ -83,6 +83,35 @@ function joinBlocks(blocks) {
   return blocks.filter((block) => block && String(block).trim()).join('\n\n');
 }
 
+function fitListBlock({ header, items, reserveBlocks }) {
+  const cleanItems = (items || []).map((item) => String(item || '').trim()).filter(Boolean);
+  if (!cleanItems.length) return '';
+
+  const reserve = joinBlocks(reserveBlocks);
+  const joinWithBlock = (block) => joinBlocks([...reserveBlocks.slice(0, 2), block, ...reserveBlocks.slice(2)]);
+  const budget = DISCORD_CONTENT_LIMIT - reserve.length - 2;
+  if (budget <= header.length) return '';
+
+  const lines = [header];
+  for (let i = 0; i < cleanItems.length; i += 1) {
+    const remaining = cleanItems.length - i;
+    const moreLine = remaining > 1 ? `- And ${remaining - 1} more...` : '';
+    const nextLine = `- ${cleanItems[i]}`;
+    const candidateLines = [...lines, nextLine];
+    if (moreLine) candidateLines.push(moreLine);
+    const candidate = candidateLines.join('\n');
+    if (joinWithBlock(candidate).length > DISCORD_CONTENT_LIMIT) {
+      if (moreLine && joinWithBlock([...lines, `- And ${remaining} more...`].join('\n')).length <= DISCORD_CONTENT_LIMIT) {
+        lines.push(`- And ${remaining} more...`);
+      }
+      return lines.length > 1 ? lines.join('\n') : '';
+    }
+    lines.push(nextLine);
+  }
+
+  return lines.join('\n');
+}
+
 // "meeting #19 on 15 September 2026" / "meeting #19" / "our next meeting".
 function meetingLabel(round) {
   const n = meetingNumber(round);
@@ -147,11 +176,6 @@ export function votingOpenedMessage({ round, baseUrl, games = [] }) {
     ? `The suggestion phase is over, and voting is now open for the Meeting #${n} game${onDate} 🎮`
     : `The suggestion phase is over, and voting is now open${onDate} 🎮`;
 
-  const titles = (games || []).filter(Boolean);
-  const lineup = titles.length
-    ? ["Here's the lineup this time:", ...titles.map((t) => `- ${t}`)].join('\n')
-    : '';
-
   const voteBlock = [
     'Cast your votes here:',
     `🔗 ${link('the vote page', voteUrl(baseUrl))}`,
@@ -164,6 +188,13 @@ export function votingOpenedMessage({ round, baseUrl, games = [] }) {
   const closing = closesAt
     ? `Voting closes on **${closesAt}**. After that the winner will be revealed 🥁`
     : 'The winner will be revealed once voting closes 🥁';
+
+  const reserveBlocks = [title, intro, voteBlock, codeLine, closing];
+  const lineup = fitListBlock({
+    header: "Here's the lineup this time:",
+    items: games,
+    reserveBlocks,
+  });
 
   return joinBlocks([title, intro, lineup, voteBlock, codeLine, closing]);
 }
@@ -226,6 +257,41 @@ export function winnerRevealedMessage({ round, winner, meeting, eventUrl, baseUr
   const closing = 'Looking forward to seeing everyone there ✨';
 
   return joinBlocks([titleLine, revealLine, gameBlock, details, signUp, agenda, usefulLinks, closing]);
+}
+
+export function winnerAnnouncementFromPayload(payload, { baseUrl } = {}) {
+  const game = payload && payload.selectedGame;
+  const copy = payload && payload.meetingCopy;
+  const meeting = payload && payload.meeting;
+  const winner = game
+    ? {
+        title: game.title,
+        description:
+          (copy && copy.en && copy.en.eventDescription) ||
+          game.descriptionEn ||
+          game.descriptionDa,
+        steamUrl: game.storeUrl,
+        hltbUrl: game.hltbUrl,
+      }
+    : null;
+
+  return winnerRevealedMessage({
+    round: payload && payload.round,
+    winner,
+    meeting,
+    eventUrl: meeting && meeting.discordEventUrl,
+    baseUrl,
+  });
+}
+
+export function winnerSetupNeededMessage({ round, missing = [], baseUrl }) {
+  const details = missing.length ? `Missing: ${missing.join(', ')}.` : 'Missing setup details.';
+  const adminUrl = `${trimTrailingSlashes(baseUrl)}/vote-admin/`;
+  return joinBlocks([
+    `⚠️ Winner announcement is waiting for ${meetingLabel(round)}`,
+    details,
+    `Fill the missing fields, create the Discord event, then post the reveal from vote-admin: ${adminUrl}`,
+  ]);
 }
 
 // Maintainer-facing heads-up for a blocked decision (tie or no votes). Reuses

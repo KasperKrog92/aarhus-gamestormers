@@ -99,6 +99,10 @@
             <input class="admin-input" id="nr-discord-invite" type="url" value="https://discord.gg/N2h6DJxVDF">
           </div>
           <div>
+            <label class="admin-field-label" for="nr-discord-event">Discord event URL</label>
+            <input class="admin-input" id="nr-discord-event" type="url" placeholder="https://discord.com/events/...">
+          </div>
+          <div>
             <label class="admin-field-label" for="nr-suggestions-months">Suggestions start months before</label>
             <input class="admin-input" id="nr-suggestions-months" type="number" min="0" max="24" step="0.1" value="2.8">
           </div>
@@ -314,6 +318,7 @@
     $('nr-venue-name').value = DEFAULT_VENUE_NAME;
     $('nr-venue-address').value = DEFAULT_VENUE_ADDRESS;
     $('nr-discord-invite').value = DEFAULT_DISCORD_INVITE;
+    $('nr-discord-event').value = '';
     $('nr-suggestions-months').value = String(DEFAULT_SUGGESTIONS_OPEN_MONTHS_BEFORE);
     $('nr-voting-open-months').value = String(DEFAULT_VOTING_OPENS_MONTHS_BEFORE);
     $('nr-voting-months').value = String(DEFAULT_VOTING_CLOSES_MONTHS_BEFORE);
@@ -378,6 +383,7 @@
     var venueNameInput = h('input', { class: 'admin-input', type: 'text', value: meeting && meeting.venueName ? meeting.venueName : DEFAULT_VENUE_NAME });
     var venueAddressInput = h('input', { class: 'admin-input', type: 'text', value: meeting && meeting.venueAddress ? meeting.venueAddress : DEFAULT_VENUE_ADDRESS });
     var discordInviteInput = h('input', { class: 'admin-input', type: 'url', value: meeting && meeting.discordInvite ? meeting.discordInvite : DEFAULT_DISCORD_INVITE });
+    var discordEventInput = h('input', { class: 'admin-input', type: 'url', value: meeting && meeting.discordEventUrl ? meeting.discordEventUrl : '', placeholder: 'https://discord.com/events/...' });
     var suggestionsMonthsInput = h('input', {
       class: 'admin-input',
       type: 'number',
@@ -436,6 +442,7 @@
           venueName: venueNameInput.value,
           venueAddress: venueAddressInput.value,
           discordInvite: discordInviteInput.value,
+          discordEventUrl: discordEventInput.value,
           suggestionsOpenMonthsBefore: suggestionsMonthsInput.value,
           votingOpensMonthsBefore: votingOpensMonthsInput.value,
           votingClosesMonthsBefore: votingMonthsInput.value,
@@ -472,6 +479,7 @@
         h('div', null, [h('label', { class: 'admin-field-label', text: 'Venue name' }), venueNameInput]),
         h('div', null, [h('label', { class: 'admin-field-label', text: 'Venue address' }), venueAddressInput]),
         h('div', null, [h('label', { class: 'admin-field-label', text: 'Discord invite' }), discordInviteInput]),
+        h('div', null, [h('label', { class: 'admin-field-label', text: 'Discord event URL' }), discordEventInput]),
         h('div', null, [h('label', { class: 'admin-field-label', text: 'Suggestions start months before' }), suggestionsMonthsInput]),
         h('div', null, [h('label', { class: 'admin-field-label', text: 'Voting starts months before' }), votingOpensMonthsInput]),
         h('div', null, [h('label', { class: 'admin-field-label', text: 'Voting closes / reveal months before' }), votingMonthsInput]),
@@ -489,6 +497,39 @@
     if (!readiness) return null;
     if (readiness.ready) return h('div', { class: 'admin-msg ok', text: 'Homepage card is publish-ready.' });
     return h('div', { class: 'admin-msg err', text: 'Not publish-ready yet. Missing: ' + (readiness.missing || []).join(', ') + '.' });
+  }
+
+  function hasEvent(data, type) {
+    return (data.automationEvents || []).some(function (event) { return event && event.eventType === type; });
+  }
+
+  function announcementPanel(data, msg) {
+    var readiness = data.announcementReadiness;
+    if (!readiness) return null;
+    var posted = hasEvent(data, 'winner_announcement_posted');
+    var round = data.round;
+    var children = [];
+    if (posted) {
+      children.push(h('div', { class: 'admin-msg ok', text: 'Discord reveal has been posted.' }));
+    } else if (readiness.ready) {
+      children.push(h('div', { class: 'admin-msg ok', text: 'Discord reveal is ready to post.' }));
+    } else {
+      children.push(h('div', { class: 'admin-msg err', text: 'Discord reveal is waiting for: ' + (readiness.missing || []).join(', ') + '.' }));
+    }
+
+    if (round && round.phase === 'revealed' && readiness.ready && !posted) {
+      children.push(h('button', { class: 'admin-btn primary', onclick: function () {
+        authedFetch('/round/' + round.id + '/announce-winner', { method: 'POST', body: JSON.stringify({}) })
+          .then(function (result) {
+            showMsg(msg, result.duplicate ? 'Discord reveal was already posted.' : 'Discord reveal posted.', true);
+            load();
+          })
+          .catch(function (e) { showMsg(msg, e.message, false); });
+      } }, ['Post Discord reveal']));
+    } else if (round && round.phase !== 'revealed' && readiness.ready && !posted) {
+      children.push(h('p', { class: 'admin-meta', text: 'The scheduled reveal can post automatically when voting closes.' }));
+    }
+    return h('div', { class: 'admin-actions', style: 'align-items:flex-start' }, children);
   }
 
   function renderSelectedGame(data) {
@@ -541,6 +582,7 @@
       h('h2', { text: 'Selected game' }),
       h('p', { class: 'admin-meta', text: 'Promoting copies the chosen suggestion into the meeting, confirms it as the winner, and reveals the round (unless already closed).' }),
       readinessBanner(data.publishReadiness),
+      announcementPanel(data, msg),
       field('Winning suggestion', select),
       h('div', { class: 'admin-actions' }, [promoteBtn]),
       msg,
@@ -798,6 +840,7 @@
         venueName: $('nr-venue-name').value,
         venueAddress: $('nr-venue-address').value,
         discordInvite: $('nr-discord-invite').value,
+        discordEventUrl: $('nr-discord-event').value,
         suggestionsOpenMonthsBefore: $('nr-suggestions-months').value,
         votingOpensMonthsBefore: $('nr-voting-open-months').value,
         votingClosesMonthsBefore: $('nr-voting-months').value,
@@ -813,6 +856,7 @@
       $('nr-venue-name').value = DEFAULT_VENUE_NAME;
       $('nr-venue-address').value = DEFAULT_VENUE_ADDRESS;
       $('nr-discord-invite').value = DEFAULT_DISCORD_INVITE;
+      $('nr-discord-event').value = '';
       $('nr-suggestions-months').value = String(DEFAULT_SUGGESTIONS_OPEN_MONTHS_BEFORE);
       $('nr-voting-open-months').value = String(DEFAULT_VOTING_OPENS_MONTHS_BEFORE);
       $('nr-voting-months').value = String(DEFAULT_VOTING_CLOSES_MONTHS_BEFORE);

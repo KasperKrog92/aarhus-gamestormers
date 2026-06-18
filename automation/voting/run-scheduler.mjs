@@ -20,8 +20,10 @@ import { ACTIONS, decideRoundActions } from './scheduler.mjs';
 import {
   blockedMessage,
   postDiscord,
+  suggestionsOpenedMessage,
   votingOpenedMessage,
-  winnerRevealedMessage,
+  winnerAnnouncementFromPayload,
+  winnerSetupNeededMessage,
 } from './discord.mjs';
 import { buildHandoffMarkdown, winnerPublicationPlan, writeHandoff } from './handoff.mjs';
 import { todayDateOnly } from '../../functions/_lib/schedule.js';
@@ -34,6 +36,7 @@ export function readEnv(env = process.env) {
   const baseUrl = String(env.VOTING_BASE_URL || '').trim();
   const adminToken = String(env.VOTING_ADMIN_TOKEN || '').trim();
   const discordWebhookUrl = String(env.DISCORD_VOTING_WEBHOOK_URL || '').trim();
+  const discordAlertsWebhookUrl = String(env.DISCORD_VOTING_ALERTS_WEBHOOK_URL || '').trim();
 
   const missing = [];
   if (!baseUrl) missing.push('VOTING_BASE_URL');
@@ -42,7 +45,7 @@ export function readEnv(env = process.env) {
     throw new Error(`Missing required environment variable(s): ${missing.join(', ')}`);
   }
 
-  return { baseUrl, adminToken, discordWebhookUrl };
+  return { baseUrl, adminToken, discordWebhookUrl, discordAlertsWebhookUrl };
 }
 
 function defaultLogger() {
@@ -72,16 +75,103 @@ async function patchPhaseAndRecord({ client, logger }, { roundId, patch, eventTy
   }
 }
 
-async function announce({ postDiscordFn, logger, webhookUrl }, { roundId, eventType, content }) {
-  const result = await postDiscordFn(webhookUrl, content);
+async function announce(
+  { postDiscordFn, logger, webhookUrl },
+  { roundId, eventType, content, url = webhookUrl, label = 'Discord', webhookName = 'DISCORD_VOTING_WEBHOOK_URL' }
+) {
+  const result = await postDiscordFn(url, content);
   if (result.skipped) {
-    logger.info(`Round ${roundId}: no DISCORD_VOTING_WEBHOOK_URL set, skipped ${eventType} announcement.`);
+    logger.info(`Round ${roundId}: no ${webhookName} set, skipped ${eventType} announcement.`);
   } else if (result.posted) {
-    logger.info(`Round ${roundId}: posted ${eventType} announcement to Discord (status ${result.status}).`);
+    logger.info(`Round ${roundId}: posted ${eventType} announcement to ${label} (status ${result.status}).`);
   } else {
-    logger.warn(`Round ${roundId}: Discord ${eventType} announcement returned status ${result.status}.`);
+    logger.warn(`Round ${roundId}: ${label} ${eventType} announcement returned status ${result.status}.`);
   }
   return result;
+}
+
+function approvedGameTitles(suggestions) {
+  return (suggestions || [])
+    .filter((s) => s && (!s.status || s.status === 'approved') && s.title)
+    .map((s) => s.title);
+}
+
+function hasEvent(events, eventType) {
+  return (events || []).some((event) => event && event.eventType === eventType);
+}
+
+async function handleAnnounceSuggestions(ctx, { round }) {
+  const roundId = round.id;
+  const record = await ctx.client.recordAutomationEvent({
+    roundId,
+    eventType: 'suggestions_opened',
+    payload: { today: ctx.today },
+  });
+
+  let discord = { skipped: true, posted: false };
+  if (record.duplicate) {
+    ctx.logger.info(`Round ${roundId}: suggestions_opened already recorded, skipping announcement.`);
+  } else {
+    discord = await announce(ctx, {
+      roundId,
+      eventType: 'suggestions_opened',
+      content: suggestionsOpenedMessage({ round, baseUrl: ctx.baseUrl }),
+    });
+  }
+
+  return { action: ACTIONS.ANNOUNCE_SUGGESTIONS, roundId, duplicate: Boolean(record.duplicate), discordPosted: Boolean(discord.posted) };
+}
+
+async function postWinnerAnnouncement(ctx, { roundPayload, source }) {
+  const roundId = roundPayload.round.id;
+  if (hasEvent(roundPayload.automationEvents, 'winner_announcement_posted')) {
+    ctx.logger.info(`Round ${roundId}: winner announcement already posted, skipping.`);
+    return { skipped: false, posted: false, duplicate: true };
+  }
+
+  const discord = await announce(ctx, {
+    roundId,
+    eventType: 'winner_announcement_posted',
+    content: winnerAnnouncementFromPayload(roundPayload, { baseUrl: ctx.baseUrl }),
+  });
+  if (discord.posted) {
+    await ctx.client.recordAutomationEvent({
+      roundId,
+      eventType: 'winner_announcement_posted',
+      payload: { today: ctx.today, source, status: discord.status },
+    });
+  }
+  return discord;
+}
+
+async function alertWinnerSetupNeeded(ctx, { roundPayload }) {
+  const roundId = roundPayload.round.id;
+  const readiness = roundPayload.announcementReadiness || roundPayload.publishReadiness || { missing: [] };
+  if (!ctx.alertsWebhookUrl) {
+    ctx.logger.info(`Round ${roundId}: no DISCORD_VOTING_ALERTS_WEBHOOK_URL set, skipped winner setup alert.`);
+    return { skipped: true, posted: false };
+  }
+  const record = await ctx.client.recordAutomationEvent({
+    roundId,
+    eventType: 'winner_setup_needed_alerted',
+    payload: { today: ctx.today, missing: readiness.missing || [] },
+  });
+  if (record.duplicate) {
+    ctx.logger.info(`Round ${roundId}: winner setup alert already recorded, skipping.`);
+    return { skipped: false, posted: false, duplicate: true };
+  }
+  return await announce(ctx, {
+    roundId,
+    eventType: 'winner_setup_needed_alerted',
+    content: winnerSetupNeededMessage({
+      round: roundPayload.round,
+      missing: readiness.missing || [],
+      baseUrl: ctx.baseUrl,
+    }),
+    url: ctx.alertsWebhookUrl,
+    label: 'Discord alerts',
+    webhookName: 'DISCORD_VOTING_ALERTS_WEBHOOK_URL',
+  });
 }
 
 async function handleOpenVoting(ctx, { round }) {
@@ -102,7 +192,7 @@ async function handleOpenVoting(ctx, { round }) {
     discord = await announce(ctx, {
       roundId,
       eventType: 'voting_opened',
-      content: votingOpenedMessage({ round, baseUrl }),
+      content: votingOpenedMessage({ round, baseUrl, games: approvedGameTitles(ctx.suggestions) }),
     });
   }
 
@@ -123,15 +213,7 @@ async function handleRevealWinner(ctx, { payload, decision }) {
   });
 
   let discord = { skipped: true, posted: false };
-  if (record.duplicate) {
-    logger.info(`Round ${roundId}: winner_revealed already recorded, skipping announcement.`);
-  } else {
-    discord = await announce(ctx, {
-      roundId,
-      eventType: 'winner_revealed',
-      content: winnerRevealedMessage({ round, winner: decision.winner, baseUrl }),
-    });
-  }
+  if (record.duplicate) logger.info(`Round ${roundId}: winner_revealed already recorded.`);
 
   // Refetch so the publication planner sees the just-recorded winner and any
   // existing selected-game state.
@@ -148,6 +230,15 @@ async function handleRevealWinner(ctx, { payload, decision }) {
     logger.info(`Round ${roundId}: re-confirmed the already publish-ready selected game.`);
     latest = await client.getAdminRound(roundId);
     plan = winnerPublicationPlan({ roundPayload: latest, winnerSuggestionId });
+  }
+
+  if (!record.duplicate) {
+    const readiness = latest.announcementReadiness || latest.publishReadiness || { ready: false, missing: [] };
+    if (readiness.ready) {
+      discord = await postWinnerAnnouncement(ctx, { roundPayload: latest, source: 'scheduler' });
+    } else {
+      await alertWinnerSetupNeeded(ctx, { roundPayload: latest });
+    }
   }
 
   let handoffPath = null;
@@ -216,9 +307,14 @@ export async function runScheduler({ env = process.env, today, deps = {} } = {})
     writeHandoffFn,
     baseUrl: config.baseUrl,
     webhookUrl: config.discordWebhookUrl,
+    alertsWebhookUrl: config.discordAlertsWebhookUrl,
     today: day,
+    suggestions: payload.suggestions || [],
   };
 
+  if (decision.action === ACTIONS.ANNOUNCE_SUGGESTIONS) {
+    return await handleAnnounceSuggestions(ctx, { round });
+  }
   if (decision.action === ACTIONS.OPEN_VOTING) {
     return await handleOpenVoting(ctx, { round });
   }

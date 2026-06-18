@@ -12,12 +12,14 @@ import {
 } from '../../functions/_lib/schedule.js';
 
 // Decision actions:
+//   announce_suggestions  post the suggestions-open Discord message
 //   open_voting    move the round suggesting -> voting
 //   reveal_winner  move the round voting -> revealed with a winnerSuggestionId
 //   blocked        a transition is due but cannot complete automatically
 //                  (no votes, or a tie for first place); needs the maintainer
 //   noop           nothing to do this run
 export const ACTIONS = {
+  ANNOUNCE_SUGGESTIONS: 'announce_suggestions',
   OPEN_VOTING: 'open_voting',
   REVEAL_WINNER: 'reveal_winner',
   BLOCKED: 'blocked',
@@ -65,21 +67,31 @@ export function decideRoundActions({
   const day = cleanDateOnly(today) || todayDateOnly();
 
   if (phase === 'suggesting') {
+    const opensAt = cleanDateOnly(round.voting_opens_at);
+    if (!hasEvent(automationEvents, 'voting_opened') && opensAt && !isBeforeDateOnly(day, opensAt)) {
+      return { action: ACTIONS.OPEN_VOTING, roundId, reason: `Voting open date ${opensAt} reached on ${day}.` };
+    }
     if (hasEvent(automationEvents, 'voting_opened')) {
       return { action: ACTIONS.NOOP, roundId, reason: 'Voting already opened for this round.' };
     }
-    const opensAt = cleanDateOnly(round.voting_opens_at);
-    if (!opensAt) {
+
+    const suggestionsAt = cleanDateOnly(round.suggestions_open_at);
+    if (!hasEvent(automationEvents, 'suggestions_opened') && suggestionsAt && !isBeforeDateOnly(day, suggestionsAt)) {
       return {
-        action: ACTIONS.NOOP,
+        action: ACTIONS.ANNOUNCE_SUGGESTIONS,
         roundId,
-        reason: 'No voting_opens_at date set; not opening voting automatically.',
+        reason: `Suggestions open date ${suggestionsAt} reached on ${day}.`,
       };
     }
-    if (isBeforeDateOnly(day, opensAt)) {
+
+    if (opensAt && isBeforeDateOnly(day, opensAt)) {
       return { action: ACTIONS.NOOP, roundId, reason: `Voting opens on ${opensAt}; today is ${day}.` };
     }
-    return { action: ACTIONS.OPEN_VOTING, roundId, reason: `Voting open date ${opensAt} reached on ${day}.` };
+    return {
+      action: ACTIONS.NOOP,
+      roundId,
+      reason: 'No voting_opens_at date set; not opening voting automatically.',
+    };
   }
 
   if (phase === 'voting') {

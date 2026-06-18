@@ -10,6 +10,10 @@
 import { json, fail, readJson, clean } from '../../_lib/http.js';
 import { isAdmin } from '../../_lib/auth.js';
 import {
+  postDiscord,
+  winnerAnnouncementFromPayload,
+} from '../../../automation/voting/discord.mjs';
+import {
   ensureRoundScheduleColumns,
   ensureMeetingContentTables,
   ensureSuggestionDescriptionColumns,
@@ -47,7 +51,14 @@ import {
 
 const PHASES = ['suggesting', 'voting', 'revealed', 'closed'];
 const STATUSES = ['pending', 'approved', 'rejected'];
-const AUTOMATION_EVENT_TYPES = ['voting_opened', 'winner_revealed', 'handoff_generated'];
+const AUTOMATION_EVENT_TYPES = [
+  'suggestions_opened',
+  'voting_opened',
+  'winner_revealed',
+  'winner_setup_needed_alerted',
+  'winner_announcement_posted',
+  'handoff_generated',
+];
 const DEFAULT_VENUE_NAME = 'Folkehuset Møllestien';
 const DEFAULT_VENUE_ADDRESS = 'Grønnegade 10, 8000 Aarhus C';
 const DEFAULT_DISCORD_INVITE = 'https://discord.gg/N2h6DJxVDF';
@@ -73,6 +84,8 @@ export async function onRequest(context) {
       if (method === 'POST') return adminOpenRound(db, request);
     } else if (action === 'select') {
       if (method === 'POST') return adminSelectGame(db, request, Number(id));
+    } else if (action === 'announce-winner') {
+      if (method === 'POST') return adminAnnounceWinner(db, request, env, Number(id));
     } else {
       const numId = Number(id);
       if (method === 'GET') return adminGetRoundById(db, numId);
@@ -129,6 +142,7 @@ async function roundPayload(db, round) {
     selectedGame: toAdminGame(gameRow),
     meetingCopy,
     publishReadiness: meetingPublishReadiness(meetingRow, gameRow, meetingCopy),
+    announcementReadiness: winnerAnnouncementReadiness(meetingRow, gameRow, meetingCopy),
     suggestions,
     tallies,
     ballots,
@@ -145,6 +159,7 @@ async function adminGetRound(db) {
       selectedGame: null,
       meetingCopy: null,
       publishReadiness: null,
+      announcementReadiness: null,
       suggestions: [],
       tallies: {},
       ballots: [],
@@ -253,6 +268,7 @@ async function adminPatchRound(db, request, id) {
     'venueName',
     'venueAddress',
     'discordInvite',
+    'discordEventUrl',
     'timezone',
   ]);
   const existingMeeting = await getMeetingById(db, id);
@@ -305,6 +321,7 @@ function toAdminMeeting(row) {
     venueName: row.venue_name,
     venueAddress: row.venue_address || '',
     discordInvite: row.discord_invite || '',
+    discordEventUrl: row.discord_event_url || '',
     status: row.status,
     hasSelectedGame: row.selected_game_id != null,
   };
@@ -349,6 +366,51 @@ function meetingPublishReadiness(meetingRow, gameRow, copy) {
   if (!daEvent) missing.push('Danish event description');
   if (!enEvent) missing.push('English event description');
   return { ready: missing.length === 0, missing };
+}
+
+function winnerAnnouncementReadiness(meetingRow, gameRow, copy) {
+  const base = meetingPublishReadiness(meetingRow, gameRow, copy);
+  const missing = base.missing.slice();
+  if (meetingRow && !meetingRow.discord_event_url) missing.push('Discord event URL');
+  return { ready: missing.length === 0, missing };
+}
+
+function automationEventExists(payload, eventType) {
+  return (payload.automationEvents || []).some((event) => event && event.eventType === eventType);
+}
+
+async function adminAnnounceWinner(db, request, env, id) {
+  if (!Number.isInteger(id) || id <= 0) return fail('Invalid round id');
+  const round = await getRoundById(db, id);
+  if (!round) return fail('Round not found', 404);
+  if (round.phase !== 'revealed' && round.phase !== 'closed') {
+    return fail('The round must be revealed before posting the Discord reveal.', 409);
+  }
+  if (!round.winner_suggestion_id) return fail('Choose a winning suggestion before posting the Discord reveal.', 409);
+
+  const payload = await roundPayload(db, round);
+  if (automationEventExists(payload, 'winner_announcement_posted')) {
+    return json({ ok: true, duplicate: true, posted: false });
+  }
+  if (!payload.announcementReadiness || !payload.announcementReadiness.ready) {
+    const missing = payload.announcementReadiness ? payload.announcementReadiness.missing || [] : ['announcement details'];
+    return fail('Winner announcement is missing: ' + missing.join(', '), 409);
+  }
+
+  const webhookUrl = clean(env.DISCORD_VOTING_WEBHOOK_URL, 1000);
+  if (!webhookUrl) return fail('DISCORD_VOTING_WEBHOOK_URL is not configured for Pages admin.', 500);
+
+  const baseUrl = clean(env.VOTING_BASE_URL, 400) || new URL(request.url).origin;
+  const result = await postDiscord(webhookUrl, winnerAnnouncementFromPayload(payload, { baseUrl }), {
+    fetch: env.fetch || globalThis.fetch,
+  });
+  if (!result.posted) return fail('Discord webhook returned status ' + (result.status || 'unknown'), 502);
+
+  const record = await recordAutomationEvent(db, id, 'winner_announcement_posted', {
+    source: 'admin',
+    status: result.status,
+  });
+  return json({ ok: true, duplicate: record.duplicate, posted: true, status: result.status });
 }
 
 // Promote a suggestion into the meeting's selected game, confirm the winner,
@@ -484,6 +546,10 @@ function meetingFromInput(body, round, existing = null) {
     body.discordInvite !== undefined ? body.discordInvite : existing ? existing.discord_invite : DEFAULT_DISCORD_INVITE,
     300
   );
+  const discordEventUrl = clean(
+    body.discordEventUrl !== undefined ? body.discordEventUrl : existing ? existing.discord_event_url : '',
+    500
+  );
 
   if (!meetingDate) return { error: 'Meeting date required for public meeting record' };
   if (!startTime) return { error: 'Meeting start time required' };
@@ -503,6 +569,7 @@ function meetingFromInput(body, round, existing = null) {
       venueName,
       venueAddress,
       discordInvite,
+      discordEventUrl,
       status: phaseToMeetingStatus(round.phase),
     },
   };

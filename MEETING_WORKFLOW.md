@@ -34,6 +34,7 @@ Past meeting dates in it are approximate (first Monday of the month) and can be 
 | Time | **18:30–~21:00** (start 18:30, ~21:00 estimated end) |
 | Venue | **Folkehuset Møllestien, Grønnegade 10, 8000 Aarhus C** — only change if the announcement differs |
 | Discord | General invite `discord.gg/N2h6DJxVDF` (used in calendar details) |
+| Discord event URL | Create the scheduled event in Discord and paste its `discord.com/events/...` URL into the round editor |
 
 ## 1. Verify the game on Steam (don't trust the title alone)
 
@@ -60,8 +61,8 @@ record share the same id = meeting number.
 - If the round was created through the normal voting cycle, opening it already created the matching `meetings`
   row with the meeting date, Copenhagen-local start/end times, venue, and Discord invite.
 - If you are entering a meeting that never went through voting, create/repair the round's event basics in the
-  round editor (meeting date, start/end time, venue, Discord). The admin shows whether a public meeting record
-  exists for the round.
+  round editor (meeting date, start/end time, venue, Discord invite, Discord event URL). The admin shows whether
+  a public meeting record exists for the round.
 
 ## 4. Promote the chosen game into the meeting
 
@@ -85,7 +86,17 @@ store link, genres, platforms, playtime hours, HowLongToBeat URL, and **Danish +
 - Optional Danish and English **history** descriptions (short blurbs). If omitted, the history card falls back
   to the event description.
 
-## 6. Verify in a real browser
+## 6. Post the Discord reveal
+
+The scheduler posts the final public Discord reveal automatically only when all announcement fields are ready at
+the moment voting closes: selected game, public card fields, localized event copy, and Discord event URL.
+
+If the scheduler had to wait for manual fields, `vote-admin.html` shows a **Post Discord reveal** button in the
+Selected game section once the readiness banner is green. Click it after the Discord scheduled event URL and all
+missing fields have been saved. The button records `winner_announcement_posted`, so it is safe against accidental
+repeat clicks.
+
+## 7. Verify in a real browser
 
 Run the Pages dev server and check the rendered output (never just raw files):
 
@@ -99,11 +110,11 @@ npm run dev
 - `http://127.0.0.1:8788/vote.html` and `/vote-admin.html`: no console errors.
 - Confirm the previous meeting moves into history on its own after its end time (no manual reveal step).
 
-## 7. Update `sitemap.xml`
+## 8. Update `sitemap.xml`
 
 Set `lastmod` to today's date on **both** URL entries for meaningful content changes.
 
-## 8. Do **not** commit or push unless explicitly asked
+## 9. Do **not** commit or push unless explicitly asked
 
 Pushing to `main` **auto-deploys to the live site**. Leave commit/push to the maintainer's go-ahead. Note that
 meeting content lives in D1, not in the repo, so publishing a meeting to the live site means writing to the
