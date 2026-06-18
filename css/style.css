@@ -1058,14 +1058,15 @@ img { display: block; max-width: 100%; height: auto; }
   margin-bottom: 22px;
 }
 .vote-round-hero {
-  max-width: 860px;
+  max-width: 960px;
   margin: 0 0 24px;
-  padding: 20px 22px 22px;
-  border: 1px solid rgba(150,195,141,0.2);
+  padding: 24px 26px 26px;
+  border: 1px solid rgba(150,195,141,0.24);
   border-radius: 12px;
   background:
-    linear-gradient(135deg, rgba(150,195,141,0.12), rgba(247,244,238,0.035) 52%),
+    linear-gradient(135deg, rgba(150,195,141,0.16), rgba(247,244,238,0.035) 58%),
     rgba(247,244,238,0.045);
+  box-shadow: 0 18px 52px rgba(0,0,0,0.16);
 }
 .vote-round-hero-empty {
   display: inline-flex;
@@ -1079,7 +1080,18 @@ img { display: block; max-width: 100%; height: auto; }
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
-  margin-bottom: 12px;
+  margin-bottom: 18px;
+}
+.vote-round-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.68fr);
+  gap: 22px;
+  align-items: end;
+}
+.vote-round-dates {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
 }
 .vote-status {
   display: inline-flex;
@@ -1163,23 +1175,49 @@ img { display: block; max-width: 100%; height: auto; }
   margin-bottom: 10px;
 }
 .vote-meeting {
-  display: inline-flex;
-  align-items: center;
+  display: grid;
+  align-content: end;
+  gap: 3px;
+  min-width: 0;
   margin: 0;
-  padding: 5px 12px;
-  border-radius: 999px;
-  background: rgba(247,244,238,0.08);
-  border: 1px solid rgba(150,195,141,0.2);
+  padding-left: 18px;
+  border-left: 4px solid var(--green);
   color: var(--cream);
-  font-size: 0.86rem;
+}
+.vote-meeting-label {
+  color: var(--green);
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 1.02rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+.vote-meeting-number {
+  display: block;
+  color: var(--cream);
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 5rem;
+  font-weight: 800;
+  line-height: 0.9;
+}
+.vote-meeting-title {
+  overflow-wrap: anywhere;
+  color: rgba(247,244,238,0.74);
+  font-size: 0.98rem;
   font-weight: 700;
+  line-height: 1.35;
 }
 .vote-date-card {
-  margin: 0 0 16px;
+  margin: 0;
+  padding: 16px 18px;
+  border: 1px solid rgba(247,244,238,0.11);
+  border-radius: 8px;
+  background: rgba(43,36,54,0.23);
 }
 .vote-date-label {
   display: block;
-  margin-bottom: 2px;
+  margin-bottom: 7px;
   color: rgba(247,244,238,0.56);
   font-family: 'Barlow Condensed', sans-serif;
   font-size: 0.75rem;
@@ -1192,21 +1230,31 @@ img { display: block; max-width: 100%; height: auto; }
   display: block;
   color: var(--cream);
   font-family: 'Barlow Condensed', sans-serif;
-  font-size: clamp(2rem, 4vw, 3.25rem);
+  font-size: 2.35rem;
   font-weight: 800;
-  line-height: 1;
+  line-height: 0.98;
 }
 .vote-schedule {
   display: grid;
-  grid-template-columns: repeat(2, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
   gap: 10px;
   margin: 0;
-  max-width: 540px;
+  max-width: 640px;
+}
+.vote-round-hero > .vote-schedule {
+  max-width: none;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(247,244,238,0.1);
+}
+.vote-round-dates .vote-schedule {
+  grid-template-columns: 1fr;
+  max-width: none;
 }
 .vote-schedule-item {
-  padding: 10px 12px;
+  padding: 12px 14px;
   border-radius: 8px;
-  background: rgba(43,36,54,0.22);
+  background: rgba(43,36,54,0.24);
   border: 1px solid rgba(247,244,238,0.11);
 }
 .vote-schedule dt {
@@ -1633,6 +1681,80 @@ img { display: block; max-width: 100%; height: auto; }
   margin-bottom: 14px;
   line-height: 1.05;
 }
+.admin-round-card {
+  overflow: hidden;
+  padding: 0;
+}
+.admin-round-overview {
+  display: grid;
+  grid-template-columns: 160px minmax(0, 1fr);
+  min-height: 132px;
+  margin-bottom: 20px;
+  background: var(--purple);
+}
+.admin-round-id {
+  display: grid;
+  align-content: center;
+  gap: 3px;
+  padding: 22px;
+  background: var(--green);
+  color: var(--purple);
+}
+.admin-round-id span {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+.admin-round-id strong {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 4.4rem;
+  font-weight: 800;
+  line-height: 0.9;
+}
+.admin-round-summary {
+  display: grid;
+  align-content: center;
+  min-width: 0;
+  padding: 22px 24px;
+}
+.admin-round-summary h2 {
+  overflow-wrap: anywhere;
+  color: var(--cream);
+  font-size: 1.85rem;
+  margin-bottom: 8px;
+}
+.admin-round-summary .admin-meta {
+  color: rgba(247,244,238,0.66);
+  margin-bottom: 0;
+}
+.admin-round-phase {
+  display: inline-flex;
+  width: fit-content;
+  margin-bottom: 10px;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: rgba(247,244,238,0.08);
+  border: 1px solid rgba(150,195,141,0.22);
+  color: var(--green);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+.admin-round-card > .admin-meta,
+.admin-round-card > .admin-grid,
+.admin-round-card > .admin-actions,
+.admin-round-card > .admin-msg {
+  margin-left: 22px;
+  margin-right: 22px;
+}
+.admin-round-card > .admin-msg:last-child {
+  margin-bottom: 22px;
+}
 .admin-row { display: flex; gap: 20px; align-items: flex-start; }
 .admin-thumb {
   width: 178px;
@@ -1938,11 +2060,17 @@ details[open] > .admin-section-summary::before { transform: rotate(90deg); }
 @media (max-width: 860px) {
   .gs-vote { padding: 38px 0 52px; }
   .vote-round-hero {
-    padding: 17px 18px 18px;
+    padding: 18px 18px 20px;
     margin-bottom: 20px;
   }
-  .vote-round-kicker { margin-bottom: 10px; }
-  .vote-date-card { margin-bottom: 14px; }
+  .vote-round-kicker { margin-bottom: 14px; }
+  .vote-round-main {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  .vote-meeting { padding-left: 14px; }
+  .vote-meeting-number { font-size: 3.8rem; }
+  .vote-date-value { font-size: 2rem; }
   .vote-schedule { grid-template-columns: 1fr; max-width: none; }
   .vote-intro { font-size: 0.98rem; margin-bottom: 22px; }
   .vote-disclosure,
@@ -1961,6 +2089,25 @@ details[open] > .admin-section-summary::before { transform: rotate(90deg); }
     flex-direction: column;
   }
   .admin-picker-row .admin-select { max-width: none; }
+  .admin-round-overview {
+    grid-template-columns: 1fr;
+  }
+  .admin-round-id {
+    grid-template-columns: auto auto;
+    justify-content: start;
+    align-items: baseline;
+    gap: 10px;
+    padding: 18px 20px;
+  }
+  .admin-round-id strong { font-size: 3rem; }
+  .admin-round-summary { padding: 20px; }
+  .admin-round-card > .admin-meta,
+  .admin-round-card > .admin-grid,
+  .admin-round-card > .admin-actions,
+  .admin-round-card > .admin-msg {
+    margin-left: 18px;
+    margin-right: 18px;
+  }
   .admin-row { flex-direction: column; }
   .admin-thumb { width: 100%; }
   .admin-grid { grid-template-columns: 1fr; }

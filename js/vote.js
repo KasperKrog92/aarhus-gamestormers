@@ -12,7 +12,7 @@ var STRINGS = {
     statusVotingClosed: 'Afstemningen er lukket',
     statusRevealed: 'Resultatet er klar',
     introNone: 'Der er ingen aktiv runde lige nu. Hold øje med Discord for næste afstemning.',
-    introUpcoming: 'Næste møde er planlagt. Forslag åbner på datoen herunder.',
+    introUpcoming: 'Forslag åbner snart.',
     introSuggesting:
       'Foreslå et spil til mødet. Steam-spil får titel, billede, genrer og beskrivelse automatisk. Brug mødets kode fra Discord.',
     introVoting:
@@ -92,7 +92,7 @@ var STRINGS = {
     statusVotingClosed: 'Voting is closed',
     statusRevealed: 'The result is in',
     introNone: 'There is no active round right now. Watch Discord for the next vote.',
-    introUpcoming: 'The next meeting is planned. Suggestions open on the date below.',
+    introUpcoming: 'Suggestions open soon.',
     introSuggesting:
       "Suggest a game for the meeting. Steam games get title, image, genres and description filled in automatically. Use the meeting code from Discord.",
     introVoting:
@@ -228,14 +228,22 @@ var STRINGS = {
 
   function votedKey(roundId) { return 'gs-voted-r' + roundId; }
 
-  function roundLabel(round) {
-    var label = (lang === 'en' ? 'Meeting ' : 'Møde ') + round.id;
+  function roundNumberText(round) {
+    return (lang === 'en' ? 'Meeting ' : 'Møde ') + round.id;
+  }
+
+  function roundTitleExtra(round) {
     var title = String(round.title || '').trim();
     var normalized = title.toLowerCase();
     if (title && normalized !== ('meeting ' + round.id).toLowerCase() && normalized !== ('møde ' + round.id).toLowerCase()) {
-      label += ' · ' + title;
+      return title;
     }
-    return label;
+    return '';
+  }
+
+  function roundLabel(round) {
+    var extra = roundTitleExtra(round);
+    return roundNumberText(round) + (extra ? ' · ' + extra : '');
   }
 
   function formatDate(dateString) {
@@ -249,11 +257,6 @@ var STRINGS = {
     }).format(date);
   }
 
-  // The single upcoming schedule date that matters for the round's current
-  // state: before suggestions open -> when they open; while suggesting -> when
-  // voting opens; while voting is open -> when it closes. Once voting has ended
-  // (closed/revealed) there is no further date for this round, so return null and
-  // let the next-round notice point ahead.
   function nextDateDetail(round) {
     var item = null;
     if (round.suggestionsAreOpen === false) {
@@ -274,17 +277,21 @@ var STRINGS = {
 
   function roundHero(round, statusText) {
     var meetingDate = formatDate(round.meetingDate);
-    var deadlines = nextDateDetail(round);
+    var nextDate = nextDateDetail(round);
     return el('div', { class: 'vote-round-hero' }, [
       el('div', { class: 'vote-round-kicker' }, [
         status(statusText),
-        meetingBadge(round),
       ]),
-      meetingDate ? el('div', { class: 'vote-date-card' }, [
-        el('span', { class: 'vote-date-label', text: T.scheduleMeetingDate }),
-        el('time', { class: 'vote-date-value', datetime: round.meetingDate, text: meetingDate }),
-      ]) : null,
-      deadlines,
+      el('div', { class: 'vote-round-main' }, [
+        meetingBadge(round),
+        el('div', { class: 'vote-round-dates' }, [
+          meetingDate ? el('div', { class: 'vote-date-card' }, [
+            el('span', { class: 'vote-date-label', text: T.scheduleMeetingDate }),
+            el('time', { class: 'vote-date-value', datetime: round.meetingDate, text: meetingDate }),
+          ]) : null,
+          nextDate,
+        ]),
+      ]),
     ]);
   }
 
@@ -424,7 +431,12 @@ var STRINGS = {
   }
 
   function meetingBadge(round) {
-    return el('span', { class: 'vote-meeting', text: roundLabel(round) });
+    var extra = roundTitleExtra(round);
+    return el('div', { class: 'vote-meeting' }, [
+      el('span', { class: 'vote-meeting-label', text: lang === 'en' ? 'Meeting' : 'Møde' }),
+      el('strong', { class: 'vote-meeting-number', text: String(round.id) }),
+      extra ? el('span', { class: 'vote-meeting-title', text: extra }) : null,
+    ]);
   }
 
   function suggestionGuidelines() {

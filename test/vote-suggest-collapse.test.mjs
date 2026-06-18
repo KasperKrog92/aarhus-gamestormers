@@ -6,11 +6,15 @@ test('suggestion form is a closed disclosure tied to the current meeting', async
   const source = await readFile('js/vote.js', 'utf8');
   const css = await readFile('css/style.css', 'utf8');
 
-  assert.match(source, /meetingFor/);
   assert.match(source, /function roundLabel/);
+  assert.match(source, /function roundNumberText/);
+  assert.match(source, /function roundTitleExtra/);
   assert.match(source, /function meetingBadge/);
   assert.match(source, /function roundHero/);
+  assert.match(source, /function nextDateDetail/);
   assert.match(source, /vote-meeting/);
+  assert.match(source, /vote-meeting-number/);
+  assert.match(source, /vote-round-dates/);
   assert.match(source, /vote-disclosure/);
   assert.match(source, /'aria-expanded': 'false'/);
   assert.match(source, /panel\.hidden = true/);
@@ -23,13 +27,18 @@ test('suggestion form is a closed disclosure tied to the current meeting', async
   assert.doesNotMatch(source, /sent for approval/);
   assert.match(source, /tilf[oø]jet til forslagene/);
   assert.match(source, /added to the suggestions/);
+  assert.match(source, /meetingBadge[\s\S]*vote-meeting-number/);
+  assert.doesNotMatch(source, /meetingFor/);
   assert.match(source, /roundHero[\s\S]*meetingBadge\(round\)/);
   assert.match(source, /renderVoting[\s\S]*roundHero\(data\.round/);
   assert.match(source, /renderRevealed[\s\S]*roundHero\(data\.round/);
 
   assert.match(css, /\.vote-round-hero/);
+  assert.match(css, /\.vote-round-main/);
+  assert.match(css, /\.vote-round-dates/);
   assert.match(css, /\.vote-date-card/);
   assert.match(css, /\.vote-meeting/);
+  assert.match(css, /\.vote-meeting-number/);
   assert.match(css, /\.vote-disclosure/);
   assert.match(css, /\.vote-disclosure-chevron/);
 });
