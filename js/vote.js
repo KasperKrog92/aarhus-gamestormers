@@ -20,20 +20,14 @@ var STRINGS = {
     introVotingUpcoming: 'Afstemningen åbner på datoen herunder.',
     introVotingClosed: 'Afstemningen er lukket. Resultatet bliver delt, når det er klar.',
     introRevealed: 'Tak til alle der stemte. Her er resultatet, og vinderen er spillet til mødet.',
-    meetingFor: 'Forslag til {meeting}',
     scheduleMeetingDate: 'Mødedato',
     scheduleSuggestionsOpen: 'Forslag åbner',
-    scheduleSuggestionsOpened: 'Forslag åbnede',
     scheduleVotingOpens: 'Afstemning åbner',
-    scheduleVotingOpened: 'Afstemning åbnede',
     scheduleVotingCloses: 'Afstemning lukker',
-    scheduleVotingClosed: 'Afstemning lukkede',
     nextRoundHeading: 'Næste runde',
     nextRoundIntro: 'Vil du være med igen? Her er den næste runde.',
     nextRoundMeeting: 'Næste møde',
     nextRoundSuggestionsOpen: 'Forslag åbner',
-    nextRoundVotingOpens: 'Afstemning åbner',
-    nextRoundVotingCloses: 'Afstemning lukker',
     formTitle: 'Foreslå et spil',
     suggestToggle: 'Foreslå nyt spil',
     hideSuggest: 'Skjul formular',
@@ -106,20 +100,14 @@ var STRINGS = {
     introVotingUpcoming: 'Voting opens on the date below.',
     introVotingClosed: 'Voting is closed. The result will be shared when it is ready.',
     introRevealed: 'Thanks to everyone who voted. Here is the result, and the winner is the game for the meeting.',
-    meetingFor: 'Suggestions for {meeting}',
     scheduleMeetingDate: 'Meeting date',
     scheduleSuggestionsOpen: 'Suggestions open',
-    scheduleSuggestionsOpened: 'Suggestions opened',
     scheduleVotingOpens: 'Voting opens',
-    scheduleVotingOpened: 'Voting opened',
     scheduleVotingCloses: 'Voting closes',
-    scheduleVotingClosed: 'Voting closed',
     nextRoundHeading: 'Next round',
     nextRoundIntro: 'Want to join again? Here is the next round.',
     nextRoundMeeting: 'Next meeting',
     nextRoundSuggestionsOpen: 'Suggestions open',
-    nextRoundVotingOpens: 'Voting opens',
-    nextRoundVotingCloses: 'Voting closes',
     formTitle: 'Suggest a game',
     suggestToggle: 'Suggest new game',
     hideSuggest: 'Hide form',
@@ -261,36 +249,32 @@ var STRINGS = {
     }).format(date);
   }
 
-  function deadlineDetails(round) {
-    var votingHasStarted = round.votingHasStarted !== false;
-    var votingHasEnded = round.phase === 'revealed' || round.phase === 'closed' || (votingHasStarted && round.votingIsOpen === false);
-    var items = [
-      [
-        round.suggestionsAreOpen === false ? T.scheduleSuggestionsOpen : T.scheduleSuggestionsOpened,
-        round.suggestionsOpenAt,
-      ],
-      [
-        votingHasStarted ? T.scheduleVotingOpened : T.scheduleVotingOpens,
-        round.votingOpensAt,
-      ],
-      [
-        votingHasEnded ? T.scheduleVotingClosed : T.scheduleVotingCloses,
-        round.votingClosesAt,
-      ],
-    ].filter(function (item) { return formatDate(item[1]); });
-
-    if (!items.length) return null;
-    return el('dl', { class: 'vote-schedule' }, items.map(function (item) {
-      return el('div', { class: 'vote-schedule-item' }, [
+  // The single upcoming schedule date that matters for the round's current
+  // state: before suggestions open -> when they open; while suggesting -> when
+  // voting opens; while voting is open -> when it closes. Once voting has ended
+  // (closed/revealed) there is no further date for this round, so return null and
+  // let the next-round notice point ahead.
+  function nextDateDetail(round) {
+    var item = null;
+    if (round.suggestionsAreOpen === false) {
+      item = [T.scheduleSuggestionsOpen, round.suggestionsOpenAt];
+    } else if (round.votingHasStarted === false) {
+      item = [T.scheduleVotingOpens, round.votingOpensAt];
+    } else if (round.votingIsOpen !== false) {
+      item = [T.scheduleVotingCloses, round.votingClosesAt];
+    }
+    if (!item || !formatDate(item[1])) return null;
+    return el('dl', { class: 'vote-schedule' }, [
+      el('div', { class: 'vote-schedule-item' }, [
         el('dt', { text: item[0] }),
         el('dd', { text: formatDate(item[1]) }),
-      ]);
-    }));
+      ]),
+    ]);
   }
 
   function roundHero(round, statusText) {
     var meetingDate = formatDate(round.meetingDate);
-    var deadlines = deadlineDetails(round);
+    var deadlines = nextDateDetail(round);
     return el('div', { class: 'vote-round-hero' }, [
       el('div', { class: 'vote-round-kicker' }, [
         status(statusText),
@@ -313,8 +297,6 @@ var STRINGS = {
       [T.nextRoundMeeting, roundLabel(nextRound)],
       [T.scheduleMeetingDate, formatDate(nextRound.meetingDate)],
       [T.nextRoundSuggestionsOpen, formatDate(nextRound.suggestionsOpenAt)],
-      [T.nextRoundVotingOpens, formatDate(nextRound.votingOpensAt)],
-      [T.nextRoundVotingCloses, formatDate(nextRound.votingClosesAt)],
     ].filter(function (row) { return row[1]; });
     if (rows.length < 2) return null; // need more than just the meeting label
     return el('aside', { class: 'vote-guidelines vote-next-round' }, [
@@ -442,7 +424,7 @@ var STRINGS = {
   }
 
   function meetingBadge(round) {
-    return el('span', { class: 'vote-meeting', text: T.meetingFor.replace('{meeting}', roundLabel(round)) });
+    return el('span', { class: 'vote-meeting', text: roundLabel(round) });
   }
 
   function suggestionGuidelines() {
