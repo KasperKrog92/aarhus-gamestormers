@@ -7,15 +7,18 @@ name: Voting automation
 # fields before its homepage card can be published.
 #
 # The scheduler is idempotent (D1 automation_events guard each transition), so the
-# hourly cadence and any manual workflow_dispatch reruns will not duplicate phase
+# daily run and any manual workflow_dispatch reruns will not duplicate phase
 # changes, Discord posts, or handoffs. Final homepage publication stays manual via
 # MEETING_WORKFLOW.md; this workflow never edits HTML or commits to the repo.
 
 on:
   workflow_dispatch:
   schedule:
-    # Hourly at :17 to avoid the top-of-the-hour scheduling crowd.
-    - cron: "17 * * * *"
+    # Once a day at 07:00 UTC, which is 09:00 in Copenhagen during summer (CEST)
+    # and 08:00 during winter (CET); GitHub Actions cron has no timezone support.
+    # Phase announcements are date-based, so the exact minute never matters; this
+    # just lands the Discord posts at a predictable morning hour.
+    - cron: "0 7 * * *"
 
 # Read-only: the scheduler talks to the site over HTTPS and only uploads an
 # artifact. It never needs to write to the repository.

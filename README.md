@@ -40,7 +40,7 @@ Common updates:
 Two GitHub Actions workflows handle background work:
 
 - `.github/workflows/update-steam-sales.yml` refreshes Steam and GOG discount data for upcoming event store links and writes JSON files in `data/`.
-- `.github/workflows/voting-automation.yml` runs the voting scheduler (`automation/voting/`) hourly and on demand: it opens voting on the scheduled date, reveals the winner from the D1 tallies after voting closes, posts Discord announcements, and uploads a maintainer handoff when a winner still needs manual fields. It is idempotent and never edits HTML or commits to the repo. Final homepage publication stays manual via [MEETING_WORKFLOW.md](MEETING_WORKFLOW.md). See [docs/voting-system.md](docs/voting-system.md) for the runner flow and [docs/deployment-guide.md](docs/deployment-guide.md) for the required secrets.
+- `.github/workflows/voting-automation.yml` runs the voting scheduler (`automation/voting/`) once a day (around 09:00 Copenhagen) and on demand: it opens voting on the scheduled date, reveals the winner from the D1 tallies after voting closes, posts Discord announcements, and uploads a maintainer handoff when a winner still needs manual fields. It is idempotent and never edits HTML or commits to the repo. Final homepage publication stays manual via [MEETING_WORKFLOW.md](MEETING_WORKFLOW.md). See [docs/voting-system.md](docs/voting-system.md) for the runner flow and [docs/deployment-guide.md](docs/deployment-guide.md) for the required secrets.
 
 ## Deployment
 

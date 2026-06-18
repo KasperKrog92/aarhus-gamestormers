@@ -297,7 +297,7 @@ new event type:
    round. A missing alerts webhook degrades to logging.
 
 Note on the *current* (pre-feature) push: the in-progress
-`voting-automation.yml` registers an hourly cron. On `main` with no GitHub secrets
+`voting-automation.yml` registers a daily cron. On `main` with no GitHub secrets
 set, each scheduled run fails at `readEnv` (red run + notification email) until the
 secrets exist. It does not affect the website. Before pushing, either set the
 GitHub Actions secrets, temporarily disable the workflow in the Actions tab, or

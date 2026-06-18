@@ -1,6 +1,6 @@
 # Voting Scheduler And Handoff Plan
 
-Updated 2026-06-17. All tasks are complete. Tasks 1-7 (database-backed schedule fields, automation-event storage, admin automation API, pure scheduler decisions, API client, Discord builders, winner-publication planner, and handoff Markdown builder) were implemented first. Task 8 added the runner (`automation/voting/run-scheduler.mjs`) that wires those together and calls promotion when `mayPromote` is true; Task 9 added the GitHub Actions workflow (`.github/workflows/voting-automation.yml`) that drives it hourly and uploads the handoff artifact; Task 10 updated the docs and ran verification. The full suite is 100 tests passing.
+Updated 2026-06-17. All tasks are complete. Tasks 1-7 (database-backed schedule fields, automation-event storage, admin automation API, pure scheduler decisions, API client, Discord builders, winner-publication planner, and handoff Markdown builder) were implemented first. Task 8 added the runner (`automation/voting/run-scheduler.mjs`) that wires those together and calls promotion when `mayPromote` is true; Task 9 added the GitHub Actions workflow (`.github/workflows/voting-automation.yml`) that drives it once a day and uploads the handoff artifact; Task 10 updated the docs and ran verification. The full suite is 100 tests passing.
 
 Prerequisite status: the database-backed homepage and meetings work is implemented. This automation project should build on the existing `meetings` / `games` / `meeting_copy` model and admin selected-game routes instead of generating homepage HTML changes.
 
@@ -335,7 +335,7 @@ Purpose: run the automation on a predictable cadence and manually on demand.
 on:
   workflow_dispatch:
   schedule:
-    - cron: "17 * * * *"
+    - cron: "0 7 * * *"
 ```
 
 - [x] Use Node 24 to match current GitHub Actions examples in the repo.
@@ -384,7 +384,7 @@ wrangler d1 execute gamestormers --remote --file=./schema.sql
 ```
 
 - Add GitHub Actions secrets before enabling the scheduled workflow.
-- Run `workflow_dispatch` once against a test/current round before trusting hourly automation.
+- Run `workflow_dispatch` once against a test/current round before trusting the daily automation.
 - Confirm the Discord webhook posts to the intended voting announcement channel.
 - Keep final event publication manual through `MEETING_WORKFLOW.md`.
 

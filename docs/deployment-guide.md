@@ -80,7 +80,7 @@ automated run does not race the lazy migration.
 
 ## Voting Automation (GitHub Actions)
 
-The voting scheduler runs from `.github/workflows/voting-automation.yml` (hourly and on manual dispatch). It talks to
+The voting scheduler runs from `.github/workflows/voting-automation.yml` (once a day around 09:00 Copenhagen, and on manual dispatch). It talks to
 the live admin API over HTTPS and needs these **GitHub Actions secrets** (Settings, Secrets and variables, Actions):
 
 - `VOTING_BASE_URL`: `https://www.gamestormers.dk`
@@ -90,7 +90,7 @@ the live admin API over HTTPS and needs these **GitHub Actions secrets** (Settin
 
 These are distinct from the sales workflow's `DISCORD_WEBHOOK_URL` and from the Cloudflare Pages
 `DISCORD_SUGGESTIONS_WEBHOOK_URL`, so phase/winner posts, sale alerts, and new-suggestion posts can target different
-channels. Before trusting the hourly cadence, run `workflow_dispatch` once against the current round and confirm the
+channels. Before trusting the daily schedule, run `workflow_dispatch` once against the current round and confirm the
 Discord post lands in the intended channel. The workflow has read-only permissions and never commits to the repo; the
 winner handoff is uploaded as the `winner-handoff` artifact and homepage publication stays manual via
 [`../MEETING_WORKFLOW.md`](../MEETING_WORKFLOW.md). See [`voting-system.md`](voting-system.md) for the runner flow.

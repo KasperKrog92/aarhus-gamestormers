@@ -37,7 +37,7 @@ const samples = [
   ['voting_opened', votingOpenedMessage({ round, baseUrl })],
   ['winner_revealed', winnerRevealedMessage({ round, winner, baseUrl })],
   // The runner only LOGS blocked states (tie / no votes), it does not post them,
-  // so the hourly schedule never spams the channel. Shown here only so you can
+  // so the schedule never spams the channel. Shown here only so you can
   // see the format if you ever wire up manual alerting.
   [
     'blocked (preview only, not auto-posted)',

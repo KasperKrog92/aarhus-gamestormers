@@ -11,7 +11,7 @@
 // matching Discord announcement. The phase change is a second guard, because
 // decideRoundActions branches on phase and never re-opens or re-reveals a round
 // that already moved on. Blocked states (tie / no votes) only log and exit 0 so
-// the hourly schedule never turns into red-run or Discord noise.
+// the schedule never turns into red-run or Discord noise.
 
 import { pathToFileURL } from 'node:url';
 
@@ -56,7 +56,7 @@ function defaultLogger() {
 // Patch the phase, then record the transition event as a lock. Returns the
 // record result ({ duplicate, id }). A failure to record after a successful
 // phase patch is logged loudly and re-thrown: the phase already advanced, so the
-// next hourly run is a no-op, but the maintainer should know the event log and a
+// next scheduled run is a no-op, but the maintainer should know the event log and a
 // possible Discord post were skipped.
 async function patchPhaseAndRecord({ client, logger }, { roundId, patch, eventType, payload }) {
   await client.patchRound(roundId, patch);
