@@ -28,6 +28,25 @@ var STRINGS = {
     nextRoundIntro: 'Vil du være med igen? Her er den næste runde.',
     nextRoundMeeting: 'Næste møde',
     nextRoundSuggestionsOpen: 'Forslag åbner',
+    countdownPrefix: 'Tid til',
+    countdownNow: 'I dag',
+    countdownDays: 'Dage',
+    countdownHours: 'Timer',
+    countdownMinutes: 'Minutter',
+    countdownSeconds: 'Sekunder',
+    timelineSuggestions: 'Forslag',
+    timelineVoting: 'Afstemning',
+    timelineWinner: 'Vinder',
+    timelineMeeting: 'Klubaften',
+    flowTitle: 'Sådan foregår et møde',
+    flowSuggestTitle: 'Foreslå',
+    flowSuggestText: 'Medlemmer foreslår spil, der passer til fælles spil og diskussion.',
+    flowVoteTitle: 'Stem',
+    flowVoteText: 'Når afstemningen åbner, stemmer du på alle de spil, du gerne vil spille.',
+    flowWinnerTitle: 'Vinderen findes',
+    flowWinnerText: 'Spillet med flest stemmer bliver valgt til mødet.',
+    flowMeetingTitle: 'Spil og diskutér',
+    flowMeetingText: 'Vi spiller hjemmefra og mødes til en fælles samtale i klubben.',
     formTitle: 'Foreslå et spil',
     suggestToggle: 'Foreslå nyt spil',
     hideSuggest: 'Skjul formular',
@@ -108,6 +127,25 @@ var STRINGS = {
     nextRoundIntro: 'Want to join again? Here is the next round.',
     nextRoundMeeting: 'Next meeting',
     nextRoundSuggestionsOpen: 'Suggestions open',
+    countdownPrefix: 'Time until',
+    countdownNow: 'Today',
+    countdownDays: 'Days',
+    countdownHours: 'Hours',
+    countdownMinutes: 'Minutes',
+    countdownSeconds: 'Seconds',
+    timelineSuggestions: 'Suggestions',
+    timelineVoting: 'Voting',
+    timelineWinner: 'Winner',
+    timelineMeeting: 'Club night',
+    flowTitle: 'How a meeting works',
+    flowSuggestTitle: 'Suggest',
+    flowSuggestText: 'Members suggest games that fit shared play and discussion.',
+    flowVoteTitle: 'Vote',
+    flowVoteText: 'When voting opens, tick every game you would be happy to play.',
+    flowWinnerTitle: 'Winner picked',
+    flowWinnerText: 'The game with the most votes is chosen for the meeting.',
+    flowMeetingTitle: 'Play and discuss',
+    flowMeetingText: 'We play at home and meet for a shared club conversation.',
     formTitle: 'Suggest a game',
     suggestToggle: 'Suggest new game',
     hideSuggest: 'Hide form',
@@ -167,6 +205,7 @@ var STRINGS = {
 (function () {
   var app = document.getElementById('vote-app');
   if (!app) return;
+  var flowSlot = document.getElementById('vote-flow-slot');
 
   var TURNSTILE_TEST_SITEKEY = '1x00000000000000000000AA';
   var lang = document.documentElement.lang === 'en' ? 'en' : 'da';
@@ -176,6 +215,7 @@ var STRINGS = {
 
   var tsWidgetId = null;
   var tsToken = '';
+  var countdownTimerIds = [];
 
   // ── helpers ───────────────────────────────────────────────────────────────
   function el(tag, attrs, children) {
@@ -197,6 +237,16 @@ var STRINGS = {
   }
 
   function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); }
+
+  function clearCountdowns() {
+    countdownTimerIds.forEach(function (id) { clearInterval(id); });
+    countdownTimerIds = [];
+  }
+
+  function clearApp() {
+    clearCountdowns();
+    clear(app);
+  }
 
   function api(path, opts) {
     return fetch('/api' + path, opts).then(function (res) {
@@ -257,26 +307,149 @@ var STRINGS = {
     }).format(date);
   }
 
-  function nextDateDetail(round) {
-    var item = null;
-    if (round.suggestionsAreOpen === false) {
-      item = [T.scheduleSuggestionsOpen, round.suggestionsOpenAt];
-    } else if (round.votingHasStarted === false) {
-      item = [T.scheduleVotingOpens, round.votingOpensAt];
-    } else if (round.votingIsOpen !== false) {
-      item = [T.scheduleVotingCloses, round.votingClosesAt];
+  function parseDateOnly(dateString) {
+    var match = String(dateString || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!match) return null;
+    var date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+    if (
+      date.getFullYear() !== Number(match[1]) ||
+      date.getMonth() !== Number(match[2]) - 1 ||
+      date.getDate() !== Number(match[3])
+    ) {
+      return null;
     }
-    if (!item || !formatDate(item[1])) return null;
-    return el('dl', { class: 'vote-schedule' }, [
-      el('div', { class: 'vote-schedule-item' }, [
-        el('dt', { text: item[0] }),
-        el('dd', { text: formatDate(item[1]) }),
+    return date;
+  }
+
+  function timelineState(round, key) {
+    var revealed = round.phase === 'revealed' || round.phase === 'closed';
+    if (key === 'suggestions') return round.phase === 'suggesting' ? 'current' : 'done';
+    if (key === 'voting') {
+      if (revealed) return 'done';
+      if (round.phase === 'voting') return 'current';
+      return 'upcoming';
+    }
+    if (key === 'winner') return revealed ? 'current' : 'upcoming';
+    return revealed ? 'current' : 'upcoming';
+  }
+
+  function clamp(value, min, max) {
+    return Math.min(max, Math.max(min, value));
+  }
+
+  function segmentProgress(startDateString, endDateString) {
+    var start = parseDateOnly(startDateString);
+    var end = parseDateOnly(endDateString);
+    if (!start || !end || end.getTime() <= start.getTime()) return 0;
+    return clamp((Date.now() - start.getTime()) / (end.getTime() - start.getTime()), 0, 1);
+  }
+
+  function timelineProgress(round) {
+    if (round.phase === 'suggesting') {
+      if (round.suggestionsAreOpen === false) return 0;
+      return segmentProgress(round.suggestionsOpenAt, round.votingOpensAt) / 3;
+    }
+    if (round.phase === 'voting') {
+      return (1 / 3) + (segmentProgress(round.votingOpensAt, round.votingClosesAt) / 3);
+    }
+    if (round.phase === 'revealed') {
+      return (2 / 3) + (segmentProgress(round.votingClosesAt, round.meetingDate) / 3);
+    }
+    if (round.phase === 'closed') return 1;
+    return 0;
+  }
+
+  function phaseTimeline(round) {
+    var steps = [
+      ['suggestions', T.timelineSuggestions, round.suggestionsOpenAt],
+      ['voting', T.timelineVoting, round.votingOpensAt],
+      ['winner', T.timelineWinner, round.votingClosesAt],
+      ['meeting', T.timelineMeeting, round.meetingDate],
+    ];
+    var states = steps.map(function (step) { return timelineState(round, step[0]); });
+    var currentIndex = Math.max(0, states.indexOf('current'));
+    var fill = Math.round(timelineProgress(round) * 1000) / 10;
+    return el('ol', { class: 'vote-phase-timeline progress-' + currentIndex, style: '--vote-progress:' + fill + '%', 'aria-label': T.flowTitle }, steps.map(function (step, index) {
+      var state = states[index];
+      var date = formatDate(step[2]);
+      return el('li', { class: 'vote-phase-step ' + state }, [
+        el('span', { class: 'vote-phase-marker', text: state === 'done' ? '✓' : String(index + 1) }),
+        el('span', { class: 'vote-phase-name', text: step[1] }),
+        date ? el('time', { class: 'vote-phase-date', datetime: step[2], text: date }) : null,
+      ]);
+    }));
+  }
+
+  function countdownTarget(round) {
+    if (round.phase === 'suggesting') {
+      return round.suggestionsAreOpen === false
+        ? [T.scheduleSuggestionsOpen, round.suggestionsOpenAt]
+        : [T.scheduleVotingOpens, round.votingOpensAt];
+    }
+    if (round.phase === 'voting') {
+      return round.votingHasStarted === false
+        ? [T.scheduleVotingOpens, round.votingOpensAt]
+        : [T.scheduleVotingCloses, round.votingClosesAt];
+    }
+    return null;
+  }
+
+  function countdownDetail(dateString, label) {
+    var target = parseDateOnly(dateString);
+    if (!target) return null;
+    var valueNodes = {
+      days: el('strong', { text: '0' }),
+      hours: el('strong', { text: '0' }),
+      minutes: el('strong', { text: '0' }),
+      seconds: el('strong', { text: '0' }),
+    };
+    var note = el('span', { class: 'vote-countdown-note', text: formatDate(dateString) });
+    var node = el('div', { class: 'vote-countdown' }, [
+      el('span', { class: 'vote-countdown-label', text: T.countdownPrefix + ' ' + label.toLowerCase() }),
+      el('div', { class: 'vote-countdown-grid' }, [
+        el('span', null, [valueNodes.days, el('small', { text: T.countdownDays })]),
+        el('span', null, [valueNodes.hours, el('small', { text: T.countdownHours })]),
+        el('span', null, [valueNodes.minutes, el('small', { text: T.countdownMinutes })]),
+        el('span', null, [valueNodes.seconds, el('small', { text: T.countdownSeconds })]),
       ]),
+      note,
+    ]);
+
+    function update() {
+      var diff = Math.max(0, target.getTime() - Date.now());
+      var totalSeconds = Math.floor(diff / 1000);
+      var days = Math.floor(totalSeconds / 86400);
+      var hours = Math.floor((totalSeconds % 86400) / 3600);
+      var minutes = Math.floor((totalSeconds % 3600) / 60);
+      var seconds = totalSeconds % 60;
+      valueNodes.days.textContent = String(days).padStart(2, '0');
+      valueNodes.hours.textContent = String(hours).padStart(2, '0');
+      valueNodes.minutes.textContent = String(minutes).padStart(2, '0');
+      valueNodes.seconds.textContent = String(seconds).padStart(2, '0');
+      if (diff === 0) note.textContent = T.countdownNow;
+    }
+
+    update();
+    countdownTimerIds.push(setInterval(update, 1000));
+    return node;
+  }
+
+  function nextDateDetail(round) {
+    var item = countdownTarget(round);
+    if (!item || !formatDate(item[1])) return null;
+    return countdownDetail(item[1], item[0]);
+  }
+
+  function dateCard(label, dateString) {
+    var formatted = formatDate(dateString);
+    if (!formatted) return null;
+    return el('div', { class: 'vote-date-card' }, [
+      el('span', { class: 'vote-date-label', text: label }),
+      el('time', { class: 'vote-date-value', datetime: dateString, text: formatted }),
     ]);
   }
 
   function roundHero(round, statusText) {
-    var meetingDate = formatDate(round.meetingDate);
     var nextDate = nextDateDetail(round);
     return el('div', { class: 'vote-round-hero' }, [
       el('div', { class: 'vote-round-kicker' }, [
@@ -285,13 +458,11 @@ var STRINGS = {
       el('div', { class: 'vote-round-main' }, [
         meetingBadge(round),
         el('div', { class: 'vote-round-dates' }, [
-          meetingDate ? el('div', { class: 'vote-date-card' }, [
-            el('span', { class: 'vote-date-label', text: T.scheduleMeetingDate }),
-            el('time', { class: 'vote-date-value', datetime: round.meetingDate, text: meetingDate }),
-          ]) : null,
+          dateCard(T.scheduleMeetingDate, round.meetingDate),
           nextDate,
         ]),
       ]),
+      phaseTimeline(round),
     ]);
   }
 
@@ -300,6 +471,7 @@ var STRINGS = {
   // is no next round or it has no usable dates yet.
   function nextRoundNotice(nextRound) {
     if (!nextRound) return null;
+    var countdown = countdownDetail(nextRound.suggestionsOpenAt, T.nextRoundSuggestionsOpen);
     var rows = [
       [T.nextRoundMeeting, roundLabel(nextRound)],
       [T.scheduleMeetingDate, formatDate(nextRound.meetingDate)],
@@ -309,6 +481,7 @@ var STRINGS = {
     return el('aside', { class: 'vote-guidelines vote-next-round' }, [
       el('h2', { class: 'vote-guidelines-title', text: T.nextRoundHeading }),
       el('p', { class: 'vote-intro', text: T.nextRoundIntro }),
+      countdown,
       el('dl', { class: 'vote-schedule' }, rows.map(function (row) {
         return el('div', { class: 'vote-schedule-item' }, [
           el('dt', { text: row[0] }),
@@ -439,6 +612,33 @@ var STRINGS = {
     ]);
   }
 
+  function meetingFlow() {
+    var steps = [
+      [T.flowSuggestTitle, T.flowSuggestText],
+      [T.flowVoteTitle, T.flowVoteText],
+      [T.flowWinnerTitle, T.flowWinnerText],
+      [T.flowMeetingTitle, T.flowMeetingText],
+    ];
+    return el('details', { class: 'vote-flow' }, [
+      el('summary', { class: 'vote-flow-trigger', text: T.flowTitle }),
+      el('ol', { class: 'vote-flow-list' }, steps.map(function (step, index) {
+        return el('li', { class: 'vote-flow-step' }, [
+          el('span', { class: 'vote-flow-number', text: String(index + 1) }),
+          el('span', { class: 'vote-flow-copy' }, [
+            el('strong', { text: step[0] }),
+            el('span', { text: step[1] }),
+          ]),
+        ]);
+      })),
+    ]);
+  }
+
+  function mountMeetingFlow() {
+    if (!flowSlot) return;
+    clear(flowSlot);
+    flowSlot.appendChild(meetingFlow());
+  }
+
   function suggestionGuidelines() {
     var eventsHref = lang === 'en' ? '/en/#events' : '/#events';
     var historyHref = lang === 'en' ? '/en/#history' : '/#history';
@@ -470,7 +670,7 @@ var STRINGS = {
 
   // ── phase renderers ─────────────────────────────────────────────────────────
   function renderNone() {
-    clear(app);
+    clearApp();
     app.appendChild(el('div', { class: 'vote-round-hero vote-round-hero-empty' }, [
       status(T.statusNone),
     ]));
@@ -479,9 +679,8 @@ var STRINGS = {
 
   function renderSuggesting(data) {
     var suggestionsOpen = data.round.suggestionsAreOpen !== false;
-    clear(app);
+    clearApp();
     app.appendChild(roundHero(data.round, suggestionsOpen ? T.statusSuggesting : T.statusUpcoming));
-    app.appendChild(el('p', { class: 'vote-intro', html: suggestionsOpen ? T.introSuggesting : T.introUpcoming }));
     if (!suggestionsOpen) return;
     var suggestionItems = data.suggestions.slice();
     var suggestionHeading = el('h2', { class: 'vote-list-title', text: T.approvedSoFar });
@@ -663,7 +862,7 @@ var STRINGS = {
   function renderVoting(data) {
     var votingOpen = data.round.votingIsOpen !== false;
     var votingHasStarted = data.round.votingHasStarted !== false;
-    clear(app);
+    clearApp();
     app.appendChild(roundHero(data.round, votingOpen ? T.statusVoting : (votingHasStarted ? T.statusVotingClosed : T.statusVotingUpcoming)));
     app.appendChild(el('p', { class: 'vote-intro', html: votingOpen ? T.introVoting : (votingHasStarted ? T.introVotingClosed : T.introVotingUpcoming) }));
     if (!votingHasStarted) return;
@@ -729,7 +928,7 @@ var STRINGS = {
   }
 
   function renderRevealed(data) {
-    clear(app);
+    clearApp();
     app.appendChild(roundHero(data.round, T.statusRevealed));
     app.appendChild(el('p', { class: 'vote-intro', text: T.introRevealed }));
 
@@ -765,6 +964,7 @@ var STRINGS = {
 
   // ── boot ─────────────────────────────────────────────────────────────────
   function load() {
+    mountMeetingFlow();
     app.appendChild(el('p', { class: 'vote-intro', text: T.loading }));
     api('/round/current')
       .then(function (data) {
@@ -774,7 +974,7 @@ var STRINGS = {
         return renderRevealed(data); // revealed | closed
       })
       .catch(function (err) {
-        clear(app);
+        clearApp();
         var box = msgBox();
         app.appendChild(box);
         showMsg(box, err.message, false);
