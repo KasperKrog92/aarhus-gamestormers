@@ -24,7 +24,7 @@ It is the site's only dynamic feature. It runs on Cloudflare Pages Functions and
 - `meetings`: public meeting basics for the homepage and history flow. `meetings.id` matches `rounds.id`.
 - `games`: reusable selected-game metadata for public event and history cards.
 - `meeting_copy`: localized public event/history copy for a meeting.
-- `suggestions`: submitted games, imported metadata, and the authenticated Discord user id for new submissions.
+- `suggestions`: submitted games, imported metadata, the authenticated Discord user id, and the member's public display-name preference.
 - `votes`: approval-voting rows, one row per selected game. New votes are associated with the authenticated Discord user so one member has one replaceable ballot per round.
 - `discord_users`, `auth_sessions`, `oauth_states`: minimal Discord OAuth login data. OAuth access tokens and guild lists are not stored.
 - `automation_events`: idempotency log for the voting scheduler. One row per automated action on a round, with a `UNIQUE (round_id, event_type)` constraint so reruns cannot duplicate a Discord post or handoff.
@@ -40,6 +40,8 @@ It is the site's only dynamic feature. It runs on Cloudflare Pages Functions and
 | `/api/auth/session` | GET | Returns the current logged-in UI state and Discord invite link. |
 | `/api/auth/logout` | GET/POST | Deletes the current session and clears the session cookie. |
 | `/api/suggest` | POST | Submit a suggestion. Requires Discord login and membership in the Aarhus Gamestormers server. Steam suggestions are imported server-side and auto-approved. Non-Steam suggestions are pending until maintainer approval. |
+| `/api/suggestions/mine` | GET | Return the logged-in member's suggestions for the current round, including status and public display-name preference. Discord ids are never returned. |
+| `/api/suggestions/:id` | PATCH | Let the original logged-in suggester change only their own `showName` preference. Ownership comes from the authenticated Discord session. |
 | `/api/vote` | POST | Cast an approval ballot. Requires Discord login and membership in the Aarhus Gamestormers server. Re-submitting replaces that Discord user's previous ballot for the round. |
 | `/api/admin/round` | GET/POST/PATCH | Read full round, open a new round, change phase, winner, meeting date, schedule windows, Discord event URL, or public meeting basics. The GET response also includes the selected game, localized meeting copy, publish-readiness and Discord-announcement readiness checks, and the round's `automationEvents`. |
 | `/api/admin/round/:id/select` | POST | Promote a suggestion to the meeting's selected game (body: `suggestionId`). Copies the suggestion into `games`, attaches it to the meeting, confirms `winner_suggestion_id`, and reveals the round unless it is already closed. |
@@ -150,7 +152,9 @@ Members can browse the vote page without logging in, but suggesting and voting r
 
 The callback does not request email and does not store OAuth access tokens or guild lists. D1 stores only the Discord user id, optional username/avatar for logged-in UI and admin context, a membership flag, short-lived OAuth state, and hashed session tokens.
 
-For suggestions, new rows store `discord_user_id` and `suggested_by` so admins may see who suggested a game. Public suggestion cards do not expose Discord ids, and auth-backed suggestions do not expose the Discord user id publicly.
+For suggestions, new rows store `discord_user_id` and a `suggested_by` display-name snapshot so admins may see who suggested a game. The suggestion form also sends `showName`, which is checked by default. Public cards show the saved name only when `show_suggester_name` is enabled, and they never expose Discord ids. Logged-in members can change this preference for their own current-round suggestions in every voting phase. The update route checks `suggestions.discord_user_id` against the session and does not require the member to send their name or id.
+
+The lazy D1 migration adds `show_suggester_name` as nullable. Existing authenticated suggestions therefore stay hidden, while older pre-auth suggestions retain their previous byline behaviour. Every new authenticated submission writes an explicit `1` or `0`, defaulting to `1` when `showName` is omitted.
 
 For votes, submitting a ballot deletes that Discord user's previous rows for the current round and inserts the new choices. That makes the latest vote count across browsers and devices. Individual ballots are not exposed publicly, and the default admin UI shows aggregate counts rather than individual voter ballots.
 
@@ -288,7 +292,7 @@ The idempotency model has two guards. Phase patches happen before their transiti
 
 ### Scheduled workflow
 
-`.github/workflows/voting-automation.yml` drives the runner on `workflow_dispatch` and once a day (`cron: "0 7 * * *"`, about 09:00 in Copenhagen) using Node 24. It runs `npm test`, then `node automation/voting/run-scheduler.mjs`, then uploads `automation-output/*.md` as the `winner-handoff` artifact (`if-no-files-found: ignore`, so the common no-op run stays green). Permissions are minimal (`contents: read`, `actions: read`); the workflow never commits or edits HTML. It reads the GitHub Actions secrets `VOTING_BASE_URL`, `VOTING_ADMIN_TOKEN`, and the optional `DISCORD_VOTING_WEBHOOK_URL` / `DISCORD_VOTING_ALERTS_WEBHOOK_URL` (see [`deployment-guide.md`](deployment-guide.md)). Playtime should stay manual unless a reliable source becomes available. (New-suggestion Discord notifications are built separately, see Suggestion Notifications above.)
+`.github/workflows/voting-automation.yml` drives the runner on `workflow_dispatch` and once a day at 09:00 Europe/Copenhagen using Node 24. Because GitHub Actions cron is UTC-only, the workflow has candidate schedules for 07:00 and 08:00 UTC and a first-step Copenhagen time gate; only the candidate run where the local hour is 09 proceeds to tests and the scheduler. It runs `npm test`, then `node automation/voting/run-scheduler.mjs`, then uploads `automation-output/*.md` as the `winner-handoff` artifact (`if-no-files-found: ignore`, so the common no-op run stays green). Permissions are minimal (`contents: read`, `actions: read`); the workflow never commits or edits HTML. It reads the GitHub Actions secrets `VOTING_BASE_URL`, `VOTING_ADMIN_TOKEN`, and the optional `DISCORD_VOTING_WEBHOOK_URL` / `DISCORD_VOTING_ALERTS_WEBHOOK_URL` (see [`deployment-guide.md`](deployment-guide.md)). Playtime should stay manual unless a reliable source becomes available. (New-suggestion Discord notifications are built separately, see Suggestion Notifications above.)
 
 ### Out Of Scope
 

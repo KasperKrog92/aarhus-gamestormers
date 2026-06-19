@@ -1,9 +1,15 @@
 // POST /api/suggest - submit a game suggestion.
-// Body (Steam):     { onSteam:true,  steamUrl, pitch }
-// Body (non-Steam): { onSteam:false, title, storeUrl, genres, pitch }
+// Body (Steam):     { onSteam:true,  steamUrl, pitch, showName }
+// Body (non-Steam): { onSteam:false, title, storeUrl, genres, pitch, showName }
 // Gated by: phase === 'suggesting' and authenticated Discord guild membership.
 import { json, fail, readJson, clean } from '../_lib/http.js';
-import { ensureRoundScheduleColumns, ensureSuggestionDescriptionColumns, getCurrentRound, toCard } from '../_lib/db.js';
+import {
+  ensureRoundScheduleColumns,
+  ensureSuggestionDescriptionColumns,
+  ensureSuggestionVisibilityColumn,
+  getCurrentRound,
+  toCard,
+} from '../_lib/db.js';
 import { roundScheduleState } from '../_lib/schedule.js';
 import { parseSteamAppId, fetchSteamGame } from '../_lib/steam.js';
 import { notifyDiscord } from '../_lib/notify.js';
@@ -29,10 +35,14 @@ export async function onRequestPost({ request, env, waitUntil }) {
 
   const body = await readJson(request);
   if (!body) return fail('Invalid request body');
+  if (body.showName !== undefined && typeof body.showName !== 'boolean') {
+    return fail('showName must be true or false.');
+  }
 
   const auth = await requireMemberSession(db, request, env);
   if (!auth.ok) return json({ error: auth.message, invite: auth.invite || null }, auth.status);
 
+  await ensureSuggestionVisibilityColumn(db);
   await ensureRoundScheduleColumns(db);
   const round = await getCurrentRound(db);
   if (!round) return fail('No active round', 409);
@@ -49,6 +59,10 @@ export async function onRequestPost({ request, env, waitUntil }) {
 function bySuffix(user) {
   const name = displayName(user);
   return name ? ` by ${name}` : '';
+}
+
+export function showNameValue(body) {
+  return body && body.showName === false ? 0 : 1;
 }
 
 async function suggestSteam(db, round, body, user, env, waitUntil) {
@@ -74,8 +88,8 @@ async function suggestSteam(db, round, body, user, env, waitUntil) {
   const inserted = await db
     .prepare(
       `INSERT INTO suggestions
-         (round_id, steam_appid, title, header_image, store_url, genres, price, platforms, description_da, description_en, pitch, suggested_by, discord_user_id, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'approved')`
+         (round_id, steam_appid, title, header_image, store_url, genres, price, platforms, description_da, description_en, pitch, suggested_by, discord_user_id, show_suggester_name, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'approved')`
     )
     .bind(
       round.id,
@@ -90,7 +104,8 @@ async function suggestSteam(db, round, body, user, env, waitUntil) {
       clean(game.descriptionEn, 1000),
       clean(body.pitch, 500),
       displayName(user),
-      user.discordId
+      user.discordId,
+      showNameValue(body)
     )
     .run();
 
@@ -131,8 +146,8 @@ async function suggestManual(db, round, body, user, env, waitUntil) {
   await db
     .prepare(
       `INSERT INTO suggestions
-         (round_id, steam_appid, title, header_image, store_url, genres, price, platforms, pitch, suggested_by, discord_user_id, status)
-       VALUES (?, NULL, ?, NULL, ?, ?, NULL, NULL, ?, ?, ?, 'pending')`
+         (round_id, steam_appid, title, header_image, store_url, genres, price, platforms, pitch, suggested_by, discord_user_id, show_suggester_name, status)
+       VALUES (?, NULL, ?, NULL, ?, ?, NULL, NULL, ?, ?, ?, ?, 'pending')`
     )
     .bind(
       round.id,
@@ -141,7 +156,8 @@ async function suggestManual(db, round, body, user, env, waitUntil) {
       clean(body.genres, 200),
       clean(body.pitch, 500),
       displayName(user),
-      user.discordId
+      user.discordId,
+      showNameValue(body)
     )
     .run();
 

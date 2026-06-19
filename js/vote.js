@@ -88,6 +88,13 @@ var STRINGS = {
     suggestedPitch: 'Pitch fra forslagsstiller',
     labelPitch: 'Din pitch (valgfri)',
     pitchPlaceholder: 'Hvorfor skulle vi spille det? Skriv et par linjer på engelsk.',
+    showNameLabel: 'Vis mit Discord-navn på forslaget',
+    showNameHint: 'Du kan ændre dette senere, når du er logget ind.',
+    manageNamesTitle: 'Dit navn på dine forslag',
+    manageNamesHint: 'Vælg selv, hvilke forslag der viser dit Discord-navn offentligt.',
+    suggestionPending: 'Afventer godkendelse',
+    suggestionApproved: 'Godkendt',
+    suggestionRejected: 'Afvist',
     btnSuggest: 'Send forslag',
     suggestThanks: 'Tak! “{title}” er tilføjet til forslagene.',
     manualThanks: 'Tak! “{title}” bliver vist, når en admin har godkendt det.',
@@ -195,6 +202,13 @@ var STRINGS = {
     suggestedPitch: 'Suggested pitch',
     labelPitch: 'Your pitch (optional)',
     pitchPlaceholder: 'Why should we play it? Please write a couple of lines in English.',
+    showNameLabel: 'Show my Discord name on this suggestion',
+    showNameHint: 'You can change this later while you are logged in.',
+    manageNamesTitle: 'Your name on your suggestions',
+    manageNamesHint: 'Choose which suggestions publicly show your Discord name.',
+    suggestionPending: 'Pending approval',
+    suggestionApproved: 'Approved',
+    suggestionRejected: 'Rejected',
     btnSuggest: 'Submit suggestion',
     suggestThanks: 'Thanks! “{title}” has been added to the suggestions.',
     manualThanks: 'Thanks! “{title}” will appear once an admin has approved it.',
@@ -227,6 +241,7 @@ var STRINGS = {
   var T = STRINGS[lang];
 
   var session = { authenticated: false, user: null, discordInvite: 'https://discord.gg/N2h6DJxVDF' };
+  var mySuggestions = [];
   var countdownTimerIds = [];
 
   // ── helpers ───────────────────────────────────────────────────────────────
@@ -338,6 +353,114 @@ var STRINGS = {
         el('p', { class: 'vote-hint', text: T.privacyNote }),
       ]),
       el('a', { class: 'btn-green', href: loginUrl(), text: T.loginButton }),
+    ]);
+  }
+
+  function findMySuggestion(id) {
+    return mySuggestions.find(function (suggestion) { return Number(suggestion.id) === Number(id); }) || null;
+  }
+
+  function suggestionStatusText(value) {
+    if (value === 'approved') return T.suggestionApproved;
+    if (value === 'rejected') return T.suggestionRejected;
+    return T.suggestionPending;
+  }
+
+  function syncSuggestionBylines(id) {
+    var mine = findMySuggestion(id);
+    if (!mine) return;
+    document.querySelectorAll('[data-suggestion-card-id="' + Number(id) + '"] .suggestion-by').forEach(function (byline) {
+      clear(byline);
+      byline.appendChild(document.createTextNode(T.by + ' '));
+      byline.appendChild(el('b', { text: mine.suggestedBy || 'Discord user' }));
+      byline.hidden = !mine.showName;
+    });
+  }
+
+  function renderOwnerPanelInto(slot) {
+    clear(slot);
+    slot.hidden = !mySuggestions.length;
+    if (!mySuggestions.length) return;
+
+    var list = el('div', { class: 'vote-owner-list' });
+    mySuggestions.forEach(function (suggestion) {
+      var checkbox = el('input', { type: 'checkbox' });
+      checkbox.checked = !!suggestion.showName;
+      var message = msgBox();
+      checkbox.addEventListener('change', function () {
+        var requested = checkbox.checked;
+        checkbox.disabled = true;
+        api('/suggestions/' + suggestion.id, {
+          method: 'PATCH',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ showName: requested }),
+        })
+          .then(function (res) {
+            mySuggestions = mySuggestions.map(function (item) {
+              return Number(item.id) === Number(res.suggestion.id) ? res.suggestion : item;
+            });
+            syncSuggestionBylines(suggestion.id);
+            refreshOwnerPanels();
+          })
+          .catch(function (err) {
+            checkbox.checked = !requested;
+            checkbox.disabled = false;
+            showMsg(message, err.message, false);
+          });
+      });
+
+      list.appendChild(el('div', { class: 'vote-owner-item' }, [
+        el('div', { class: 'vote-owner-copy' }, [
+          el('strong', { text: suggestion.title }),
+          el('span', { class: 'vote-owner-status', text: suggestionStatusText(suggestion.status) }),
+        ]),
+        el('label', { class: 'vote-name-choice vote-owner-toggle' }, [
+          checkbox,
+          el('span', { text: T.showNameLabel }),
+        ]),
+        message,
+      ]));
+    });
+
+    slot.appendChild(el('aside', { class: 'vote-panel vote-owner-panel' }, [
+      el('h2', { class: 'vote-panel-title', text: T.manageNamesTitle }),
+      el('p', { class: 'vote-hint', text: T.manageNamesHint }),
+      list,
+    ]));
+  }
+
+  function ownerVisibilitySlot() {
+    var slot = el('div', { 'data-owner-visibility-panel': 'true' });
+    renderOwnerPanelInto(slot);
+    return slot;
+  }
+
+  function refreshOwnerPanels() {
+    document.querySelectorAll('[data-owner-visibility-panel]').forEach(renderOwnerPanelInto);
+  }
+
+  function refreshMySuggestions() {
+    if (!session || !session.authenticated) {
+      mySuggestions = [];
+      refreshOwnerPanels();
+      return Promise.resolve();
+    }
+    return api('/suggestions/mine')
+      .then(function (res) {
+        mySuggestions = res.suggestions || [];
+        refreshOwnerPanels();
+        mySuggestions.forEach(function (suggestion) { syncSuggestionBylines(suggestion.id); });
+      });
+  }
+
+  function nameVisibilityChoice(checkbox) {
+    checkbox.checked = true;
+    return el('div', { class: 'vote-name-field' }, [
+      el('label', { class: 'vote-name-choice' }, [
+        checkbox,
+        el('span', { text: T.showNameLabel }),
+      ]),
+      el('p', { class: 'vote-hint', text: T.showNameHint }),
     ]);
   }
 
@@ -576,6 +699,8 @@ var STRINGS = {
   // ── card builder ───────────────────────────────────────────────────────────
   function card(s, mode, opts) {
     opts = opts || {};
+    var mine = findMySuggestion(s.id);
+    var bylineName = s.suggestedBy || (mine && mine.suggestedBy) || '';
     var description = lang === 'en' ? (s.descriptionEn || s.descriptionDa) : (s.descriptionDa || s.descriptionEn);
     var tags = [];
     (s.genres || []).slice(0, 3).forEach(function (g) {
@@ -606,7 +731,11 @@ var STRINGS = {
         el('span', { class: 'suggestion-copy-label', text: T.suggestedPitch }),
         el('p', { class: 'suggestion-pitch', text: s.pitch }),
       ]) : null,
-      s.suggestedBy ? el('p', { class: 'suggestion-by', html: T.by + ' <b>' + escapeHtml(s.suggestedBy) + '</b>' }) : null,
+      bylineName ? el('p', {
+        class: 'suggestion-by',
+        html: T.by + ' <b>' + escapeHtml(bylineName) + '</b>',
+        hidden: s.suggestedBy || (mine && mine.showName) ? null : 'hidden',
+      }) : null,
     ];
 
     var classes = 'suggestion-card';
@@ -636,7 +765,7 @@ var STRINGS = {
       setTimeout(function () { bar.firstChild.style.width = pct + '%'; }, 30);
     }
 
-    var node = el('article', { class: classes }, [
+    var node = el('article', { class: classes, 'data-suggestion-card-id': s.id }, [
       el('img', { class: 'suggestion-cover', src: s.image, alt: s.title, loading: 'lazy', decoding: 'async' }),
       el('div', { class: 'suggestion-body' }, body),
     ]);
@@ -744,7 +873,10 @@ var STRINGS = {
     clearApp();
     app.appendChild(roundHero(data.round, suggestionsOpen ? T.statusSuggesting : T.statusUpcoming));
     if (!suggestionsOpen) {
-      if (session && session.authenticated) app.appendChild(authPanel('suggest'));
+      if (session && session.authenticated) {
+        app.appendChild(authPanel('suggest'));
+        app.appendChild(ownerVisibilitySlot());
+      }
       return;
     }
     var suggestionItems = data.suggestions.slice();
@@ -773,6 +905,7 @@ var STRINGS = {
     }
 
     app.appendChild(authPanel('suggest'));
+    if (session && session.authenticated) app.appendChild(ownerVisibilitySlot());
     if (!canParticipate()) {
       renderSuggestionList();
       return;
@@ -828,6 +961,7 @@ var STRINGS = {
             showMsg(box, thanks.replace('{title}', res.game.title), true);
             if (!res.pending) addApprovedSuggestion(res.game);
             clearInputs();
+            refreshMySuggestions().catch(function () {});
           })
           .catch(function (err) { showMsg(box, err.message, false); })
           .finally(function () { btn.disabled = false; });
@@ -838,6 +972,7 @@ var STRINGS = {
       clear(panel);
       var steam = el('input', { class: 'vote-input', type: 'url', placeholder: 'https://store.steampowered.com/app/…' });
       var pitch = el('textarea', { class: 'vote-textarea', placeholder: T.pitchPlaceholder, maxlength: '500' });
+      var showName = el('input', { type: 'checkbox' });
       var box = msgBox();
       var btn = el('button', { class: 'btn-green', type: 'submit', text: T.btnSuggest });
 
@@ -845,6 +980,7 @@ var STRINGS = {
         el('div', { class: 'vote-panel-head' }, [el('h2', { class: 'vote-panel-title', text: T.formTitle }), backLink()]),
         field(T.labelSteam, steam, T.hintSteam),
         field(T.labelPitch, pitch),
+        nameVisibilityChoice(showName),
         el('div', { class: 'vote-actions' }, [btn]),
         box,
       ]);
@@ -856,6 +992,7 @@ var STRINGS = {
             onSteam: true,
             steamUrl: steam.value,
             pitch: pitch.value,
+            showName: showName.checked,
           };
         },
         function () { steam.value = pitch.value = ''; },
@@ -871,6 +1008,7 @@ var STRINGS = {
       var store = el('input', { class: 'vote-input', type: 'url', placeholder: T.storePlaceholder, maxlength: '400' });
       var genres = el('input', { class: 'vote-input', type: 'text', placeholder: T.genresPlaceholder, maxlength: '200' });
       var pitch = el('textarea', { class: 'vote-textarea', placeholder: T.pitchPlaceholder, maxlength: '500' });
+      var showName = el('input', { type: 'checkbox' });
       var box = msgBox();
       var btn = el('button', { class: 'btn-green', type: 'submit', text: T.btnSuggest });
 
@@ -881,6 +1019,7 @@ var STRINGS = {
         field(T.labelStore, store),
         field(T.labelGenres, genres),
         field(T.labelPitch, pitch),
+        nameVisibilityChoice(showName),
         el('div', { class: 'vote-actions' }, [btn]),
         box,
       ]);
@@ -894,6 +1033,7 @@ var STRINGS = {
             storeUrl: store.value,
             genres: genres.value,
             pitch: pitch.value,
+            showName: showName.checked,
           };
         },
         function () { title.value = store.value = genres.value = pitch.value = ''; },
@@ -915,6 +1055,12 @@ var STRINGS = {
     clearApp();
     app.appendChild(roundHero(data.round, votingOpen ? T.statusVoting : (votingHasStarted ? T.statusVotingClosed : T.statusVotingUpcoming)));
     app.appendChild(el('p', { class: 'vote-intro', html: votingOpen ? T.introVoting : (votingHasStarted ? T.introVotingClosed : T.introVotingUpcoming) }));
+    var authMounted = false;
+    if (session && session.authenticated) {
+      app.appendChild(authPanel('vote'));
+      app.appendChild(ownerVisibilitySlot());
+      authMounted = true;
+    }
     if (!votingHasStarted) return;
     if (!votingOpen) {
       var closedNotice = nextRoundNotice(data.nextRound);
@@ -928,12 +1074,12 @@ var STRINGS = {
     }
 
     if (!canParticipate()) {
-      app.appendChild(authPanel('vote'));
+      if (!authMounted) app.appendChild(authPanel('vote'));
       app.appendChild(grid(data.suggestions.map(function (s) { return card(s, 'list'); })));
       return;
     }
 
-    app.appendChild(authPanel('vote'));
+    if (!authMounted) app.appendChild(authPanel('vote'));
     var cards = data.suggestions.map(function (s) { return card(s, 'vote'); });
     app.appendChild(grid(cards));
 
@@ -979,7 +1125,10 @@ var STRINGS = {
     clearApp();
     app.appendChild(roundHero(data.round, T.statusRevealed));
     app.appendChild(el('p', { class: 'vote-intro', text: T.introRevealed }));
-    if (session && session.authenticated) app.appendChild(authPanel('vote'));
+    if (session && session.authenticated) {
+      app.appendChild(authPanel('vote'));
+      app.appendChild(ownerVisibilitySlot());
+    }
 
     if (!data.suggestions.length) {
       app.appendChild(el('p', { class: 'vote-empty', text: T.noGames }));
@@ -1024,10 +1173,16 @@ var STRINGS = {
       .then(function (results) {
         var data = results[0];
         session = results[1] || session;
-        if (!data.round) return renderNone();
-        if (data.round.phase === 'suggesting') return renderSuggesting(data);
-        if (data.round.phase === 'voting') return renderVoting(data);
-        return renderRevealed(data); // revealed | closed
+        var mineRequest = session.authenticated
+          ? api('/suggestions/mine').catch(function () { return { suggestions: [] }; })
+          : Promise.resolve({ suggestions: [] });
+        return mineRequest.then(function (mine) {
+          mySuggestions = mine.suggestions || [];
+          if (!data.round) return renderNone();
+          if (data.round.phase === 'suggesting') return renderSuggesting(data);
+          if (data.round.phase === 'voting') return renderVoting(data);
+          return renderRevealed(data); // revealed | closed
+        });
       })
       .catch(function (err) {
         clearApp();

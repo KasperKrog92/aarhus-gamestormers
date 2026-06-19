@@ -2,6 +2,7 @@
 import { isBeforeDateOnly, midpointDateOnly, todayDateOnly } from './schedule.js';
 
 let descriptionColumnsChecked = false;
+let suggestionVisibilityColumnChecked = false;
 let roundScheduleColumnsChecked = false;
 let meetingContentTablesChecked = false;
 let automationEventTableChecked = false;
@@ -26,6 +27,14 @@ export async function ensureSuggestionDescriptionColumns(db) {
   await addColumnIfMissing(db, 'suggestions', 'description_en', 'TEXT');
   await addColumnIfMissing(db, 'suggestions', 'hltb_url', 'TEXT');
   descriptionColumnsChecked = true;
+}
+
+export async function ensureSuggestionVisibilityColumn(db) {
+  if (suggestionVisibilityColumnChecked) return;
+  // Nullable preserves the old behaviour for existing rows. New authenticated
+  // suggestions always write an explicit public-name preference.
+  await addColumnIfMissing(db, 'suggestions', 'show_suggester_name', 'INTEGER CHECK (show_suggester_name IN (0, 1))');
+  suggestionVisibilityColumnChecked = true;
 }
 
 export async function ensureRoundScheduleColumns(db) {
@@ -663,6 +672,9 @@ export async function getPublicMeetings(db, now = new Date()) {
 // Public-safe shape of a suggestion (no internal status/timestamps).
 // Pass votes only when the round is revealed.
 export function toCard(s, votes) {
+  const showSuggesterName = s.show_suggester_name == null
+    ? !s.discord_user_id
+    : Number(s.show_suggester_name) === 1;
   return {
     id: s.id,
     title: s.title,
@@ -677,7 +689,20 @@ export function toCard(s, votes) {
     descriptionDa: s.description_da || null,
     descriptionEn: s.description_en || null,
     pitch: s.pitch || null,
-    suggestedBy: s.discord_user_id ? null : s.suggested_by || null,
+    suggestedBy: showSuggesterName ? s.suggested_by || null : null,
     ...(votes != null ? { votes } : {}),
+  };
+}
+
+export function toOwnedSuggestion(s) {
+  const showName = s.show_suggester_name == null
+    ? !s.discord_user_id
+    : Number(s.show_suggester_name) === 1;
+  return {
+    id: s.id,
+    title: s.title,
+    status: s.status,
+    suggestedBy: s.suggested_by || null,
+    showName,
   };
 }

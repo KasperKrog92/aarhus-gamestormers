@@ -272,8 +272,6 @@ async function main() {
   lines.push('-- Past meeting dates are APPROXIMATE (first Monday of the month,');
   lines.push('-- counted back from the first upcoming meeting); correct via admin if needed.');
   lines.push('');
-  lines.push('BEGIN TRANSACTION;');
-  lines.push('');
   for (const { game, meeting, copy } of meetings) {
     lines.push(`-- Meeting ${meeting.id}: ${game.title}`);
     lines.push(
@@ -321,9 +319,6 @@ async function main() {
     }
     lines.push('');
   }
-  lines.push('COMMIT;');
-  lines.push('');
-
   const outPath = path.join(ROOT, 'backfill-meetings.sql');
   await writeFile(outPath, lines.join('\n'));
   console.log(`Wrote ${meetings.length} meetings to ${path.relative(ROOT, outPath)}`);

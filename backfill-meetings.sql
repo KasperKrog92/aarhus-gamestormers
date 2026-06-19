@@ -4,8 +4,6 @@
 -- Past meeting dates are APPROXIMATE (first Monday of the month,
 -- counted back from the first upcoming meeting); correct via admin if needed.
 
-BEGIN TRANSACTION;
-
 -- Meeting 1: Outer Wilds
 INSERT OR REPLACE INTO games (id, steam_appid, title, header_image, store_url, gog_url, gog_id, genres, platforms, price, playtime_hours, hltb_url, description_da, description_en) VALUES (1, '753640', 'Outer Wilds', 'https://cdn.akamai.steamstatic.com/steam/apps/753640/header.jpg', 'https://store.steampowered.com/app/753640/Outer_Wilds/', 'https://www.gog.com/game/outer_wilds', NULL, 'Exploration, Mystery, Puzzle', NULL, NULL, NULL, NULL, NULL, NULL);
 INSERT OR REPLACE INTO meetings (id, meeting_date, starts_at_utc, ends_at_utc, timezone, venue_name, venue_address, discord_invite, status, selected_game_id) VALUES (1, '2025-03-02', '2025-03-02T17:30:00.000Z', '2025-03-02T20:00:00.000Z', 'Europe/Copenhagen', 'Folkehuset Møllestien', 'Grønnegade 10, 8000 Aarhus C', 'https://discord.gg/N2h6DJxVDF', 'completed', 1);
@@ -121,5 +119,3 @@ Du sender et hold af forhenværende skurke ud til opgaver i Los Angeles og træf
 INSERT OR REPLACE INTO meeting_copy (meeting_id, lang, event_description, history_description) VALUES (18, 'en', 'Dispatch is an episodic superhero workplace comedy from the ex-Telltale team, where you play the benched hero Mecha Man, forced to take a job at a superhero dispatch center after his suit is destroyed.
 
 You send a team of reformed supervillains out to incidents across Los Angeles, making choices that shape both the story and your relationship with a chaotic crew. A narrative-driven game of tough calls, branching conversations and plenty of humor.', 'An episodic superhero workplace comedy where a benched hero runs a dispatch center, sending a team of reformed supervillains out on jobs across the city.');
-
-COMMIT;

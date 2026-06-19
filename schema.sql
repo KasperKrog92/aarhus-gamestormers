@@ -96,6 +96,7 @@ CREATE TABLE IF NOT EXISTS suggestions (
   pitch          TEXT,                                 -- the suggester's short pitch
   suggested_by   TEXT,                                 -- display name / Discord handle
   discord_user_id TEXT REFERENCES discord_users(discord_id) ON DELETE SET NULL,
+  show_suggester_name INTEGER CHECK (show_suggester_name IN (0, 1)),
   status         TEXT NOT NULL DEFAULT 'pending'
                    CHECK (status IN ('pending','approved','rejected')),
   created_at     TEXT NOT NULL DEFAULT (datetime('now'))

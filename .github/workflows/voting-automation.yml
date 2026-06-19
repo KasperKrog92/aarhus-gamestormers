@@ -14,11 +14,11 @@ name: Voting automation
 on:
   workflow_dispatch:
   schedule:
-    # Once a day at 07:00 UTC, which is 09:00 in Copenhagen during summer (CEST)
-    # and 08:00 during winter (CET); GitHub Actions cron has no timezone support.
-    # Phase announcements are date-based, so the exact minute never matters; this
-    # just lands the Discord posts at a predictable morning hour.
+    # GitHub Actions cron is UTC-only and cannot express Europe/Copenhagen with
+    # daylight saving time. Trigger at the two possible UTC hours for 09:00 in
+    # Denmark, then let the first job step skip whichever one is not 09:00 local.
     - cron: "0 7 * * *"
+    - cron: "0 8 * * *"
 
 # Read-only: the scheduler talks to the site over HTTPS and only uploads an
 # artifact. It never needs to write to the repository.
@@ -31,17 +31,34 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Check Copenhagen 09:00 gate
+        id: copenhagen_gate
+        run: |
+          local_time="$(TZ=Europe/Copenhagen date '+%Y-%m-%d %H:%M:%S %Z')"
+          local_hour="$(TZ=Europe/Copenhagen date '+%H')"
+          echo "Copenhagen time: ${local_time}"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "${local_hour}" = "09" ]; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping voting scheduler because it is not 09:00 in Denmark."
+          fi
+
       - uses: actions/checkout@v5
+        if: steps.copenhagen_gate.outputs.should_run == 'true'
 
       - name: Set up Node
+        if: steps.copenhagen_gate.outputs.should_run == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: 24
 
       - name: Run unit tests
+        if: steps.copenhagen_gate.outputs.should_run == 'true'
         run: npm test
 
       - name: Run the voting scheduler
+        if: steps.copenhagen_gate.outputs.should_run == 'true'
         env:
           VOTING_BASE_URL: ${{ secrets.VOTING_BASE_URL }}
           VOTING_ADMIN_TOKEN: ${{ secrets.VOTING_ADMIN_TOKEN }}
@@ -52,7 +69,7 @@ jobs:
       - name: Upload winner handoff
         # Only runs when the scheduler wrote a handoff into automation-output/.
         # if-no-files-found: ignore keeps a no-op run (most hours) green.
-        if: always()
+        if: always() && steps.copenhagen_gate.outputs.should_run == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: winner-handoff
