@@ -206,7 +206,7 @@ export function getNextRound(db, afterId) {
   return db.prepare('SELECT * FROM rounds WHERE id > ? ORDER BY id ASC LIMIT 1').bind(Number(afterId)).first();
 }
 
-// Public-safe metadata for the "next round" notice. Never exposes the storm code.
+// Public-safe metadata for the "next round" notice.
 export function toNextRoundNotice(round) {
   if (!round) return null;
   return {
@@ -677,7 +677,7 @@ export function toCard(s, votes) {
     descriptionDa: s.description_da || null,
     descriptionEn: s.description_en || null,
     pitch: s.pitch || null,
-    suggestedBy: s.suggested_by || null,
+    suggestedBy: s.discord_user_id ? null : s.suggested_by || null,
     ...(votes != null ? { votes } : {}),
   };
 }

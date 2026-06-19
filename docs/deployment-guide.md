@@ -40,9 +40,19 @@ If `/api/*` fails with a missing-table error, apply the local D1 schema once:
 wrangler d1 execute gamestormers --local --file=./schema.sql
 ```
 
-`.dev.vars` must include `TURNSTILE_SECRET` and `ADMIN_TOKEN`. `DISCORD_SUGGESTIONS_WEBHOOK_URL` is optional and enables new-suggestion notifications.
+`.dev.vars` must include `ADMIN_TOKEN` plus the Discord OAuth variables used by the vote page:
 
-Local preview uses Cloudflare's always-pass Turnstile test sitekey automatically. If the local admin token or Turnstile secret changes, restart the dev server so Wrangler reloads `.dev.vars`.
+```text
+ADMIN_TOKEN=test
+DISCORD_CLIENT_ID=...
+DISCORD_CLIENT_SECRET=...
+DISCORD_REDIRECT_URI=http://127.0.0.1:8788/api/auth/discord/callback
+DISCORD_GUILD_ID=1333453198408683613
+SESSION_SECRET=...
+DISCORD_SUGGESTIONS_WEBHOOK_URL=...   # optional; enables new-suggestion notifications
+```
+
+Restart the dev server after changing `.dev.vars` so Wrangler reloads the values.
 
 ## D1 Migration
 
@@ -110,11 +120,14 @@ permissions and never commits to the repo; the winner handoff is uploaded as the
 - Build command: empty
 - Pages build output directory: `.`
 - D1 binding: `DB`
-- Required encrypted environment variables: `TURNSTILE_SECRET`, `ADMIN_TOKEN`
+- Required production vars in `wrangler.toml`: `DISCORD_REDIRECT_URI`, `DISCORD_GUILD_ID`
+- Required encrypted environment variables/secrets: `ADMIN_TOKEN`, `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`, `SESSION_SECRET`
 - Optional encrypted environment variables:
   - `DISCORD_SUGGESTIONS_WEBHOOK_URL`: enables new-suggestion Discord notifications; distinct from the sales workflow's GitHub Actions secret `DISCORD_WEBHOOK_URL`
   - `DISCORD_VOTING_WEBHOOK_URL`: public member-facing announcement channel webhook; lets the admin-only "Post Discord reveal" button send the final winner announcement after setup is complete
   - `VOTING_BASE_URL`: used by the admin reveal endpoint for generated links; defaults to the request origin when unset
+
+Because this project has a `wrangler.toml`, the Cloudflare dashboard manages plain runtime variables from that file and only lets you add encrypted secrets manually. It is fine to store `DISCORD_CLIENT_ID` as an encrypted secret even though it is not sensitive; Pages Functions receive secrets and plain vars through the same `env` object.
 
 Before production deployment, replace any placeholder D1 `database_id` in `wrangler.toml`.
 

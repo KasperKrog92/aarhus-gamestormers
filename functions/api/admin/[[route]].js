@@ -190,8 +190,6 @@ async function adminOpenRound(db, request) {
   if (!body) return fail('Invalid body');
   const id = Number(body.id);
   if (!Number.isInteger(id) || id <= 0) return fail('Meeting number (id) required');
-  const stormCode = clean(body.stormCode, 40);
-  if (!stormCode) return fail('Storm code required');
   if (await getRoundById(db, id)) return fail('Round ' + id + ' already exists', 409);
   const meetingDate = cleanDateOnly(body.meetingDate);
   const suggestionsOpenMonthsBefore = cleanMonthsBefore(body.suggestionsOpenMonthsBefore, DEFAULT_SUGGESTIONS_OPEN_MONTHS_BEFORE);
@@ -214,7 +212,7 @@ async function adminOpenRound(db, request) {
       id,
       clean(body.title, 120) || null,
       meetingDate || null,
-      stormCode,
+      null,
       suggestionsOpenMonthsBefore,
       votingOpensMonthsBefore,
       votingClosesMonthsBefore,
@@ -245,7 +243,6 @@ async function adminPatchRound(db, request, id) {
     if (!PHASES.includes(phase)) return fail('Invalid phase');
     put('phase', phase);
   }
-  if (body.stormCode !== undefined) put('storm_code', clean(body.stormCode, 40));
   if (body.title !== undefined) put('title', clean(body.title, 120));
   if (body.meetingDate !== undefined) put('meeting_date', cleanDateOnly(body.meetingDate) || null);
   if (body.suggestionsOpenMonthsBefore !== undefined) {

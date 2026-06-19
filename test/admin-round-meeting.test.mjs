@@ -53,7 +53,6 @@ test('opening a round creates the matching public meeting row', async () => {
     },
     body: JSON.stringify({
       id: 19,
-      stormCode: 'storm19',
       title: 'Meeting 19',
       meetingDate: '2026-08-03',
       meetingStartTime: '18:30',

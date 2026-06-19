@@ -1,16 +1,11 @@
-// POST /api/vote — cast an approval ballot (tick one or more approved games).
-// Body: { suggestionIds: number[], voterName?, stormCode, turnstileToken, ballotId? }
-// Gated by: phase === 'voting', voting schedule window, correct storm code, Turnstile pass.
-// voterName is optional and self-reported (helps the admin spot funky ballots).
-import { json, fail, readJson, clean } from '../_lib/http.js';
+// POST /api/vote - cast an approval ballot (tick one or more approved games).
+// Body: { suggestionIds: number[] }
+// Gated by: phase === 'voting', voting schedule window, and authenticated
+// Discord guild membership. Re-submitting replaces the logged-in user's ballot.
+import { json, fail, readJson } from '../_lib/http.js';
 import { ensureRoundScheduleColumns, getCurrentRound, getSuggestions } from '../_lib/db.js';
 import { roundScheduleState } from '../_lib/schedule.js';
-import { verifyTurnstile } from '../_lib/turnstile.js';
-
-function cleanBallotId(value) {
-  const id = clean(value, 80);
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id) ? id : '';
-}
+import { displayName, requireMemberSession } from '../_lib/member-auth.js';
 
 export async function onRequestPost({ request, env }) {
   const db = env.DB;
@@ -19,6 +14,9 @@ export async function onRequestPost({ request, env }) {
   const body = await readJson(request);
   if (!body) return fail('Invalid request body');
 
+  const auth = await requireMemberSession(db, request, env);
+  if (!auth.ok) return json({ error: auth.message, invite: auth.invite || null }, auth.status);
+
   await ensureRoundScheduleColumns(db);
   const round = await getCurrentRound(db);
   if (!round) return fail('No active round', 409);
@@ -26,11 +24,6 @@ export async function onRequestPost({ request, env }) {
   const schedule = roundScheduleState(round);
   if (!schedule.votingHasStarted) return fail('Voting is not open yet', 409);
   if (!schedule.votingIsOpen) return fail('Voting has closed for this round', 409);
-
-  if (clean(body.stormCode, 40) !== round.storm_code) return fail('Wrong code', 403);
-
-  const ts = await verifyTurnstile(body.turnstileToken, env.TURNSTILE_SECRET);
-  if (!ts.ok) return fail('Bot check failed — please try again', 403);
 
   const requested = Array.isArray(body.suggestionIds)
     ? body.suggestionIds.map(Number).filter(Number.isInteger)
@@ -43,14 +36,19 @@ export async function onRequestPost({ request, env }) {
   const valid = [...new Set(requested)].filter((id) => approvedIds.has(id));
   if (!valid.length) return fail('Those games are not on the ballot');
 
-  const previousBallotId = cleanBallotId(body.ballotId);
-  const ballotId = previousBallotId || crypto.randomUUID();
-  const voterName = clean(body.voterName, 80) || null;
-  if (previousBallotId) {
-    await db.prepare('DELETE FROM votes WHERE round_id = ? AND ballot_id = ?').bind(round.id, previousBallotId).run();
-  }
-  const stmt = db.prepare('INSERT INTO votes (round_id, suggestion_id, ballot_id, voter_name) VALUES (?, ?, ?, ?)');
-  await db.batch(valid.map((id) => stmt.bind(round.id, id, ballotId, voterName)));
+  const previous = await db
+    .prepare('SELECT ballot_id FROM votes WHERE round_id = ? AND discord_user_id = ? LIMIT 1')
+    .bind(round.id, auth.user.discordId)
+    .first();
+  const ballotId = previous && previous.ballot_id ? previous.ballot_id : crypto.randomUUID();
+  const voterName = displayName(auth.user);
 
-  return json({ ok: true, ballotId, counted: valid.length, replaced: !!previousBallotId }, previousBallotId ? 200 : 201);
+  await db
+    .prepare('DELETE FROM votes WHERE round_id = ? AND discord_user_id = ?')
+    .bind(round.id, auth.user.discordId)
+    .run();
+  const stmt = db.prepare('INSERT INTO votes (round_id, suggestion_id, ballot_id, voter_name, discord_user_id) VALUES (?, ?, ?, ?, ?)');
+  await db.batch(valid.map((id) => stmt.bind(round.id, id, ballotId, voterName, auth.user.discordId)));
+
+  return json({ ok: true, counted: valid.length, replaced: !!previous }, previous ? 200 : 201);
 }

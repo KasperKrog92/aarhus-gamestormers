@@ -26,6 +26,6 @@ The agent Preview panel renders the raw `.html` file directly. That breaks two t
 - Open `http://127.0.0.1:8788/` (or `/vote.html`, `/vote-admin.html`) in a browser to verify styling and behaviour.
 - For `vote-admin.html`, connect with the `ADMIN_TOKEN` from `.dev.vars` (local value is `test`).
 - First-time setup (if `/api/*` errors with a missing-table error) needs the local D1 schema applied once:
-  `wrangler d1 execute gamestormers --local --file=./schema.sql`. `.dev.vars` must hold `TURNSTILE_SECRET` (Turnstile test secret) and `ADMIN_TOKEN`.
+  `wrangler d1 execute gamestormers --local --file=./schema.sql`. `.dev.vars` must hold `ADMIN_TOKEN` plus the Discord OAuth variables from `docs/voting-system.md`.
 
 When changing `css/style.css`, bump its `?v=N` query string on the affected page(s) so the dev server / browser doesn't serve a stale stylesheet.

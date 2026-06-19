@@ -9,7 +9,6 @@ function makeDb() {
     round: {
       id: 19,
       phase: 'voting',
-      storm_code: 'storm19',
       suggestions_open_at: '2026-06-10',
       voting_opens_at: '2026-06-13',
       voting_closes_at: '2026-07-08',
@@ -27,6 +26,18 @@ function makeDb() {
         return statement(sql, nextArgs);
       },
       async first() {
+        if (sql.includes('FROM auth_sessions s')) {
+          return {
+            discord_id: '123456789',
+            username: 'Kasper',
+            avatar: null,
+            is_gamestormers_member: 1,
+          };
+        }
+        if (sql.startsWith('SELECT ballot_id FROM votes')) {
+          const found = state.votes.find((v) => v.round_id === args[0] && v.discord_user_id === args[1]);
+          return found ? { ballot_id: found.ballot_id } : null;
+        }
         if (sql.includes("phase != 'closed'")) return state.round;
         if (sql.includes('ORDER BY id DESC')) return state.round;
         return null;
@@ -44,6 +55,12 @@ function makeDb() {
             ],
           };
         }
+        if (sql.startsWith('PRAGMA table_info(suggestions)')) {
+          return { results: [{ name: 'discord_user_id' }] };
+        }
+        if (sql.startsWith('PRAGMA table_info(votes)')) {
+          return { results: [{ name: 'discord_user_id' }] };
+        }
         if (sql.includes("r.phase = 'revealed'")) return { results: [] };
         if (sql.includes('FROM suggestions')) {
           return {
@@ -55,8 +72,8 @@ function makeDb() {
         return { results: [] };
       },
       async run() {
-        if (sql.startsWith('DELETE FROM votes WHERE round_id = ? AND ballot_id = ?')) {
-          state.votes = state.votes.filter((v) => !(v.round_id === args[0] && v.ballot_id === args[1]));
+        if (sql.startsWith('DELETE FROM votes WHERE round_id = ? AND discord_user_id = ?')) {
+          state.votes = state.votes.filter((v) => !(v.round_id === args[0] && v.discord_user_id === args[1]));
         }
         if (sql.startsWith('INSERT INTO votes')) {
           state.votes.push({
@@ -64,6 +81,7 @@ function makeDb() {
             suggestion_id: args[1],
             ballot_id: args[2],
             voter_name: args[3],
+            discord_user_id: args[4],
           });
         }
         return { success: true, meta: {} };
@@ -86,26 +104,17 @@ function makeDb() {
 function voteRequest(body) {
   return new Request('https://example.com/api/vote', {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json', cookie: 'gs_session=test-session' },
     body: JSON.stringify(body),
   });
 }
 
-test('submitting with a stored ballot id replaces the previous ballot rows', async () => {
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = async () => new Response(JSON.stringify({ success: true }), {
-    headers: { 'content-type': 'application/json' },
-  });
-
-  try {
-    const db = makeDb();
-    const env = { DB: db, TURNSTILE_SECRET: 'test-secret' };
+test('submitting again as the same Discord user replaces the previous ballot rows', async () => {
+  const db = makeDb();
+  const env = { DB: db, SESSION_SECRET: 'test-secret' };
     const first = await onRequestPost({
       request: voteRequest({
         suggestionIds: [7, 8],
-        voterName: 'Kasper',
-        stormCode: 'storm19',
-        turnstileToken: 'ok',
       }),
       env,
     });
@@ -115,32 +124,26 @@ test('submitting with a stored ballot id replaces the previous ballot rows', asy
     assert.equal(firstBody.counted, 2);
     assert.equal(firstBody.replaced, false);
     assert.deepEqual(db.state.votes.map((v) => v.suggestion_id), [7, 8]);
+    const ballotId = db.state.votes[0].ballot_id;
 
     const second = await onRequestPost({
       request: voteRequest({
         suggestionIds: [8],
-        voterName: 'Kasper',
-        stormCode: 'storm19',
-        turnstileToken: 'ok',
-        ballotId: firstBody.ballotId,
       }),
       env,
     });
     const secondBody = await second.json();
 
     assert.equal(second.status, 200);
-    assert.equal(secondBody.ballotId, firstBody.ballotId);
     assert.equal(secondBody.counted, 1);
     assert.equal(secondBody.replaced, true);
     assert.deepEqual(db.state.votes, [
       {
         round_id: 19,
         suggestion_id: 8,
-        ballot_id: firstBody.ballotId,
+        ballot_id: ballotId,
         voter_name: 'Kasper',
+        discord_user_id: '123456789',
       },
     ]);
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
 });

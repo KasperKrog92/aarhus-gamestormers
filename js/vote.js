@@ -1,33 +1,45 @@
 /* Aarhus Gamestormers: game suggestion & approval-voting front end.
    Talks to the same-origin Pages Functions API (/api/*). Vanilla JS, no deps
-   besides the Cloudflare Turnstile widget. Bilingual via STRINGS[lang]. */
+   Bilingual via STRINGS[lang]. */
 var STRINGS = {
   da: {
-    loading: 'Indlæser…',
+    loading: 'IndlÃ¦serâ€¦',
     statusNone: 'Ingen aktiv afstemning',
-    statusUpcoming: 'Forslag åbner snart',
-    statusSuggesting: 'Forslag er åbne',
-    statusVotingUpcoming: 'Afstemning åbner snart',
-    statusVoting: 'Afstemning er åben',
+    statusUpcoming: 'Forslag Ã¥bner snart',
+    statusSuggesting: 'Forslag er Ã¥bne',
+    statusVotingUpcoming: 'Afstemning Ã¥bner snart',
+    statusVoting: 'Afstemning er Ã¥ben',
     statusVotingClosed: 'Afstemningen er lukket',
     statusRevealed: 'Resultatet er klar',
-    introNone: 'Der er ingen aktiv runde lige nu. Hold øje med Discord for næste afstemning.',
-    introUpcoming: 'Forslag åbner snart.',
+    introNone: 'Der er ingen aktiv runde lige nu. Hold Ã¸je med Discord for nÃ¦ste afstemning.',
+    introUpcoming: 'Forslag Ã¥bner snart.',
     introSuggesting:
-      'Foreslå et spil til mødet. Steam-spil får titel, billede, genrer og beskrivelse automatisk. Brug mødets kode fra Discord.',
+      'ForeslÃ¥ et spil til mÃ¸det. Steam-spil fÃ¥r titel, billede, genrer og beskrivelse automatisk.',
     introVoting:
-      'Sæt flueben ved <b>alle</b> de spil, du gerne vil spille. Spillet med flest stemmer vælges til mødet. Brug koden fra Discord.',
-    introVotingUpcoming: 'Afstemningen åbner på datoen herunder.',
-    introVotingClosed: 'Afstemningen er lukket. Resultatet bliver delt, når det er klar.',
-    introRevealed: 'Tak til alle der stemte. Her er resultatet, og vinderen er spillet til mødet.',
-    scheduleMeetingDate: 'Mødedato',
-    scheduleSuggestionsOpen: 'Forslag åbner',
-    scheduleVotingOpens: 'Afstemning åbner',
+      'SÃ¦t flueben ved <b>alle</b> de spil, du gerne vil spille. Spillet med flest stemmer vÃ¦lges til mÃ¸det.',
+    introVotingUpcoming: 'Afstemningen Ã¥bner pÃ¥ datoen herunder.',
+    introVotingClosed: 'Afstemningen er lukket. Resultatet bliver delt, nÃ¥r det er klar.',
+    introRevealed: 'Tak til alle der stemte. Her er resultatet, og vinderen er spillet til mÃ¸det.',
+    loginTitle: 'Log ind for at deltage',
+    loginSuggest: 'Log ind med Discord for at foreslÃ¥ spil.',
+    loginVote: 'Log ind med Discord for at stemme.',
+    loginButton: 'Log ind med Discord',
+    logoutButton: 'Log ud',
+    loggedInAs: 'Logget ind som',
+    nonMemberTitle: 'Du er logget ind, men mangler serveren',
+    nonMemberText: 'Denne Discord-konto ser ikke ud til at vÃ¦re medlem af Aarhus Gamestormers-serveren endnu.',
+    inviteLink: 'GÃ¥ til Discord-serveren',
+    retryLogin: 'Log ud og ind igen, nÃ¥r du er med i serveren.',
+    privacyNote: 'We use Discord login only to confirm membership in the Aarhus Gamestormers Discord server and prevent duplicate voting/suggestions. We do not access your messages, friends, or email.',
+    authError: 'Discord-login lykkedes ikke. PrÃ¸v igen.',
+    scheduleMeetingDate: 'MÃ¸dedato',
+    scheduleSuggestionsOpen: 'Forslag Ã¥bner',
+    scheduleVotingOpens: 'Afstemning Ã¥bner',
     scheduleVotingCloses: 'Afstemning lukker',
-    nextRoundHeading: 'Næste runde',
-    nextRoundIntro: 'Vil du være med igen? Her er den næste runde.',
-    nextRoundMeeting: 'Næste møde',
-    nextRoundSuggestionsOpen: 'Forslag åbner',
+    nextRoundHeading: 'NÃ¦ste runde',
+    nextRoundIntro: 'Vil du vÃ¦re med igen? Her er den nÃ¦ste runde.',
+    nextRoundMeeting: 'NÃ¦ste mÃ¸de',
+    nextRoundSuggestionsOpen: 'Forslag Ã¥bner',
     countdownPrefix: 'Tid til',
     countdownNow: 'I dag',
     countdownDays: 'Dage',
@@ -38,72 +50,67 @@ var STRINGS = {
     timelineVoting: 'Afstemning',
     timelineWinner: 'Vinder',
     timelineMeeting: 'Klubaften',
-    flowTitle: 'Sådan foregår et møde',
-    flowSuggestTitle: 'Foreslå',
-    flowSuggestText: 'Medlemmer foreslår spil, der passer til fælles spil og diskussion.',
+    flowTitle: 'SÃ¥dan foregÃ¥r et mÃ¸de',
+    flowSuggestTitle: 'ForeslÃ¥',
+    flowSuggestText: 'Medlemmer foreslÃ¥r spil, der passer til fÃ¦lles spil og diskussion.',
     flowVoteTitle: 'Stem',
-    flowVoteText: 'Når afstemningen åbner, stemmer du på alle de spil, du gerne vil spille.',
+    flowVoteText: 'NÃ¥r afstemningen Ã¥bner, stemmer du pÃ¥ alle de spil, du gerne vil spille.',
     flowWinnerTitle: 'Vinderen findes',
-    flowWinnerText: 'Spillet med flest stemmer bliver valgt til mødet.',
-    flowMeetingTitle: 'Spil og diskutér',
-    flowMeetingText: 'Vi spiller hjemmefra og mødes til en fælles samtale i klubben.',
-    formTitle: 'Foreslå et spil',
-    suggestToggle: 'Foreslå nyt spil',
+    flowWinnerText: 'Spillet med flest stemmer bliver valgt til mÃ¸det.',
+    flowMeetingTitle: 'Spil og diskutÃ©r',
+    flowMeetingText: 'Vi spiller hjemmefra og mÃ¸des til en fÃ¦lles samtale i klubben.',
+    formTitle: 'ForeslÃ¥ et spil',
+    suggestToggle: 'ForeslÃ¥ nyt spil',
     hideSuggest: 'Skjul formular',
     guidelinesTitle: 'Hvilke spil passer godt?',
-    guidelinesPc: 'Spillet skal kunne spilles på PC.',
-    guidelinesLength: 'Det bør som regel tage ca. 10 timer eller mindre at gennemføre.',
-    guidelinesLong: 'Længere spil og spil uden fast slutning er velkomne, bare skriv det tydeligt i din pitch.',
+    guidelinesPc: 'Spillet skal kunne spilles pÃ¥ PC.',
+    guidelinesLength: 'Det bÃ¸r som regel tage ca. 10 timer eller mindre at gennemfÃ¸re.',
+    guidelinesLong: 'LÃ¦ngere spil og spil uden fast slutning er velkomne, bare skriv det tydeligt i din pitch.',
     guidelinesCheckPrefix: 'Tjek ',
     guidelinesUpcoming: 'kommende spil',
     guidelinesCheckMiddle: ' og ',
     guidelinesHistory: 'tidligere spil',
-    guidelinesCheckSuffix: ', før du foreslår noget.',
-    steamQuestion: 'Er spillet på Steam?',
-    steamYes: 'Ja, det er på Steam',
-    steamNo: 'Nej / ikke på Steam',
-    changeChoice: '← Vælg igen',
+    guidelinesCheckSuffix: ', fÃ¸r du foreslÃ¥r noget.',
+    steamQuestion: 'Er spillet pÃ¥ Steam?',
+    steamYes: 'Ja, det er pÃ¥ Steam',
+    steamNo: 'Nej / ikke pÃ¥ Steam',
+    changeChoice: 'â† VÃ¦lg igen',
     labelSteam: 'Steam-link',
     hintSteam: 'Fx https://store.steampowered.com/app/753640/Outer_Wilds/',
     labelTitle: 'Spillets titel',
     titlePlaceholder: 'Fx Hollow Knight: Silksong',
     labelStore: 'Butikslink (valgfri)',
-    storePlaceholder: 'Link til GOG, Epic, itch.io …',
+    storePlaceholder: 'Link til GOG, Epic, itch.io â€¦',
     labelGenres: 'Genrer (valgfri)',
     genresPlaceholder: 'Kommasepareret, fx Puzzle, Horror',
-    manualNote: 'Spil uden Steam-side bliver gennemset af en admin, før de vises på listen.',
+    manualNote: 'Spil uden Steam-side bliver gennemset af en admin, fÃ¸r de vises pÃ¥ listen.',
     gameDescription: 'Spilbeskrivelse',
     suggestedPitch: 'Pitch fra forslagsstiller',
     labelPitch: 'Din pitch (valgfri)',
-    pitchPlaceholder: 'Hvorfor skulle vi spille det? Skriv et par linjer på engelsk.',
-    labelName: 'Dit navn (valgfri)',
-    namePlaceholder: 'Vises på forslagskortet',
-    labelCode: 'Mødekode',
-    codePlaceholder: 'Koden fra Discord',
-    hintCode: 'Koden deles på Discord.',
+    pitchPlaceholder: 'Hvorfor skulle vi spille det? Skriv et par linjer pÃ¥ engelsk.',
     btnSuggest: 'Send forslag',
-    suggestThanks: 'Tak! “{title}” er tilføjet til forslagene.',
-    manualThanks: 'Tak! “{title}” bliver vist, når en admin har godkendt det.',
+    suggestThanks: 'Tak! â€œ{title}â€ er tilfÃ¸jet til forslagene.',
+    manualThanks: 'Tak! â€œ{title}â€ bliver vist, nÃ¥r en admin har godkendt det.',
     approvedSoFar: 'Spilforslag',
     castBallot: 'Din stemme',
     btnVote: 'Stem',
     btnUpdateVote: 'Opdater stemme',
-    btnVoted: 'Stemme afgivet ✓',
-    alreadyVoted: 'Det ser ud til, at du allerede har stemt i denne runde. Du kan stemme igen, men kun den seneste tæller for dig.',
+    btnVoted: 'Stemme afgivet âœ“',
+    alreadyVoted: 'Hvis du stemmer igen i denne runde, erstatter den nye stemme din tidligere stemme.',
     voteThanks: 'Tak for din stemme!',
-    noGames: 'Der er ingen spil på stemmesedlen endnu.',
-    by: 'Foreslået af',
+    noGames: 'Der er ingen spil pÃ¥ stemmesedlen endnu.',
+    by: 'ForeslÃ¥et af',
     approve: 'Jeg vil gerne spille det her',
     votes: 'stemmer',
     winnerTag: 'Vinder',
-    playtime: '⏱ ~{h} t.',
-    platformPrefix: 'Tilgængelig på ',
+    playtime: 'â± ~{h} t.',
+    platformPrefix: 'TilgÃ¦ngelig pÃ¥ ',
     platformAnd: ' og ',
-    errGeneric: 'Noget gik galt. Prøv igen.',
-    errPickOne: 'Vælg mindst ét spil.',
+    errGeneric: 'Noget gik galt. PrÃ¸v igen.',
+    errPickOne: 'VÃ¦lg mindst Ã©t spil.',
   },
   en: {
-    loading: 'Loading…',
+    loading: 'Loadingâ€¦',
     statusNone: 'No active vote',
     statusUpcoming: 'Suggestions open soon',
     statusSuggesting: 'Suggestions are open',
@@ -114,12 +121,24 @@ var STRINGS = {
     introNone: 'There is no active round right now. Watch Discord for the next vote.',
     introUpcoming: 'Suggestions open soon.',
     introSuggesting:
-      "Suggest a game for the meeting. Steam games get title, image, genres and description filled in automatically. Use the meeting code from Discord.",
+      "Suggest a game for the meeting. Steam games get title, image, genres and description filled in automatically.",
     introVoting:
-      'Tick <b>every</b> game you’d be happy to play. The game with the most ticks is chosen for the meeting. Use the code from Discord.',
+      'Tick <b>every</b> game youâ€™d be happy to play. The game with the most ticks is chosen for the meeting.',
     introVotingUpcoming: 'Voting opens on the date below.',
     introVotingClosed: 'Voting is closed. The result will be shared when it is ready.',
     introRevealed: 'Thanks to everyone who voted. Here is the result, and the winner is the game for the meeting.',
+    loginTitle: 'Log in to participate',
+    loginSuggest: 'Log in with Discord to suggest games.',
+    loginVote: 'Log in with Discord to vote.',
+    loginButton: 'Log in with Discord',
+    logoutButton: 'Log out',
+    loggedInAs: 'Logged in as',
+    nonMemberTitle: 'You are logged in, but not in the server yet',
+    nonMemberText: 'This Discord account does not seem to be a member of the Aarhus Gamestormers Discord server yet.',
+    inviteLink: 'Join the Discord server',
+    retryLogin: 'Log out and log in again once you have joined the server.',
+    privacyNote: 'We use Discord login only to confirm membership in the Aarhus Gamestormers Discord server and prevent duplicate voting/suggestions. We do not access your messages, friends, or email.',
+    authError: 'Discord login did not complete. Please try again.',
     scheduleMeetingDate: 'Meeting date',
     scheduleSuggestionsOpen: 'Suggestions open',
     scheduleVotingOpens: 'Voting opens',
@@ -160,15 +179,15 @@ var STRINGS = {
     guidelinesHistory: 'games already played',
     guidelinesCheckSuffix: ' before suggesting.',
     steamQuestion: 'Is the game on Steam?',
-    steamYes: 'Yes, it’s on Steam',
+    steamYes: 'Yes, itâ€™s on Steam',
     steamNo: 'No / not on Steam',
-    changeChoice: '← Choose again',
+    changeChoice: 'â† Choose again',
     labelSteam: 'Steam link',
     hintSteam: 'e.g. https://store.steampowered.com/app/753640/Outer_Wilds/',
     labelTitle: 'Game title',
     titlePlaceholder: 'e.g. Hollow Knight: Silksong',
     labelStore: 'Store link (optional)',
-    storePlaceholder: 'Link to GOG, Epic, itch.io …',
+    storePlaceholder: 'Link to GOG, Epic, itch.io â€¦',
     labelGenres: 'Genres (optional)',
     genresPlaceholder: 'Comma-separated, e.g. Puzzle, Horror',
     manualNote: 'Games without a Steam page are reviewed by an admin before they appear on the list.',
@@ -176,27 +195,22 @@ var STRINGS = {
     suggestedPitch: 'Suggested pitch',
     labelPitch: 'Your pitch (optional)',
     pitchPlaceholder: 'Why should we play it? Please write a couple of lines in English.',
-    labelName: 'Your name (optional)',
-    namePlaceholder: 'Shown on the suggestion card',
-    labelCode: 'Meeting code',
-    codePlaceholder: 'Code from Discord',
-    hintCode: 'The code is shared on Discord.',
     btnSuggest: 'Submit suggestion',
-    suggestThanks: 'Thanks! “{title}” has been added to the suggestions.',
-    manualThanks: 'Thanks! “{title}” will appear once an admin has approved it.',
+    suggestThanks: 'Thanks! â€œ{title}â€ has been added to the suggestions.',
+    manualThanks: 'Thanks! â€œ{title}â€ will appear once an admin has approved it.',
     approvedSoFar: 'Game suggestions',
     castBallot: 'Your vote',
     btnVote: 'Vote',
     btnUpdateVote: 'Update vote',
-    btnVoted: 'Vote cast ✓',
-    alreadyVoted: 'Looks like you already voted in this round. You can vote again, but only your latest ballot counts for you.',
+    btnVoted: 'Vote cast âœ“',
+    alreadyVoted: 'If you vote again in this round, your new ballot replaces your previous one.',
     voteThanks: 'Thanks for voting!',
     noGames: 'There are no games on the ballot yet.',
     by: 'Suggested by',
-    approve: 'I’d play this',
+    approve: 'Iâ€™d play this',
     votes: 'votes',
     winnerTag: 'Winner',
-    playtime: '⏱ ~{h} hrs.',
+    playtime: 'â± ~{h} hrs.',
     platformPrefix: 'Available on ',
     platformAnd: ' and ',
     errGeneric: 'Something went wrong. Please try again.',
@@ -209,17 +223,13 @@ var STRINGS = {
   if (!app) return;
   var flowSlot = document.getElementById('vote-flow-slot');
 
-  var TURNSTILE_TEST_SITEKEY = '1x00000000000000000000AA';
   var lang = document.documentElement.lang === 'en' ? 'en' : 'da';
-  var isLocalPreview = ['localhost', '127.0.0.1', '0.0.0.0'].includes(window.location.hostname);
-  var sitekey = isLocalPreview ? TURNSTILE_TEST_SITEKEY : (app.getAttribute('data-turnstile-sitekey') || '');
   var T = STRINGS[lang];
 
-  var tsWidgetId = null;
-  var tsToken = '';
+  var session = { authenticated: false, user: null, discordInvite: 'https://discord.gg/N2h6DJxVDF' };
   var countdownTimerIds = [];
 
-  // ── helpers ───────────────────────────────────────────────────────────────
+  // â”€â”€ helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   function el(tag, attrs, children) {
     var node = document.createElement(tag);
     if (attrs) {
@@ -259,6 +269,78 @@ var STRINGS = {
     });
   }
 
+  function canParticipate() {
+    return !!(session && session.authenticated && session.user && session.user.isMember);
+  }
+
+  function returnTo() {
+    return window.location.pathname + window.location.search;
+  }
+
+  function loginUrl() {
+    return '/api/auth/discord/start?returnTo=' + encodeURIComponent(returnTo());
+  }
+
+  function authQueryMessage() {
+    try {
+      var params = new URLSearchParams(window.location.search);
+      return params.has('auth') ? T.authError : '';
+    } catch {
+      return '';
+    }
+  }
+
+  function logout() {
+    fetch('/api/auth/logout', { method: 'POST' })
+      .then(function () { window.location.reload(); })
+      .catch(function () { window.location.reload(); });
+  }
+
+  function authPanel(kind) {
+    var message = kind === 'vote' ? T.loginVote : T.loginSuggest;
+    var queryMessage = authQueryMessage();
+
+    if (session && session.authenticated && session.user) {
+      var user = session.user;
+      var identity = el('div', { class: 'vote-auth-identity' }, [
+        user.avatarUrl ? el('img', { src: user.avatarUrl, alt: '', loading: 'lazy', decoding: 'async' }) : null,
+        el('span', null, [
+          el('small', { text: T.loggedInAs }),
+          el('strong', { text: user.username || 'Discord user' }),
+        ]),
+      ]);
+      var logoutBtn = el('button', { class: 'btn-ghost vote-auth-logout', type: 'button', text: T.logoutButton, onclick: logout });
+
+      if (user.isMember) {
+        return el('aside', { class: 'vote-auth vote-auth-ok' }, [
+          identity,
+          logoutBtn,
+        ]);
+      }
+
+      return el('aside', { class: 'vote-auth vote-auth-warning' }, [
+        identity,
+        el('div', { class: 'vote-auth-copy' }, [
+          el('h2', { class: 'vote-panel-title', text: T.nonMemberTitle }),
+          el('p', { text: T.nonMemberText }),
+          el('p', { class: 'vote-hint', text: T.retryLogin }),
+          el('a', { class: 'btn-green', href: session.discordInvite || 'https://discord.gg/N2h6DJxVDF', target: '_blank', rel: 'noopener', text: T.inviteLink }),
+        ]),
+        logoutBtn,
+      ]);
+    }
+
+    return el('aside', { class: 'vote-auth' }, [
+      el('div', { class: 'vote-auth-copy' }, [
+        el('h2', { class: 'vote-panel-title', text: T.loginTitle }),
+        el('p', { text: message }),
+        queryMessage ? el('p', { class: 'vote-msg err', text: queryMessage }) : null,
+        el('p', { class: 'vote-hint', text: T.privacyNote }),
+      ]),
+      el('a', { class: 'btn-green', href: loginUrl(), text: T.loginButton }),
+    ]);
+  }
+
   function playtimeText(h) {
     return T.playtime.replace('{h}', h);
   }
@@ -278,45 +360,14 @@ var STRINGS = {
     return el('span', { class: 'platform-icons', role: 'img', 'aria-label': T.platformPrefix + names, html: svg });
   }
 
-  function votedKey(roundId) { return 'gs-voted-r' + roundId; }
-
-  function readStoredVote(roundId) {
-    var raw;
-    try {
-      raw = localStorage.getItem(votedKey(roundId));
-    } catch {
-      return null;
-    }
-    if (!raw) return null;
-    try {
-      var parsed = JSON.parse(raw);
-      var ids = Array.isArray(parsed.suggestionIds)
-        ? parsed.suggestionIds.map(Number).filter(Number.isInteger)
-        : [];
-      return parsed && typeof parsed.ballotId === 'string'
-        ? { ballotId: parsed.ballotId, suggestionIds: ids }
-        : null;
-    } catch {
-      return { ballotId: raw, suggestionIds: [] };
-    }
-  }
-
-  function writeStoredVote(roundId, ballotId, suggestionIds) {
-    try {
-      localStorage.setItem(votedKey(roundId), JSON.stringify({ ballotId: ballotId, suggestionIds: suggestionIds }));
-    } catch {
-      // localStorage can fail in private browsing; the server still counts the vote.
-    }
-  }
-
   function roundNumberText(round) {
-    return (lang === 'en' ? 'Meeting ' : 'Møde ') + round.id;
+    return (lang === 'en' ? 'Meeting ' : 'MÃ¸de ') + round.id;
   }
 
   function roundTitleExtra(round) {
     var title = String(round.title || '').trim();
     var normalized = title.toLowerCase();
-    if (title && normalized !== ('meeting ' + round.id).toLowerCase() && normalized !== ('møde ' + round.id).toLowerCase()) {
+    if (title && normalized !== ('meeting ' + round.id).toLowerCase() && normalized !== ('mÃ¸de ' + round.id).toLowerCase()) {
       return title;
     }
     return '';
@@ -324,7 +375,7 @@ var STRINGS = {
 
   function roundLabel(round) {
     var extra = roundTitleExtra(round);
-    return roundNumberText(round) + (extra ? ' · ' + extra : '');
+    return roundNumberText(round) + (extra ? ' Â· ' + extra : '');
   }
 
   function formatDate(dateString) {
@@ -404,7 +455,7 @@ var STRINGS = {
       var state = states[index];
       var date = formatDate(step[2]);
       return el('li', { class: 'vote-phase-step ' + state }, [
-        el('span', { class: 'vote-phase-marker', text: state === 'done' ? '✓' : String(index + 1) }),
+        el('span', { class: 'vote-phase-marker', text: state === 'done' ? 'âœ“' : String(index + 1) }),
         el('span', { class: 'vote-phase-name', text: step[1] }),
         date ? el('time', { class: 'vote-phase-date', datetime: step[2], text: date }) : null,
       ]);
@@ -522,27 +573,7 @@ var STRINGS = {
     ]);
   }
 
-  // ── Turnstile (explicit render so it survives dynamic DOM) ─────────────────
-  function mountTurnstile(container) {
-    tsToken = '';
-    if (!window.turnstile || !sitekey) {
-      // Render once the script is ready; retry briefly.
-      if (!sitekey) return;
-      return void setTimeout(function () { mountTurnstile(container); }, 300);
-    }
-    if (tsWidgetId !== null) {
-      try { window.turnstile.remove(tsWidgetId); } catch (e) {}
-      tsWidgetId = null;
-    }
-    tsWidgetId = window.turnstile.render(container, {
-      sitekey: sitekey,
-      callback: function (token) { tsToken = token; },
-      'expired-callback': function () { tsToken = ''; },
-      'error-callback': function () { tsToken = ''; },
-    });
-  }
-
-  // ── card builder ───────────────────────────────────────────────────────────
+  // â”€â”€ card builder â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   function card(s, mode, opts) {
     opts = opts || {};
     var description = lang === 'en' ? (s.descriptionEn || s.descriptionDa) : (s.descriptionDa || s.descriptionEn);
@@ -637,7 +668,7 @@ var STRINGS = {
   function meetingBadge(round) {
     var extra = roundTitleExtra(round);
     return el('div', { class: 'vote-meeting' }, [
-      el('span', { class: 'vote-meeting-label', text: lang === 'en' ? 'Meeting' : 'Møde' }),
+      el('span', { class: 'vote-meeting-label', text: lang === 'en' ? 'Meeting' : 'MÃ¸de' }),
       el('strong', { class: 'vote-meeting-number', text: String(round.id) }),
       extra ? el('span', { class: 'vote-meeting-title', text: extra }) : null,
     ]);
@@ -699,7 +730,7 @@ var STRINGS = {
     box.hidden = false;
   }
 
-  // ── phase renderers ─────────────────────────────────────────────────────────
+  // â”€â”€ phase renderers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   function renderNone() {
     clearApp();
     app.appendChild(el('div', { class: 'vote-round-hero vote-round-hero-empty' }, [
@@ -712,7 +743,10 @@ var STRINGS = {
     var suggestionsOpen = data.round.suggestionsAreOpen !== false;
     clearApp();
     app.appendChild(roundHero(data.round, suggestionsOpen ? T.statusSuggesting : T.statusUpcoming));
-    if (!suggestionsOpen) return;
+    if (!suggestionsOpen) {
+      if (session && session.authenticated) app.appendChild(authPanel('suggest'));
+      return;
+    }
     var suggestionItems = data.suggestions.slice();
     var suggestionHeading = el('h2', { class: 'vote-list-title', text: T.approvedSoFar });
     var suggestionGrid = grid([]);
@@ -738,8 +772,14 @@ var STRINGS = {
       renderSuggestionList();
     }
 
+    app.appendChild(authPanel('suggest'));
+    if (!canParticipate()) {
+      renderSuggestionList();
+      return;
+    }
+
     // The disclosure reveals a container that walks through: a Steam yes/no
-    // question → the matching form. Switching forms simply re-renders `panel`.
+    // question â†’ the matching form. Switching forms simply re-renders `panel`.
     var panel = el('div');
     panel.hidden = true;
 
@@ -788,7 +828,6 @@ var STRINGS = {
             showMsg(box, thanks.replace('{title}', res.game.title), true);
             if (!res.pending) addApprovedSuggestion(res.game);
             clearInputs();
-            if (window.turnstile && tsWidgetId !== null) window.turnstile.reset(tsWidgetId);
           })
           .catch(function (err) { showMsg(box, err.message, false); })
           .finally(function () { btn.disabled = false; });
@@ -797,11 +836,8 @@ var STRINGS = {
 
     function showSteamForm() {
       clear(panel);
-      var steam = el('input', { class: 'vote-input', type: 'url', placeholder: 'https://store.steampowered.com/app/…' });
+      var steam = el('input', { class: 'vote-input', type: 'url', placeholder: 'https://store.steampowered.com/app/â€¦' });
       var pitch = el('textarea', { class: 'vote-textarea', placeholder: T.pitchPlaceholder, maxlength: '500' });
-      var name = el('input', { class: 'vote-input', type: 'text', placeholder: T.namePlaceholder, maxlength: '80' });
-      var code = el('input', { class: 'vote-input', type: 'text', placeholder: T.codePlaceholder, maxlength: '40' });
-      var tsBox = el('div');
       var box = msgBox();
       var btn = el('button', { class: 'btn-green', type: 'submit', text: T.btnSuggest });
 
@@ -809,9 +845,6 @@ var STRINGS = {
         el('div', { class: 'vote-panel-head' }, [el('h2', { class: 'vote-panel-title', text: T.formTitle }), backLink()]),
         field(T.labelSteam, steam, T.hintSteam),
         field(T.labelPitch, pitch),
-        field(T.labelName, name),
-        field(T.labelCode, code, T.hintCode),
-        tsBox,
         el('div', { class: 'vote-actions' }, [btn]),
         box,
       ]);
@@ -823,17 +856,13 @@ var STRINGS = {
             onSteam: true,
             steamUrl: steam.value,
             pitch: pitch.value,
-            suggestedBy: name.value,
-            stormCode: code.value,
-            turnstileToken: tsToken,
           };
         },
-        function () { steam.value = pitch.value = name.value = ''; },
+        function () { steam.value = pitch.value = ''; },
         T.suggestThanks
       );
 
       panel.appendChild(form);
-      mountTurnstile(tsBox);
     }
 
     function showManualForm() {
@@ -842,9 +871,6 @@ var STRINGS = {
       var store = el('input', { class: 'vote-input', type: 'url', placeholder: T.storePlaceholder, maxlength: '400' });
       var genres = el('input', { class: 'vote-input', type: 'text', placeholder: T.genresPlaceholder, maxlength: '200' });
       var pitch = el('textarea', { class: 'vote-textarea', placeholder: T.pitchPlaceholder, maxlength: '500' });
-      var name = el('input', { class: 'vote-input', type: 'text', placeholder: T.namePlaceholder, maxlength: '80' });
-      var code = el('input', { class: 'vote-input', type: 'text', placeholder: T.codePlaceholder, maxlength: '40' });
-      var tsBox = el('div');
       var box = msgBox();
       var btn = el('button', { class: 'btn-green', type: 'submit', text: T.btnSuggest });
 
@@ -855,9 +881,6 @@ var STRINGS = {
         field(T.labelStore, store),
         field(T.labelGenres, genres),
         field(T.labelPitch, pitch),
-        field(T.labelName, name),
-        field(T.labelCode, code, T.hintCode),
-        tsBox,
         el('div', { class: 'vote-actions' }, [btn]),
         box,
       ]);
@@ -871,17 +894,13 @@ var STRINGS = {
             storeUrl: store.value,
             genres: genres.value,
             pitch: pitch.value,
-            suggestedBy: name.value,
-            stormCode: code.value,
-            turnstileToken: tsToken,
           };
         },
-        function () { title.value = store.value = genres.value = pitch.value = name.value = ''; },
+        function () { title.value = store.value = genres.value = pitch.value = ''; },
         T.manualThanks
       );
 
       panel.appendChild(form);
-      mountTurnstile(tsBox);
     }
 
     app.appendChild(el('div', { class: 'vote-disclosure-wrap' }, [disclosureBtn, panel]));
@@ -908,33 +927,23 @@ var STRINGS = {
       return;
     }
 
-    var storedVote = readStoredVote(data.round.id);
-    var storedIds = new Set(storedVote ? storedVote.suggestionIds : []);
+    if (!canParticipate()) {
+      app.appendChild(authPanel('vote'));
+      app.appendChild(grid(data.suggestions.map(function (s) { return card(s, 'list'); })));
+      return;
+    }
+
+    app.appendChild(authPanel('vote'));
     var cards = data.suggestions.map(function (s) { return card(s, 'vote'); });
-    cards.forEach(function (node) {
-      var cb = node.querySelector('input[type=checkbox]');
-      if (cb && storedIds.has(Number(cb.value))) {
-        cb.checked = true;
-        node.classList.add('selected');
-      }
-    });
     app.appendChild(grid(cards));
 
-    var name = el('input', { class: 'vote-input', type: 'text', placeholder: T.namePlaceholder, maxlength: '80' });
-    var code = el('input', { class: 'vote-input', type: 'text', placeholder: T.codePlaceholder, maxlength: '40' });
-    var tsBox = el('div');
     var box = msgBox();
-    var btn = el('button', { class: 'btn-green', type: 'submit', text: storedVote ? T.btnUpdateVote : T.btnVote });
-
-    var note = storedVote ? el('p', { class: 'vote-hint', text: T.alreadyVoted }) : null;
+    var btn = el('button', { class: 'btn-green', type: 'submit', text: T.btnVote });
 
     var form = el('form', { class: 'vote-panel' }, [
       el('h2', { class: 'vote-panel-title', text: T.castBallot }),
-      field(T.labelName, name),
-      field(T.labelCode, code, T.hintCode),
-      tsBox,
+      el('p', { class: 'vote-hint', text: T.alreadyVoted }),
       el('div', { class: 'vote-actions' }, [btn]),
-      note,
       box,
     ]);
 
@@ -951,15 +960,9 @@ var STRINGS = {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           suggestionIds: ids,
-          voterName: name.value,
-          stormCode: code.value,
-          turnstileToken: tsToken,
-          ballotId: storedVote && storedVote.ballotId,
         }),
       })
-        .then(function (res) {
-          writeStoredVote(data.round.id, res.ballotId, ids);
-          storedVote = { ballotId: res.ballotId, suggestionIds: ids };
+        .then(function () {
           showMsg(box, T.voteThanks, true);
           btn.textContent = T.btnVoted;
         })
@@ -970,13 +973,13 @@ var STRINGS = {
     });
 
     app.appendChild(form);
-    mountTurnstile(tsBox);
   }
 
   function renderRevealed(data) {
     clearApp();
     app.appendChild(roundHero(data.round, T.statusRevealed));
     app.appendChild(el('p', { class: 'vote-intro', text: T.introRevealed }));
+    if (session && session.authenticated) app.appendChild(authPanel('vote'));
 
     if (!data.suggestions.length) {
       app.appendChild(el('p', { class: 'vote-empty', text: T.noGames }));
@@ -1008,12 +1011,19 @@ var STRINGS = {
     ]);
   }
 
-  // ── boot ─────────────────────────────────────────────────────────────────
+  // â”€â”€ boot â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   function load() {
     mountMeetingFlow();
     app.appendChild(el('p', { class: 'vote-intro', text: T.loading }));
-    api('/round/current')
-      .then(function (data) {
+    Promise.all([
+      api('/round/current'),
+      api('/auth/session').catch(function () {
+        return { authenticated: false, user: null, discordInvite: 'https://discord.gg/N2h6DJxVDF' };
+      }),
+    ])
+      .then(function (results) {
+        var data = results[0];
+        session = results[1] || session;
         if (!data.round) return renderNone();
         if (data.round.phase === 'suggesting') return renderSuggesting(data);
         if (data.round.phase === 'voting') return renderVoting(data);

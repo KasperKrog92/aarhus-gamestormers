@@ -1583,7 +1583,66 @@ img { display: block; max-width: 100%; height: auto; }
   line-height: 1.45;
 }
 
-/* Form panel (suggestion form + storm code) */
+/* Discord member login */
+.vote-auth {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  background: rgba(247,244,238,0.05);
+  border: 1px solid rgba(150,195,141,0.2);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  margin: 0 0 26px;
+  max-width: 760px;
+}
+.vote-auth-copy {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+.vote-auth-copy .vote-panel-title,
+.vote-auth-copy p {
+  margin: 0;
+}
+.vote-auth-copy p {
+  color: rgba(247,244,238,0.72);
+  line-height: 1.55;
+}
+.vote-auth-identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.vote-auth-identity img {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: rgba(247,244,238,0.12);
+  flex: 0 0 auto;
+}
+.vote-auth-identity span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.vote-auth-identity small {
+  color: rgba(247,244,238,0.48);
+  font-size: 0.72rem;
+}
+.vote-auth-identity strong {
+  color: var(--cream);
+  overflow-wrap: anywhere;
+}
+.vote-auth-warning {
+  align-items: flex-start;
+}
+.vote-auth-logout {
+  flex: 0 0 auto;
+}
+
+/* Form panel */
 .vote-panel {
   background: rgba(247,244,238,0.05);
   border: 1px solid rgba(150,195,141,0.2);
@@ -1676,7 +1735,6 @@ img { display: block; max-width: 100%; height: auto; }
   margin-top: 6px;
   line-height: 1.5;
 }
-.cf-turnstile { margin: 6px 0 16px; }
 .vote-actions { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
 .vote-msg {
   border-radius: 10px;
@@ -2408,6 +2466,17 @@ details[open] > .admin-section-summary::before { transform: rotate(90deg); }
   .vote-disclosure,
   .vote-disclosure-wrap,
   .vote-panel { max-width: none; width: 100%; }
+  .vote-auth {
+    align-items: stretch;
+    flex-direction: column;
+    max-width: none;
+    width: 100%;
+  }
+  .vote-auth .btn-green,
+  .vote-auth-logout {
+    justify-content: center;
+    width: 100%;
+  }
   .vote-choice-btns > * { width: 100%; justify-content: center; }
   .vote-list-title { margin-top: 36px; }
   .suggestion-grid { grid-template-columns: 1fr; }

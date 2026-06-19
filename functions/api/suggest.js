@@ -1,25 +1,18 @@
-// POST /api/suggest — submit a game suggestion.
-// Two paths, chosen by the `onSteam` discriminator from the form:
-//   • Steam game (onSteam !== false): import the game server-side from Steam and
-//     store it as 'approved' (auto-approve) — it appears on the board immediately;
-//     the maintainer can still edit/reject/delete it.
-//   • Non-Steam game (onSteam === false): the suggester types the title + optional
-//     store link / genres / pitch themselves. Stored as 'pending' so it stays
-//     hidden until the maintainer verifies it (and adds an image) in vote-admin.
-// Body (Steam):     { onSteam:true,  steamUrl, pitch, suggestedBy, stormCode, turnstileToken }
-// Body (non-Steam): { onSteam:false, title, storeUrl, genres, pitch, suggestedBy, stormCode, turnstileToken }
-// Gated by: phase === 'suggesting', correct storm code, Turnstile pass.
+// POST /api/suggest - submit a game suggestion.
+// Body (Steam):     { onSteam:true,  steamUrl, pitch }
+// Body (non-Steam): { onSteam:false, title, storeUrl, genres, pitch }
+// Gated by: phase === 'suggesting' and authenticated Discord guild membership.
 import { json, fail, readJson, clean } from '../_lib/http.js';
 import { ensureRoundScheduleColumns, ensureSuggestionDescriptionColumns, getCurrentRound, toCard } from '../_lib/db.js';
 import { roundScheduleState } from '../_lib/schedule.js';
 import { parseSteamAppId, fetchSteamGame } from '../_lib/steam.js';
-import { verifyTurnstile } from '../_lib/turnstile.js';
 import { notifyDiscord } from '../_lib/notify.js';
+import { displayName, requireMemberSession } from '../_lib/member-auth.js';
 
 // Live site, used to build click-through links in the Discord notifications.
 const SITE_URL = 'https://www.gamestormers.dk';
 
-// Only allow plain http(s) links so a crafted store link can't smuggle in a
+// Only allow plain http(s) links so a crafted store link cannot smuggle in a
 // javascript: URI that the admin/public card would later render as an href.
 function isHttpUrl(value) {
   try {
@@ -37,31 +30,28 @@ export async function onRequestPost({ request, env, waitUntil }) {
   const body = await readJson(request);
   if (!body) return fail('Invalid request body');
 
+  const auth = await requireMemberSession(db, request, env);
+  if (!auth.ok) return json({ error: auth.message, invite: auth.invite || null }, auth.status);
+
   await ensureRoundScheduleColumns(db);
   const round = await getCurrentRound(db);
   if (!round) return fail('No active round', 409);
   if (round.phase !== 'suggesting') return fail('Suggestions are closed for this round', 409);
   if (!roundScheduleState(round).suggestionsAreOpen) return fail('Suggestions are not open yet', 409);
 
-  if (clean(body.stormCode, 40) !== round.storm_code) return fail('Wrong code', 403);
-
-  const ts = await verifyTurnstile(body.turnstileToken, env.TURNSTILE_SECRET);
-  if (!ts.ok) return fail('Bot check failed — please try again', 403);
-
-  // Non-Steam path: the suggester provides the details; stays 'pending' for review.
-  if (body.onSteam === false) return suggestManual(db, round, body, env, waitUntil);
+  // Non-Steam path: the suggester provides the details; stays pending for review.
+  if (body.onSteam === false) return suggestManual(db, round, body, auth.user, env, waitUntil);
 
   // Steam path (default): import from Steam and auto-approve.
-  return suggestSteam(db, round, body, env, waitUntil);
+  return suggestSteam(db, round, body, auth.user, env, waitUntil);
 }
 
-// Build the "by <name>" suffix for a notification, or '' when anonymous.
-function bySuffix(body) {
-  const name = clean(body.suggestedBy, 80);
+function bySuffix(user) {
+  const name = displayName(user);
   return name ? ` by ${name}` : '';
 }
 
-async function suggestSteam(db, round, body, env, waitUntil) {
+async function suggestSteam(db, round, body, user, env, waitUntil) {
   await ensureSuggestionDescriptionColumns(db);
 
   const appId = parseSteamAppId(clean(body.steamUrl, 500));
@@ -84,8 +74,8 @@ async function suggestSteam(db, round, body, env, waitUntil) {
   const inserted = await db
     .prepare(
       `INSERT INTO suggestions
-         (round_id, steam_appid, title, header_image, store_url, genres, price, platforms, description_da, description_en, pitch, suggested_by, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'approved')`
+         (round_id, steam_appid, title, header_image, store_url, genres, price, platforms, description_da, description_en, pitch, suggested_by, discord_user_id, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'approved')`
     )
     .bind(
       round.id,
@@ -99,7 +89,8 @@ async function suggestSteam(db, round, body, env, waitUntil) {
       clean(game.descriptionDa, 1000),
       clean(game.descriptionEn, 1000),
       clean(body.pitch, 500),
-      clean(body.suggestedBy, 80)
+      displayName(user),
+      user.discordId
     )
     .run();
 
@@ -113,12 +104,16 @@ async function suggestSteam(db, round, body, env, waitUntil) {
 
   if (!suggestion) return fail('Suggestion was saved but could not be loaded.', 500);
 
-  notifyDiscord(env.DISCORD_SUGGESTIONS_WEBHOOK_URL, waitUntil, `🎮 New suggestion: **${game.title}**${bySuffix(body)}. It is live on the voting board.\n${SITE_URL}/vote`);
+  notifyDiscord(
+    env.DISCORD_SUGGESTIONS_WEBHOOK_URL,
+    waitUntil,
+    `New suggestion: **${game.title}**${bySuffix(user)}. It is live on the voting board.\n${SITE_URL}/vote`
+  );
 
   return json({ ok: true, pending: false, game: toCard(suggestion) }, 201);
 }
 
-async function suggestManual(db, round, body, env, waitUntil) {
+async function suggestManual(db, round, body, user, env, waitUntil) {
   const title = clean(body.title, 200);
   if (!title) return fail('Please enter the game title.');
 
@@ -136,8 +131,8 @@ async function suggestManual(db, round, body, env, waitUntil) {
   await db
     .prepare(
       `INSERT INTO suggestions
-         (round_id, steam_appid, title, header_image, store_url, genres, price, platforms, pitch, suggested_by, status)
-       VALUES (?, NULL, ?, NULL, ?, ?, NULL, NULL, ?, ?, 'pending')`
+         (round_id, steam_appid, title, header_image, store_url, genres, price, platforms, pitch, suggested_by, discord_user_id, status)
+       VALUES (?, NULL, ?, NULL, ?, ?, NULL, NULL, ?, ?, ?, 'pending')`
     )
     .bind(
       round.id,
@@ -145,11 +140,16 @@ async function suggestManual(db, round, body, env, waitUntil) {
       storeUrl || null,
       clean(body.genres, 200),
       clean(body.pitch, 500),
-      clean(body.suggestedBy, 80)
+      displayName(user),
+      user.discordId
     )
     .run();
 
-  notifyDiscord(env.DISCORD_SUGGESTIONS_WEBHOOK_URL, waitUntil, `📝 New suggestion needs your approval: **${title}**${bySuffix(body)}. Review it in vote-admin.\n${SITE_URL}/vote-admin/`);
+  notifyDiscord(
+    env.DISCORD_SUGGESTIONS_WEBHOOK_URL,
+    waitUntil,
+    `New suggestion needs your approval: **${title}**${bySuffix(user)}. Review it in vote-admin.\n${SITE_URL}/vote-admin/`
+  );
 
   return json({ ok: true, pending: true, game: { title } }, 201);
 }

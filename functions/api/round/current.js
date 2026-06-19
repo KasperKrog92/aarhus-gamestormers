@@ -33,7 +33,7 @@ export async function onRequestGet({ env }) {
   const cards = suggestions.map((s) => toCard(s, revealed ? tallies[s.id] || 0 : null));
 
   // Surface the next round so the vote page can point people there once this
-  // round is decided. Storm code stays internal (toNextRoundNotice omits it).
+  // round is decided.
   const nextRound = toNextRoundNotice(await getNextRound(db, round.id));
 
   return json({
@@ -55,6 +55,5 @@ export async function onRequestGet({ env }) {
     },
     suggestions: cards,
     nextRound,
-    // storm_code is intentionally NOT exposed here.
   });
 }

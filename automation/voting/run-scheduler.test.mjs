@@ -195,7 +195,6 @@ test('announce_suggestions records the event and posts the suggestions-open temp
         meeting_date: '2026-09-15',
         suggestions_open_at: '2026-06-20',
         voting_opens_at: '2026-06-30',
-        storm_code: 'storm19',
       },
       suggestions: [],
       tallies: {},

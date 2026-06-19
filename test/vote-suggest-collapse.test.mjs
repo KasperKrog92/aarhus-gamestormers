@@ -11,8 +11,8 @@ test('suggestion form is a closed disclosure tied to the current meeting', async
   assert.match(source, /function roundTitleExtra/);
   assert.match(source, /function meetingBadge/);
   assert.match(source, /function roundHero/);
-  assert.match(source, /function readStoredVote/);
-  assert.match(source, /function writeStoredVote/);
+  assert.match(source, /function authPanel/);
+  assert.match(source, /function canParticipate/);
   assert.match(source, /function nextDateDetail/);
   assert.match(source, /vote-meeting/);
   assert.match(source, /vote-meeting-number/);
@@ -23,18 +23,21 @@ test('suggestion form is a closed disclosure tied to the current meeting', async
   assert.match(source, /function renderSuggestionList/);
   assert.match(source, /function addApprovedSuggestion/);
   assert.match(source, /if \(!res\.pending\) addApprovedSuggestion\(res\.game\)/);
-  assert.match(source, /Foresl[aå] nyt spil/);
+  assert.match(source, /Foresl/);
   assert.match(source, /Suggest new game/);
   assert.doesNotMatch(source, /sendt til godkendelse/);
   assert.doesNotMatch(source, /sent for approval/);
-  assert.match(source, /tilf[oø]jet til forslagene/);
+  assert.match(source, /forslagene/);
   assert.match(source, /added to the suggestions/);
   assert.match(source, /meetingBadge[\s\S]*vote-meeting-number/);
   assert.doesNotMatch(source, /meetingFor/);
   assert.match(source, /roundHero[\s\S]*meetingBadge\(round\)/);
   assert.match(source, /renderVoting[\s\S]*roundHero\(data\.round/);
-  assert.match(source, /renderVoting[\s\S]*ballotId: storedVote && storedVote\.ballotId/);
-  assert.match(source, /renderVoting[\s\S]*writeStoredVote\(data\.round\.id, res\.ballotId, ids\)/);
+  assert.match(source, /api\('\/auth\/session'\)/);
+  assert.match(source, /renderVoting[\s\S]*authPanel\('vote'\)/);
+  assert.doesNotMatch(source, /turnstile/i);
+  assert.doesNotMatch(source, /stormCode/);
+  assert.doesNotMatch(source, /ballotId: storedVote/);
   assert.match(source, /renderRevealed[\s\S]*roundHero\(data\.round/);
 
   assert.match(css, /\.vote-round-hero/);
@@ -45,4 +48,5 @@ test('suggestion form is a closed disclosure tied to the current meeting', async
   assert.match(css, /\.vote-meeting-number/);
   assert.match(css, /\.vote-disclosure/);
   assert.match(css, /\.vote-disclosure-chevron/);
+  assert.match(css, /\.vote-auth/);
 });

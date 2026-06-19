@@ -41,7 +41,6 @@ const round = {
   meeting_date: '2026-09-15',
   voting_opens_at: '2026-07-20',
   voting_closes_at: '2026-07-27',
-  storm_code: 'storm19',
 };
 const games = ['Hollow Knight', 'Celeste', 'Outer Wilds'];
 const winner = {

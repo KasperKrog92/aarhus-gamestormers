@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
-  <title>Vote admin – Aarhus Gamestormers</title>
+  <title>Vote admin â€“ Aarhus Gamestormers</title>
   <link rel="icon" type="image/png" href="/favicon/favicon.png">
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=DM+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/style.css?v=22">
@@ -67,10 +67,6 @@
             <input class="admin-input" id="nr-id" type="number" min="1" placeholder="19">
           </div>
           <div>
-            <label class="admin-field-label" for="nr-code">Storm code</label>
-            <input class="admin-input" id="nr-code" type="text" placeholder="storm19">
-          </div>
-          <div>
             <label class="admin-field-label" for="nr-title">Title (optional)</label>
             <input class="admin-input" id="nr-title" type="text" placeholder="Meeting 19">
           </div>
@@ -88,11 +84,11 @@
           </div>
           <div>
             <label class="admin-field-label" for="nr-venue-name">Venue name</label>
-            <input class="admin-input" id="nr-venue-name" type="text" value="Folkehuset Møllestien">
+            <input class="admin-input" id="nr-venue-name" type="text" value="Folkehuset MÃ¸llestien">
           </div>
           <div>
             <label class="admin-field-label" for="nr-venue-address">Venue address</label>
-            <input class="admin-input" id="nr-venue-address" type="text" value="Grønnegade 10, 8000 Aarhus C">
+            <input class="admin-input" id="nr-venue-address" type="text" value="GrÃ¸nnegade 10, 8000 Aarhus C">
           </div>
           <div>
             <label class="admin-field-label" for="nr-discord-invite">Discord invite</label>
@@ -162,8 +158,8 @@
   var TOKEN_KEY = 'gs-admin-token';
   var token = sessionStorage.getItem(TOKEN_KEY) || '';
   var currentRoundId = null;
-  var DEFAULT_VENUE_NAME = 'Folkehuset Møllestien';
-  var DEFAULT_VENUE_ADDRESS = 'Grønnegade 10, 8000 Aarhus C';
+  var DEFAULT_VENUE_NAME = 'Folkehuset MÃ¸llestien';
+  var DEFAULT_VENUE_ADDRESS = 'GrÃ¸nnegade 10, 8000 Aarhus C';
   var DEFAULT_DISCORD_INVITE = 'https://discord.gg/N2h6DJxVDF';
   var DEFAULT_SUGGESTIONS_OPEN_MONTHS_BEFORE = 2.8;
   var DEFAULT_VOTING_OPENS_MONTHS_BEFORE = 2.5;
@@ -265,13 +261,13 @@
     var totalApprovals = ballots.reduce(function (n, b) { return n + b.suggestionIds.length; }, 0);
 
     $('round-section-count').textContent = data.round
-      ? data.round.phase + (data.round.meeting_date ? ' · ' + data.round.meeting_date : '')
+      ? data.round.phase + (data.round.meeting_date ? ' Â· ' + data.round.meeting_date : '')
       : 'No round';
     $('selected-section-count').textContent = data.selectedGame
       ? data.selectedGame.title
       : 'Not selected';
-    $('suggestions-section-count').textContent = plural(suggestions.length, 'suggestion') + (pending ? ' · ' + pending + ' pending' : '');
-    $('votes-section-count').textContent = plural(ballots.length, 'ballot') + ' · ' + plural(totalApprovals, 'approval');
+    $('suggestions-section-count').textContent = plural(suggestions.length, 'suggestion') + (pending ? ' Â· ' + pending + ' pending' : '');
+    $('votes-section-count').textContent = plural(ballots.length, 'ballot') + ' Â· ' + plural(totalApprovals, 'approval');
   }
 
   function connect() {
@@ -287,7 +283,7 @@
     if (!rounds.length) {
       var opt = document.createElement('option');
       opt.disabled = true;
-      opt.textContent = 'No rounds yet — open one below';
+      opt.textContent = 'No rounds yet â€” open one below';
       sel.appendChild(opt);
       return;
     }
@@ -295,8 +291,8 @@
       var opt = document.createElement('option');
       opt.value = r.id;
       var label = 'Round #' + r.id;
-      if (r.title) label += ' — ' + r.title;
-      if (r.meeting_date) label += ' · ' + r.meeting_date;
+      if (r.title) label += ' â€” ' + r.title;
+      if (r.meeting_date) label += ' Â· ' + r.meeting_date;
       label += r.has_public_meeting ? ' - public meeting' : ' - missing public meeting';
       label += ' (' + r.phase + ')';
       opt.textContent = label;
@@ -310,7 +306,6 @@
       ? Math.max.apply(null, rounds.map(function (r) { return r.id; })) + 1
       : 1;
     $('nr-id').value = nextId;
-    $('nr-code').value = 'storm' + nextId;
     $('nr-title').value = 'Meeting ' + nextId;
     $('nr-meeting-date').value = '';
     $('nr-meeting-start').value = '18:30';
@@ -363,7 +358,7 @@
       });
   }
 
-  // ── current round ──────────────────────────────────────────────────────────
+  // â”€â”€ current round â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   function renderRound(round, tallies, meeting) {
     var area = $('round-area');
     area.innerHTML = '';
@@ -376,7 +371,6 @@
     }
 
     var titleInput = h('input', { class: 'admin-input', type: 'text', value: round.title || '' });
-    var codeInput = h('input', { class: 'admin-input', type: 'text', value: round.storm_code || '' });
     var meetingDateInput = h('input', { class: 'admin-input', type: 'date', value: round.meeting_date || '' });
     var meetingStartInput = h('input', { class: 'admin-input', type: 'time', value: meeting && meeting.startTime ? meeting.startTime : '18:30' });
     var meetingEndInput = h('input', { class: 'admin-input', type: 'time', value: meeting && meeting.endTime ? meeting.endTime : '21:00' });
@@ -434,7 +428,6 @@
         method: 'PATCH',
         body: JSON.stringify({
           title: titleInput.value,
-          stormCode: codeInput.value,
           phase: phaseSelect.value,
           meetingDate: meetingDateInput.value,
           meetingStartTime: meetingStartInput.value,
@@ -473,18 +466,17 @@
           h('p', { class: 'admin-meta', text: [
             round.meeting_date ? 'Meeting date: ' + round.meeting_date : 'Meeting date missing',
             meeting ? 'public meeting: ' + meeting.status : 'public meeting missing',
-          ].join(' · ') }),
+          ].join(' Â· ') }),
         ]),
       ]),
       h('p', { class: 'admin-meta' }, [
         'Public URL: ',
         h('a', { href: '/vote', target: '_blank', rel: 'noopener' }, ['/vote']),
-        ' · phase controls what visitors see (suggesting -> voting -> revealed).',
+        ' Â· phase controls what visitors see (suggesting -> voting -> revealed).',
       ]),
       h('p', { class: 'admin-meta', text: meeting ? 'Public meeting record: yes (' + meeting.status + ')' : 'Public meeting record: missing. Save this round to create one from the event basics below.' }),
       h('div', { class: 'admin-grid' }, [
         h('div', null, [h('label', { class: 'admin-field-label', text: 'Title' }), titleInput]),
-        h('div', null, [h('label', { class: 'admin-field-label', text: 'Storm code' }), codeInput]),
         h('div', null, [h('label', { class: 'admin-field-label', text: 'Phase' }), phaseSelect]),
         h('div', null, [h('label', { class: 'admin-field-label', text: 'Meeting date' }), meetingDateInput]),
         h('div', null, [h('label', { class: 'admin-field-label', text: 'Meeting start' }), meetingStartInput]),
@@ -505,7 +497,7 @@
     ]));
   }
 
-  // ── selected game (promote a winner, edit its public card) ─────────────────
+  // â”€â”€ selected game (promote a winner, edit its public card) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   function readinessBanner(readiness) {
     if (!readiness) return null;
     if (readiness.ready) return h('div', { class: 'admin-msg ok', text: 'Homepage card is publish-ready.' });
@@ -573,11 +565,11 @@
     var sorted = suggestions.slice().sort(function (a, b) {
       return ((tallies[b.id] || 0) - (tallies[a.id] || 0)) || (order[a.status] - order[b.status]) || (a.id - b.id);
     });
-    var select = h('select', { class: 'admin-select' }, [h('option', { value: '', text: '— choose a suggestion —' })].concat(
+    var select = h('select', { class: 'admin-select' }, [h('option', { value: '', text: 'â€” choose a suggestion â€”' })].concat(
       sorted.map(function (s) {
         return h('option', {
           value: s.id,
-          text: '#' + s.id + ' · ' + s.title + ' · ' + (tallies[s.id] || 0) + ' votes' + (s.status !== 'approved' ? ' (' + s.status + ')' : ''),
+          text: '#' + s.id + ' Â· ' + s.title + ' Â· ' + (tallies[s.id] || 0) + ' votes' + (s.status !== 'approved' ? ' (' + s.status + ')' : ''),
           selected: round.winner_suggestion_id === s.id ? 'selected' : null,
         });
       })
@@ -676,7 +668,7 @@
     ]);
   }
 
-  // ── suggestions ──────────────────────────────────────────────────────────
+  // â”€â”€ suggestions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   function renderSuggestions(suggestions, tallies) {
     var wrap = $('suggestions');
     wrap.innerHTML = '';
@@ -763,7 +755,7 @@
       h('span', { class: 'admin-suggestion-title-wrap' }, [
         badges,
         h('span', { class: 'admin-suggestion-title', text: s.title || 'Untitled suggestion' }),
-        h('span', { class: 'admin-suggestion-sub', text: '#' + s.id + (s.suggested_by ? ' · suggested by ' + s.suggested_by : '') }),
+        h('span', { class: 'admin-suggestion-sub', text: '#' + s.id + (s.suggested_by ? ' Â· suggested by ' + s.suggested_by : '') }),
       ]),
       h('span', { class: 'admin-suggestion-votes' }, [
         h('strong', { text: String(votes) }),
@@ -797,58 +789,42 @@
     ]);
   }
 
-  // ── votes / ballots (who voted for what; remove a ballot) ──────────────────
+  // â”€â”€ votes / ballots (who voted for what; remove a ballot) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   function renderBallots(ballots, suggestions) {
     var wrap = $('ballots');
     wrap.innerHTML = '';
-    var titles = {};
-    suggestions.forEach(function (s) { titles[s.id] = s.title; });
+    var counts = {};
+    suggestions.forEach(function (s) { counts[s.id] = 0; });
+    ballots.forEach(function (b) {
+      b.suggestionIds.forEach(function (id) {
+        counts[id] = (counts[id] || 0) + 1;
+      });
+    });
 
     var totalApprovals = ballots.reduce(function (n, b) { return n + b.suggestionIds.length; }, 0);
     wrap.appendChild(h('p', { class: 'admin-meta', text: ballots.length + ' ballots · ' + totalApprovals + ' total approvals' }));
+    wrap.appendChild(h('p', { class: 'admin-meta', text: 'Individual ballots are stored for vote integrity but are not shown in the default admin UI.' }));
 
     if (!ballots.length) {
       wrap.appendChild(h('div', { class: 'admin-card' }, [h('p', { class: 'admin-meta', text: 'No votes yet.' })]));
       return;
     }
 
-    ballots.forEach(function (b) {
-      // Titles come from Steam; voterName is self-reported. Render via textContent
-      // (h's `text`) — never innerHTML — so a crafted name can't XSS this admin view.
-      var games = b.suggestionIds.map(function (id) { return titles[id] || ('#' + id); }).join(', ');
-      var msg = h('div', { class: 'admin-msg', hidden: 'hidden' });
-
-      var del = h('button', { class: 'admin-btn danger', onclick: function () {
-        if (!confirm('Remove this ballot? Its votes will be deleted.')) return;
-        authedFetch('/ballot/' + encodeURIComponent(b.ballotId), { method: 'DELETE' })
-          .then(function () { load(); })
-          .catch(function (e) { showMsg(msg, e.message, false); });
-      } }, ['Remove ballot']);
-
-      var head = h('div', { class: 'admin-actions', style: 'justify-content:space-between;margin-bottom:6px' }, [
-        h('span', null, [
-          h('b', { text: b.voterName || 'anonymous' }),
-          h('span', { class: 'admin-meta', style: 'margin-left:8px', text: b.createdAt || '' }),
-        ]),
-        del,
-      ]);
-
+    suggestions.slice().sort(function (a, b) {
+      return (counts[b.id] || 0) - (counts[a.id] || 0) || a.title.localeCompare(b.title);
+    }).forEach(function (s) {
       wrap.appendChild(h('div', { class: 'admin-card' }, [
-        head,
-        h('p', { class: 'admin-meta', style: 'margin:0', text: 'Approved: ' + games }),
-        msg,
+        h('p', { class: 'admin-meta', style: 'margin:0', text: s.title + ': ' + (counts[s.id] || 0) + ' approvals' }),
       ]));
     });
   }
 
-  // ── open new round ─────────────────────────────────────────────────────────
-  $('open-round').addEventListener('click', function () {
+  // ── open new round  $('open-round').addEventListener('click', function () {
     var msg = $('new-round-msg');
     authedFetch('/round', {
       method: 'POST',
       body: JSON.stringify({
         id: $('nr-id').value,
-        stormCode: $('nr-code').value,
         title: $('nr-title').value,
         meetingDate: $('nr-meeting-date').value,
         meetingStartTime: $('nr-meeting-start').value,
@@ -866,7 +842,7 @@
       }),
     }).then(function () {
       showMsg(msg, 'Round opened.', true);
-      $('nr-id').value = $('nr-code').value = $('nr-title').value = $('nr-meeting-date').value = $('nr-suggestions-open').value = $('nr-voting-open').value = $('nr-closes').value = '';
+      $('nr-id').value = $('nr-title').value = $('nr-meeting-date').value = $('nr-suggestions-open').value = $('nr-voting-open').value = $('nr-closes').value = '';
       $('nr-meeting-start').value = '18:30';
       $('nr-meeting-end').value = '21:00';
       $('nr-venue-name').value = DEFAULT_VENUE_NAME;

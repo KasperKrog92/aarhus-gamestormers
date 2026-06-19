@@ -20,23 +20,28 @@ It is the site's only dynamic feature. It runs on Cloudflare Pages Functions and
 
 ## D1 Tables
 
-- `rounds`: meeting round, meeting date, schedule windows, phase, winner, and storm code.
+- `rounds`: meeting round, meeting date, schedule windows, phase, and winner. `storm_code` is a legacy unused column kept for compatibility.
 - `meetings`: public meeting basics for the homepage and history flow. `meetings.id` matches `rounds.id`.
 - `games`: reusable selected-game metadata for public event and history cards.
 - `meeting_copy`: localized public event/history copy for a meeting.
-- `suggestions`: submitted games and imported metadata.
-- `votes`: approval-voting rows, one row per selected game, with optional self-reported `voter_name`.
+- `suggestions`: submitted games, imported metadata, and the authenticated Discord user id for new submissions.
+- `votes`: approval-voting rows, one row per selected game. New votes are associated with the authenticated Discord user so one member has one replaceable ballot per round.
+- `discord_users`, `auth_sessions`, `oauth_states`: minimal Discord OAuth login data. OAuth access tokens and guild lists are not stored.
 - `automation_events`: idempotency log for the voting scheduler. One row per automated action on a round, with a `UNIQUE (round_id, event_type)` constraint so reruns cannot duplicate a Discord post or handoff.
 
 ## API Routes
 
 | Route | Method | Purpose |
 | --- | --- | --- |
-| `/api/round/current` | GET | Current round and approved cards. Tallies are only exposed when revealed. The storm code is never exposed. Also returns `nextRound` (public metadata for the next round, if one exists) for the vote page's next-round notice. |
-| `/api/meetings/public` | GET | Public-safe meeting data for the homepage: `upcoming`, `history`, and `planned` groups with their selected games and localized copy. Drives `js/meetings.js`. Storm codes, ballots, and pending/rejected suggestions are never exposed. |
-| `/api/suggest` | POST | Submit a suggestion. Steam suggestions are imported server-side and auto-approved. Non-Steam suggestions are pending until maintainer approval. |
-| `/api/vote` | POST | Cast an approval ballot with optional voter name. If the client sends a previously returned `ballotId` for the current round, that same-browser ballot is replaced so only the latest local submission counts. |
-| `/api/admin/round` | GET/POST/PATCH | Read full round, open a new round, change phase, winner, code, meeting date, schedule windows, Discord event URL, or public meeting basics. The GET response also includes the selected game, localized meeting copy, publish-readiness and Discord-announcement readiness checks, and the round's `automationEvents`. |
+| `/api/round/current` | GET | Current round and approved cards. Tallies are only exposed when revealed. Also returns `nextRound` (public metadata for the next round, if one exists) for the vote page's next-round notice. |
+| `/api/meetings/public` | GET | Public-safe meeting data for the homepage: `upcoming`, `history`, and `planned` groups with their selected games and localized copy. Drives `js/meetings.js`. Ballots, Discord ids, and pending/rejected suggestions are never exposed. |
+| `/api/auth/discord/start` | GET | Starts Discord OAuth with `identify guilds`, stores a short-lived state nonce, and redirects to Discord. |
+| `/api/auth/discord/callback` | GET | Validates OAuth state, exchanges the code, reads `/users/@me` and `/users/@me/guilds`, stores only the user id/display data/membership flag, creates a hashed-session cookie, and discards the OAuth token and guild list. |
+| `/api/auth/session` | GET | Returns the current logged-in UI state and Discord invite link. |
+| `/api/auth/logout` | GET/POST | Deletes the current session and clears the session cookie. |
+| `/api/suggest` | POST | Submit a suggestion. Requires Discord login and membership in the Aarhus Gamestormers server. Steam suggestions are imported server-side and auto-approved. Non-Steam suggestions are pending until maintainer approval. |
+| `/api/vote` | POST | Cast an approval ballot. Requires Discord login and membership in the Aarhus Gamestormers server. Re-submitting replaces that Discord user's previous ballot for the round. |
+| `/api/admin/round` | GET/POST/PATCH | Read full round, open a new round, change phase, winner, meeting date, schedule windows, Discord event URL, or public meeting basics. The GET response also includes the selected game, localized meeting copy, publish-readiness and Discord-announcement readiness checks, and the round's `automationEvents`. |
 | `/api/admin/round/:id/select` | POST | Promote a suggestion to the meeting's selected game (body: `suggestionId`). Copies the suggestion into `games`, attaches it to the meeting, confirms `winner_suggestion_id`, and reveals the round unless it is already closed. |
 | `/api/admin/round/:id/announce-winner` | POST | Post the final public Discord winner/meeting announcement after the round is revealed and all announcement fields are ready. Records `winner_announcement_posted` so the button is idempotent. Requires `DISCORD_VOTING_WEBHOOK_URL` in Cloudflare Pages. |
 | `/api/admin/meeting/:id` | PATCH | Edit the selected game's public metadata (GOG URL/ID, HowLongToBeat URL/hours, genres, platforms, title, cover, store URL, price) and the localized event/history descriptions in `meeting_copy`. |
@@ -68,7 +73,7 @@ The halfway midpoint is computed by `midpointDateOnly(voting_closes_at, nextSugg
 
 Promoting the winner to a public upcoming-event card on the homepage is automatic only when the winning suggestion already has every field the homepage card requires (see [Selecting The Winning Game](#selecting-the-winning-game) and `MEETING_WORKFLOW.md`). If the copied game would lack HowLongToBeat data, localized descriptions, or other required fields, the scheduler reveals the winner and writes a handoff instead of publishing an incomplete card.
 
-When the admin opens a round, the API also creates or updates the matching `meetings` row. The same numeric id is used for both records. The round keeps voting-specific fields such as the storm code, phase, and schedule offsets. The meeting stores public event basics: meeting date, Copenhagen-local start/end times converted to UTC, venue name, venue address, Discord invite, timezone, and public meeting status.
+When the admin opens a round, the API also creates or updates the matching `meetings` row. The same numeric id is used for both records. The round keeps voting-specific fields such as phase and schedule offsets. The meeting stores public event basics: meeting date, Copenhagen-local start/end times converted to UTC, venue name, venue address, Discord invite, timezone, and public meeting status.
 
 `vote-admin.html` shows whether each round has a public meeting record. Saving a round with meeting basics updates the matching meeting record, which lets older rounds be repaired without touching the database manually.
 
@@ -101,8 +106,8 @@ visible. See [`project-guide.md`](project-guide.md) and [`content-guide.md`](con
 
 ### Next-round notice
 
-`GET /api/round/current` includes a `nextRound` object — `{ id, title, meetingDate, suggestionsOpenAt,
-votingOpensAt, votingClosesAt }` — built from the next round whose id is greater than the current round (storm code excluded).
+`GET /api/round/current` includes a `nextRound` object â€” `{ id, title, meetingDate, suggestionsOpenAt,
+votingOpensAt, votingClosesAt }` â€” built from the next round whose id is greater than the current round.
 When the current round is revealed or voting has closed, `js/vote.js` shows this as a bilingual "next round"
 notice. With a pre-created pipeline of future rounds, `nextRound` points at the round after whichever one is
 currently active.
@@ -136,22 +141,18 @@ The `functions/_lib/db.js` helpers manage this table:
 
 The scheduler reaches this only through the admin API (`GET /api/admin/round` exposes `automationEvents`; `POST /api/admin/automation-event` records them), never by touching D1 directly. This keeps all automation authenticated through the existing Bearer `ADMIN_TOKEN` gate.
 
-## Vote Integrity
+## Discord Login And Vote Integrity
 
-The system deliberately uses lightweight safeguards:
+Members can browse the vote page without logging in, but suggesting and voting require Discord OAuth login. The app requests only the `identify` and `guilds` scopes:
 
-- Per-round storm code as a soft Discord gate.
-- Cloudflare Turnstile for bot checks.
-- Random `ballot_id` returned to the client and stored in localStorage for same-browser vote updates.
+- `identify` identifies the Discord user.
+- `guilds` is used only to confirm the user belongs to the Aarhus Gamestormers Discord server (`DISCORD_GUILD_ID=1333453198408683613`).
 
-The `ballot_id` is not an identity system and is not enforced as one-vote-per-person across devices. When the same browser votes again, it sends the stored `ballotId`; the API deletes the old rows for that `round_id` + `ballot_id` and inserts the new choices, so accidental repeat votes from one browser become vote updates. Clearing localStorage, using private browsing, or switching devices still creates a new ballot. Stronger enforcement would require per-voter codes or identity such as Discord login, which is out of scope for now.
+The callback does not request email and does not store OAuth access tokens or guild lists. D1 stores only the Discord user id, optional username/avatar for logged-in UI and admin context, a membership flag, short-lived OAuth state, and hashed session tokens.
 
-Admin moderation compensates for the low-friction flow:
+For suggestions, new rows store `discord_user_id` and `suggested_by` so admins may see who suggested a game. Public suggestion cards do not expose Discord ids, and auth-backed suggestions do not expose the Discord user id publicly.
 
-- Admin can see full per-ballot breakdown at any phase.
-- Admin can see live tallies.
-- Admin can delete suspicious ballots.
-- Ballot names are rendered with `textContent`, never `innerHTML`.
+For votes, submitting a ballot deletes that Discord user's previous rows for the current round and inserts the new choices. That makes the latest vote count across browsers and devices. Individual ballots are not exposed publicly, and the default admin UI shows aggregate counts rather than individual voter ballots.
 
 ## Suggestion Curation
 
@@ -178,13 +179,34 @@ Non-Steam suggestions:
 
 HowLongToBeat has no API in this project. `playtime_hours` and `hltb_url` are filled manually by the maintainer during curation, and the admin promotion flow copies both onto the selected game.
 
-## Turnstile
+## Discord OAuth Setup
 
-`vote.html` and `en/vote.html` carry the public production `data-turnstile-sitekey` on `#vote-app`.
+Required Cloudflare Pages configuration:
 
-`js/vote.js` overrides that sitekey on `localhost`, `127.0.0.1`, and `0.0.0.0` with Cloudflare's always-pass visible test sitekey, `1x00000000000000000000AA`.
+```text
+wrangler.toml:
+DISCORD_REDIRECT_URI=https://www.gamestormers.dk/api/auth/discord/callback
+DISCORD_GUILD_ID=1333453198408683613
 
-Keep the matching secret in Cloudflare Pages as `TURNSTILE_SECRET`. Local development can use Cloudflare's always-pass test secret in `.dev.vars`.
+Cloudflare Pages encrypted secrets:
+DISCORD_CLIENT_ID=...
+DISCORD_CLIENT_SECRET=...
+SESSION_SECRET=...  # long random value used to hash session/state tokens
+```
+
+Cloudflare Pages receives plain vars and encrypted secrets through the same `env` object at runtime. Since this project uses `wrangler.toml`, the dashboard only allows adding encrypted secrets directly; storing `DISCORD_CLIENT_ID` as a secret is acceptable.
+
+For local development, use the local callback URL in `.dev.vars`:
+
+```text
+DISCORD_CLIENT_ID=...
+DISCORD_CLIENT_SECRET=...
+DISCORD_REDIRECT_URI=http://127.0.0.1:8788/api/auth/discord/callback
+DISCORD_GUILD_ID=1333453198408683613
+SESSION_SECRET=...
+```
+
+In the Discord Developer Portal, add matching OAuth2 redirect URLs for every environment you use, including local preview and production. The OAuth URL should request only `identify` and `guilds`.
 
 ## Suggestion Notifications
 
@@ -210,8 +232,12 @@ npm run dev
 Create `.dev.vars` with:
 
 ```text
-TURNSTILE_SECRET=...
 ADMIN_TOKEN=test
+DISCORD_CLIENT_ID=...
+DISCORD_CLIENT_SECRET=...
+DISCORD_REDIRECT_URI=http://127.0.0.1:8788/api/auth/discord/callback
+DISCORD_GUILD_ID=1333453198408683613
+SESSION_SECRET=...
 DISCORD_SUGGESTIONS_WEBHOOK_URL=...   # optional; enables suggestion notifications
 ```
 

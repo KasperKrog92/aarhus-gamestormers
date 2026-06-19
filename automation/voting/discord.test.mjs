@@ -18,33 +18,31 @@ const ROUND = {
   meeting_date: '2026-09-15',
   voting_opens_at: '2026-07-20',
   voting_closes_at: '2026-07-27',
-  storm_code: 'storm19',
 };
 const BASE = 'https://www.gamestormers.dk';
 
-test('suggestions opened message: header, en links, code, and dates', () => {
+test('suggestions opened message: header, en links, Discord login note, and dates', () => {
   const content = suggestionsOpenedMessage({ round: ROUND, baseUrl: BASE });
   assert.match(content, /^# 🎮 Game Suggestions Open - Club Meeting #19$/m);
   assert.match(content, /Aarhus Gamestormers #19 on \*\*15 September 2026\*\*/);
   // Masked links target the /en/ pages and suppress the preview card (<...>).
   assert.match(content, /\[frontpage\]\(<https:\/\/www\.gamestormers\.dk\/en\/>\)/);
   assert.match(content, /\[the vote page\]\(<https:\/\/www\.gamestormers\.dk\/en\/vote>\)/);
-  assert.match(content, /Meeting code: `storm19`/);
+  assert.match(content, /Log in with Discord on the page to confirm club membership\./);
   assert.match(content, /Voting opens on \*\*20 July 2026\*\*/);
 });
 
-test('suggestions opened message drops the code and open-date lines when absent', () => {
+test('suggestions opened message drops the open-date line when absent', () => {
   const content = suggestionsOpenedMessage({
     round: { id: 20, meeting_date: '2026-10-05' },
     baseUrl: `${BASE}/`,
   });
   assert.match(content, /Club Meeting #20/);
-  assert.doesNotMatch(content, /Meeting code:/);
   assert.doesNotMatch(content, /Voting opens on/);
   assert.match(content, /Looking forward to seeing what you come up with!/);
 });
 
-test('voting opened message: header, lineup, code, and close date', () => {
+test('voting opened message: header, lineup, Discord login note, and close date', () => {
   const content = votingOpenedMessage({
     round: ROUND,
     baseUrl: BASE,
@@ -54,15 +52,14 @@ test('voting opened message: header, lineup, code, and close date', () => {
   assert.match(content, /voting is now open for the Meeting #19 game on \*\*15 September 2026\*\*/);
   assert.match(content, /Here's the lineup this time:\n- Hollow Knight\n- Celeste\n- Outer Wilds/);
   assert.match(content, /\[the vote page\]\(<https:\/\/www\.gamestormers\.dk\/en\/vote>\)/);
-  assert.match(content, /The voting code is `storm19`\./);
+  assert.match(content, /Log in with Discord on the page to confirm club membership\./);
   assert.match(content, /Voting closes on \*\*27 July 2026\*\*/);
 });
 
-test('voting opened message tolerates no lineup and no code', () => {
+test('voting opened message tolerates no lineup', () => {
   const content = votingOpenedMessage({ round: { id: 20, meeting_date: '2026-10-05' }, baseUrl: BASE });
   assert.doesNotMatch(content, /lineup/);
-  assert.match(content, /You can vote for as many games as you like\.$/m);
-  assert.doesNotMatch(content, /voting code/);
+  assert.match(content, /You can vote for as many games as you like\. Log in with Discord on the page to confirm club membership\./);
 });
 
 test('voting opened message keeps the vote link and trims an oversized lineup', () => {
@@ -70,7 +67,7 @@ test('voting opened message keeps the vote link and trims an oversized lineup', 
   const content = votingOpenedMessage({ round: ROUND, baseUrl: BASE, games });
   assert.ok(content.length <= 2000);
   assert.match(content, /\[the vote page\]\(<https:\/\/www\.gamestormers\.dk\/en\/vote>\)/);
-  assert.match(content, /The voting code is `storm19`\./);
+  assert.match(content, /Log in with Discord on the page to confirm club membership\./);
   assert.match(content, /And \d+ more\.\.\./);
 });
 

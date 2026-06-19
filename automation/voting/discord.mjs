@@ -4,9 +4,9 @@
 //
 // House style (see the Discord-announcement templates): a leading `#` header for
 // the title, masked links with the URL wrapped in <...> so Discord suppresses
-// the auto-preview card, English /en/ link targets, the round's storm code shown
-// as inline code, and plain hyphens (no em dashes). Masked links render in
-// webhook/bot messages even though normal user messages cannot use them.
+// the auto-preview card, English /en/ link targets, and plain hyphens (no em
+// dashes). Masked links render in webhook/bot messages even though normal user
+// messages cannot use them.
 //
 // allowed_mentions parse [] means a game title containing @everyone or a role
 // mention can never actually ping the channel. These phase/winner announcements
@@ -73,10 +73,6 @@ function meetingDateOf(round) {
   return round && (round.meeting_date || round.meetingDate);
 }
 
-function stormCodeOf(round) {
-  return round && (round.storm_code || round.stormCode);
-}
-
 // Joins message blocks with a blank line between them, dropping empty blocks so
 // optional sections collapse cleanly. Each block may itself be multi-line.
 function joinBlocks(blocks) {
@@ -120,13 +116,12 @@ function meetingLabel(round) {
   return date ? `${number} on ${date}` : number;
 }
 
-// Suggestions are open: invite pitches and hand out the meeting code. Posted when
-// a round reaches suggestions_open_at.
+// Suggestions are open: invite pitches. Posted when a round reaches
+// suggestions_open_at.
 export function suggestionsOpenedMessage({ round, baseUrl }) {
   const n = meetingNumber(round);
   const date = formatMeetingDate(meetingDateOf(round));
   const opensAt = formatMeetingDate(round && (round.voting_opens_at || round.votingOpensAt));
-  const code = stormCodeOf(round);
   const onDate = date ? ` on **${date}**` : '';
 
   const title = n != null
@@ -149,7 +144,7 @@ export function suggestionsOpenedMessage({ round, baseUrl }) {
   const suggestBlock = [
     'Suggest your games here:',
     `🔗 ${link('the vote page', voteUrl(baseUrl))}`,
-    code ? `Meeting code: \`${code}\`` : '',
+    'Log in with Discord on the page to confirm club membership.',
   ].filter(Boolean).join('\n');
 
   const closing = opensAt
@@ -159,13 +154,12 @@ export function suggestionsOpenedMessage({ round, baseUrl }) {
   return joinBlocks([title, intro, guidelines, suggestBlock, closing]);
 }
 
-// Voting is open: list the lineup and repeat the code. `games` is an array of
+// Voting is open: list the lineup. `games` is an array of
 // approved suggestion titles; when omitted the lineup section is dropped.
 export function votingOpenedMessage({ round, baseUrl, games = [] }) {
   const n = meetingNumber(round);
   const date = formatMeetingDate(meetingDateOf(round));
   const closesAt = formatMeetingDate(round && (round.voting_closes_at || round.votingClosesAt));
-  const code = stormCodeOf(round);
   const onDate = date ? ` on **${date}**` : '';
 
   const title = n != null
@@ -181,9 +175,7 @@ export function votingOpenedMessage({ round, baseUrl, games = [] }) {
     `🔗 ${link('the vote page', voteUrl(baseUrl))}`,
   ].join('\n');
 
-  const codeLine = code
-    ? `You can vote for as many games as you like. The voting code is \`${code}\`.`
-    : 'You can vote for as many games as you like.';
+  const codeLine = 'You can vote for as many games as you like. Log in with Discord on the page to confirm club membership.';
 
   const closing = closesAt
     ? `Voting closes on **${closesAt}**. After that the winner will be revealed 🥁`

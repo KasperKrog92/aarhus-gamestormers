@@ -8,15 +8,24 @@
 #   wrangler pages dev                        # serves site + functions + local D1
 #
 # Secrets for local dev go in .dev.vars (gitignored), NOT here:
-#   TURNSTILE_SECRET="1x0000000000000000000000000000000AA"   # Turnstile test secret
 #   ADMIN_TOKEN="choose-a-long-random-string"
+#   DISCORD_CLIENT_ID="Discord OAuth2 client ID"
+#   DISCORD_CLIENT_SECRET="Discord OAuth2 client secret"
+#   DISCORD_REDIRECT_URI="http://127.0.0.1:8788/api/auth/discord/callback"
+#   SESSION_SECRET="long-random-session-secret"
 #
-# In production set TURNSTILE_SECRET and ADMIN_TOKEN as encrypted env vars and
-# bind the D1 database (binding name DB) in the Cloudflare Pages project settings.
+# In production, non-secret runtime vars live in [vars] below. Set
+# ADMIN_TOKEN, DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET, SESSION_SECRET, and
+# optional webhook URLs as encrypted secrets in the Cloudflare Pages settings.
+# Bind the D1 database (binding name DB) in the Cloudflare Pages project settings.
 
 name = "aarhus-gamestormers-site"
 compatibility_date = "2024-11-01"
 pages_build_output_dir = "."
+
+[vars]
+DISCORD_GUILD_ID = "1333453198408683613"
+DISCORD_REDIRECT_URI = "https://www.gamestormers.dk/api/auth/discord/callback"
 
 [[d1_databases]]
 binding = "DB"
