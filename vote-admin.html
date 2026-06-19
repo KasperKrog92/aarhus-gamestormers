@@ -819,7 +819,8 @@
     });
   }
 
-  // ── open new round  $('open-round').addEventListener('click', function () {
+  // open new round
+  $('open-round').addEventListener('click', function () {
     var msg = $('new-round-msg');
     authedFetch('/round', {
       method: 'POST',
