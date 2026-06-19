@@ -1,5 +1,5 @@
 -- ============================================================================
--- Aarhus Gamestormers â€” game suggestion & approval-voting system
+-- Aarhus Gamestormers — game suggestion & approval-voting system
 -- Cloudflare D1 (SQLite) schema. Apply with:
 --   wrangler d1 execute gamestormers --file=./schema.sql            (local)
 --   wrangler d1 execute gamestormers --remote --file=./schema.sql   (production)
@@ -87,7 +87,7 @@ CREATE TABLE IF NOT EXISTS suggestions (
   store_url      TEXT,                                 -- Steam store page
   gog_url        TEXT,                                 -- optional, added during curation
   genres         TEXT,                                 -- comma-separated, e.g. "Puzzle, Horror"
-  price          TEXT,                                 -- formatted, e.g. "23,19â‚¬" (display only)
+  price          TEXT,                                 -- formatted, e.g. "23,19€" (display only)
   platforms      TEXT,                                 -- comma-separated, e.g. "Windows, macOS"
   playtime_hours INTEGER,                              -- manual (HowLongToBeat has no API)
   hltb_url       TEXT,                                 -- manual HowLongToBeat URL

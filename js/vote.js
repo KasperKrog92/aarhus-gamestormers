@@ -3,43 +3,43 @@
    Bilingual via STRINGS[lang]. */
 var STRINGS = {
   da: {
-    loading: 'IndlÃ¦serâ€¦',
+    loading: 'Indlæser…',
     statusNone: 'Ingen aktiv afstemning',
-    statusUpcoming: 'Forslag Ã¥bner snart',
-    statusSuggesting: 'Forslag er Ã¥bne',
-    statusVotingUpcoming: 'Afstemning Ã¥bner snart',
-    statusVoting: 'Afstemning er Ã¥ben',
+    statusUpcoming: 'Forslag åbner snart',
+    statusSuggesting: 'Forslag er åbne',
+    statusVotingUpcoming: 'Afstemning åbner snart',
+    statusVoting: 'Afstemning er åben',
     statusVotingClosed: 'Afstemningen er lukket',
     statusRevealed: 'Resultatet er klar',
-    introNone: 'Der er ingen aktiv runde lige nu. Hold Ã¸je med Discord for nÃ¦ste afstemning.',
-    introUpcoming: 'Forslag Ã¥bner snart.',
+    introNone: 'Der er ingen aktiv runde lige nu. Hold øje med Discord for næste afstemning.',
+    introUpcoming: 'Forslag åbner snart.',
     introSuggesting:
-      'ForeslÃ¥ et spil til mÃ¸det. Steam-spil fÃ¥r titel, billede, genrer og beskrivelse automatisk.',
+      'Foreslå et spil til mødet. Steam-spil får titel, billede, genrer og beskrivelse automatisk.',
     introVoting:
-      'SÃ¦t flueben ved <b>alle</b> de spil, du gerne vil spille. Spillet med flest stemmer vÃ¦lges til mÃ¸det.',
-    introVotingUpcoming: 'Afstemningen Ã¥bner pÃ¥ datoen herunder.',
-    introVotingClosed: 'Afstemningen er lukket. Resultatet bliver delt, nÃ¥r det er klar.',
-    introRevealed: 'Tak til alle der stemte. Her er resultatet, og vinderen er spillet til mÃ¸det.',
+      'Sæt flueben ved <b>alle</b> de spil, du gerne vil spille. Spillet med flest stemmer vælges til mødet.',
+    introVotingUpcoming: 'Afstemningen åbner på datoen herunder.',
+    introVotingClosed: 'Afstemningen er lukket. Resultatet bliver delt, når det er klar.',
+    introRevealed: 'Tak til alle der stemte. Her er resultatet, og vinderen er spillet til mødet.',
     loginTitle: 'Log ind for at deltage',
-    loginSuggest: 'Log ind med Discord for at foreslÃ¥ spil.',
+    loginSuggest: 'Log ind med Discord for at foreslå spil.',
     loginVote: 'Log ind med Discord for at stemme.',
     loginButton: 'Log ind med Discord',
     logoutButton: 'Log ud',
     loggedInAs: 'Logget ind som',
     nonMemberTitle: 'Du er logget ind, men mangler serveren',
-    nonMemberText: 'Denne Discord-konto ser ikke ud til at vÃ¦re medlem af Aarhus Gamestormers-serveren endnu.',
-    inviteLink: 'GÃ¥ til Discord-serveren',
-    retryLogin: 'Log ud og ind igen, nÃ¥r du er med i serveren.',
+    nonMemberText: 'Denne Discord-konto ser ikke ud til at være medlem af Aarhus Gamestormers-serveren endnu.',
+    inviteLink: 'Gå til Discord-serveren',
+    retryLogin: 'Log ud og ind igen, når du er med i serveren.',
     privacyNote: 'We use Discord login only to confirm membership in the Aarhus Gamestormers Discord server and prevent duplicate voting/suggestions. We do not access your messages, friends, or email.',
-    authError: 'Discord-login lykkedes ikke. PrÃ¸v igen.',
-    scheduleMeetingDate: 'MÃ¸dedato',
-    scheduleSuggestionsOpen: 'Forslag Ã¥bner',
-    scheduleVotingOpens: 'Afstemning Ã¥bner',
+    authError: 'Discord-login lykkedes ikke. Prøv igen.',
+    scheduleMeetingDate: 'Mødedato',
+    scheduleSuggestionsOpen: 'Forslag åbner',
+    scheduleVotingOpens: 'Afstemning åbner',
     scheduleVotingCloses: 'Afstemning lukker',
-    nextRoundHeading: 'NÃ¦ste runde',
-    nextRoundIntro: 'Vil du vÃ¦re med igen? Her er den nÃ¦ste runde.',
-    nextRoundMeeting: 'NÃ¦ste mÃ¸de',
-    nextRoundSuggestionsOpen: 'Forslag Ã¥bner',
+    nextRoundHeading: 'Næste runde',
+    nextRoundIntro: 'Vil du være med igen? Her er den næste runde.',
+    nextRoundMeeting: 'Næste møde',
+    nextRoundSuggestionsOpen: 'Forslag åbner',
     countdownPrefix: 'Tid til',
     countdownNow: 'I dag',
     countdownDays: 'Dage',
@@ -50,67 +50,67 @@ var STRINGS = {
     timelineVoting: 'Afstemning',
     timelineWinner: 'Vinder',
     timelineMeeting: 'Klubaften',
-    flowTitle: 'SÃ¥dan foregÃ¥r et mÃ¸de',
-    flowSuggestTitle: 'ForeslÃ¥',
-    flowSuggestText: 'Medlemmer foreslÃ¥r spil, der passer til fÃ¦lles spil og diskussion.',
+    flowTitle: 'Sådan foregår et møde',
+    flowSuggestTitle: 'Foreslå',
+    flowSuggestText: 'Medlemmer foreslår spil, der passer til fælles spil og diskussion.',
     flowVoteTitle: 'Stem',
-    flowVoteText: 'NÃ¥r afstemningen Ã¥bner, stemmer du pÃ¥ alle de spil, du gerne vil spille.',
+    flowVoteText: 'Når afstemningen åbner, stemmer du på alle de spil, du gerne vil spille.',
     flowWinnerTitle: 'Vinderen findes',
-    flowWinnerText: 'Spillet med flest stemmer bliver valgt til mÃ¸det.',
-    flowMeetingTitle: 'Spil og diskutÃ©r',
-    flowMeetingText: 'Vi spiller hjemmefra og mÃ¸des til en fÃ¦lles samtale i klubben.',
-    formTitle: 'ForeslÃ¥ et spil',
-    suggestToggle: 'ForeslÃ¥ nyt spil',
+    flowWinnerText: 'Spillet med flest stemmer bliver valgt til mødet.',
+    flowMeetingTitle: 'Spil og diskutér',
+    flowMeetingText: 'Vi spiller hjemmefra og mødes til en fælles samtale i klubben.',
+    formTitle: 'Foreslå et spil',
+    suggestToggle: 'Foreslå nyt spil',
     hideSuggest: 'Skjul formular',
     guidelinesTitle: 'Hvilke spil passer godt?',
-    guidelinesPc: 'Spillet skal kunne spilles pÃ¥ PC.',
-    guidelinesLength: 'Det bÃ¸r som regel tage ca. 10 timer eller mindre at gennemfÃ¸re.',
-    guidelinesLong: 'LÃ¦ngere spil og spil uden fast slutning er velkomne, bare skriv det tydeligt i din pitch.',
+    guidelinesPc: 'Spillet skal kunne spilles på PC.',
+    guidelinesLength: 'Det bør som regel tage ca. 10 timer eller mindre at gennemføre.',
+    guidelinesLong: 'Længere spil og spil uden fast slutning er velkomne, bare skriv det tydeligt i din pitch.',
     guidelinesCheckPrefix: 'Tjek ',
     guidelinesUpcoming: 'kommende spil',
     guidelinesCheckMiddle: ' og ',
     guidelinesHistory: 'tidligere spil',
-    guidelinesCheckSuffix: ', fÃ¸r du foreslÃ¥r noget.',
-    steamQuestion: 'Er spillet pÃ¥ Steam?',
-    steamYes: 'Ja, det er pÃ¥ Steam',
-    steamNo: 'Nej / ikke pÃ¥ Steam',
-    changeChoice: 'â† VÃ¦lg igen',
+    guidelinesCheckSuffix: ', før du foreslår noget.',
+    steamQuestion: 'Er spillet på Steam?',
+    steamYes: 'Ja, det er på Steam',
+    steamNo: 'Nej / ikke på Steam',
+    changeChoice: '← Vælg igen',
     labelSteam: 'Steam-link',
     hintSteam: 'Fx https://store.steampowered.com/app/753640/Outer_Wilds/',
     labelTitle: 'Spillets titel',
     titlePlaceholder: 'Fx Hollow Knight: Silksong',
     labelStore: 'Butikslink (valgfri)',
-    storePlaceholder: 'Link til GOG, Epic, itch.io â€¦',
+    storePlaceholder: 'Link til GOG, Epic, itch.io …',
     labelGenres: 'Genrer (valgfri)',
     genresPlaceholder: 'Kommasepareret, fx Puzzle, Horror',
-    manualNote: 'Spil uden Steam-side bliver gennemset af en admin, fÃ¸r de vises pÃ¥ listen.',
+    manualNote: 'Spil uden Steam-side bliver gennemset af en admin, før de vises på listen.',
     gameDescription: 'Spilbeskrivelse',
     suggestedPitch: 'Pitch fra forslagsstiller',
     labelPitch: 'Din pitch (valgfri)',
-    pitchPlaceholder: 'Hvorfor skulle vi spille det? Skriv et par linjer pÃ¥ engelsk.',
+    pitchPlaceholder: 'Hvorfor skulle vi spille det? Skriv et par linjer på engelsk.',
     btnSuggest: 'Send forslag',
-    suggestThanks: 'Tak! â€œ{title}â€ er tilfÃ¸jet til forslagene.',
-    manualThanks: 'Tak! â€œ{title}â€ bliver vist, nÃ¥r en admin har godkendt det.',
+    suggestThanks: 'Tak! “{title}” er tilføjet til forslagene.',
+    manualThanks: 'Tak! “{title}” bliver vist, når en admin har godkendt det.',
     approvedSoFar: 'Spilforslag',
     castBallot: 'Din stemme',
     btnVote: 'Stem',
     btnUpdateVote: 'Opdater stemme',
-    btnVoted: 'Stemme afgivet âœ“',
+    btnVoted: 'Stemme afgivet ✓',
     alreadyVoted: 'Hvis du stemmer igen i denne runde, erstatter den nye stemme din tidligere stemme.',
     voteThanks: 'Tak for din stemme!',
-    noGames: 'Der er ingen spil pÃ¥ stemmesedlen endnu.',
-    by: 'ForeslÃ¥et af',
+    noGames: 'Der er ingen spil på stemmesedlen endnu.',
+    by: 'Foreslået af',
     approve: 'Jeg vil gerne spille det her',
     votes: 'stemmer',
     winnerTag: 'Vinder',
-    playtime: 'â± ~{h} t.',
-    platformPrefix: 'TilgÃ¦ngelig pÃ¥ ',
+    playtime: '⏱ ~{h} t.',
+    platformPrefix: 'Tilgængelig på ',
     platformAnd: ' og ',
-    errGeneric: 'Noget gik galt. PrÃ¸v igen.',
-    errPickOne: 'VÃ¦lg mindst Ã©t spil.',
+    errGeneric: 'Noget gik galt. Prøv igen.',
+    errPickOne: 'Vælg mindst ét spil.',
   },
   en: {
-    loading: 'Loadingâ€¦',
+    loading: 'Loading…',
     statusNone: 'No active vote',
     statusUpcoming: 'Suggestions open soon',
     statusSuggesting: 'Suggestions are open',
@@ -123,7 +123,7 @@ var STRINGS = {
     introSuggesting:
       "Suggest a game for the meeting. Steam games get title, image, genres and description filled in automatically.",
     introVoting:
-      'Tick <b>every</b> game youâ€™d be happy to play. The game with the most ticks is chosen for the meeting.',
+      'Tick <b>every</b> game you’d be happy to play. The game with the most ticks is chosen for the meeting.',
     introVotingUpcoming: 'Voting opens on the date below.',
     introVotingClosed: 'Voting is closed. The result will be shared when it is ready.',
     introRevealed: 'Thanks to everyone who voted. Here is the result, and the winner is the game for the meeting.',
@@ -179,15 +179,15 @@ var STRINGS = {
     guidelinesHistory: 'games already played',
     guidelinesCheckSuffix: ' before suggesting.',
     steamQuestion: 'Is the game on Steam?',
-    steamYes: 'Yes, itâ€™s on Steam',
+    steamYes: 'Yes, it’s on Steam',
     steamNo: 'No / not on Steam',
-    changeChoice: 'â† Choose again',
+    changeChoice: '← Choose again',
     labelSteam: 'Steam link',
     hintSteam: 'e.g. https://store.steampowered.com/app/753640/Outer_Wilds/',
     labelTitle: 'Game title',
     titlePlaceholder: 'e.g. Hollow Knight: Silksong',
     labelStore: 'Store link (optional)',
-    storePlaceholder: 'Link to GOG, Epic, itch.io â€¦',
+    storePlaceholder: 'Link to GOG, Epic, itch.io …',
     labelGenres: 'Genres (optional)',
     genresPlaceholder: 'Comma-separated, e.g. Puzzle, Horror',
     manualNote: 'Games without a Steam page are reviewed by an admin before they appear on the list.',
@@ -196,21 +196,21 @@ var STRINGS = {
     labelPitch: 'Your pitch (optional)',
     pitchPlaceholder: 'Why should we play it? Please write a couple of lines in English.',
     btnSuggest: 'Submit suggestion',
-    suggestThanks: 'Thanks! â€œ{title}â€ has been added to the suggestions.',
-    manualThanks: 'Thanks! â€œ{title}â€ will appear once an admin has approved it.',
+    suggestThanks: 'Thanks! “{title}” has been added to the suggestions.',
+    manualThanks: 'Thanks! “{title}” will appear once an admin has approved it.',
     approvedSoFar: 'Game suggestions',
     castBallot: 'Your vote',
     btnVote: 'Vote',
     btnUpdateVote: 'Update vote',
-    btnVoted: 'Vote cast âœ“',
+    btnVoted: 'Vote cast ✓',
     alreadyVoted: 'If you vote again in this round, your new ballot replaces your previous one.',
     voteThanks: 'Thanks for voting!',
     noGames: 'There are no games on the ballot yet.',
     by: 'Suggested by',
-    approve: 'Iâ€™d play this',
+    approve: 'I’d play this',
     votes: 'votes',
     winnerTag: 'Winner',
-    playtime: 'â± ~{h} hrs.',
+    playtime: '⏱ ~{h} hrs.',
     platformPrefix: 'Available on ',
     platformAnd: ' and ',
     errGeneric: 'Something went wrong. Please try again.',
@@ -229,7 +229,7 @@ var STRINGS = {
   var session = { authenticated: false, user: null, discordInvite: 'https://discord.gg/N2h6DJxVDF' };
   var countdownTimerIds = [];
 
-  // â”€â”€ helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── helpers ───────────────────────────────────────────────────────────────
   function el(tag, attrs, children) {
     var node = document.createElement(tag);
     if (attrs) {
@@ -361,13 +361,13 @@ var STRINGS = {
   }
 
   function roundNumberText(round) {
-    return (lang === 'en' ? 'Meeting ' : 'MÃ¸de ') + round.id;
+    return (lang === 'en' ? 'Meeting ' : 'Møde ') + round.id;
   }
 
   function roundTitleExtra(round) {
     var title = String(round.title || '').trim();
     var normalized = title.toLowerCase();
-    if (title && normalized !== ('meeting ' + round.id).toLowerCase() && normalized !== ('mÃ¸de ' + round.id).toLowerCase()) {
+    if (title && normalized !== ('meeting ' + round.id).toLowerCase() && normalized !== ('møde ' + round.id).toLowerCase()) {
       return title;
     }
     return '';
@@ -375,7 +375,7 @@ var STRINGS = {
 
   function roundLabel(round) {
     var extra = roundTitleExtra(round);
-    return roundNumberText(round) + (extra ? ' Â· ' + extra : '');
+    return roundNumberText(round) + (extra ? ' · ' + extra : '');
   }
 
   function formatDate(dateString) {
@@ -455,7 +455,7 @@ var STRINGS = {
       var state = states[index];
       var date = formatDate(step[2]);
       return el('li', { class: 'vote-phase-step ' + state }, [
-        el('span', { class: 'vote-phase-marker', text: state === 'done' ? 'âœ“' : String(index + 1) }),
+        el('span', { class: 'vote-phase-marker', text: state === 'done' ? '✓' : String(index + 1) }),
         el('span', { class: 'vote-phase-name', text: step[1] }),
         date ? el('time', { class: 'vote-phase-date', datetime: step[2], text: date }) : null,
       ]);
@@ -573,7 +573,7 @@ var STRINGS = {
     ]);
   }
 
-  // â”€â”€ card builder â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── card builder ───────────────────────────────────────────────────────────
   function card(s, mode, opts) {
     opts = opts || {};
     var description = lang === 'en' ? (s.descriptionEn || s.descriptionDa) : (s.descriptionDa || s.descriptionEn);
@@ -668,7 +668,7 @@ var STRINGS = {
   function meetingBadge(round) {
     var extra = roundTitleExtra(round);
     return el('div', { class: 'vote-meeting' }, [
-      el('span', { class: 'vote-meeting-label', text: lang === 'en' ? 'Meeting' : 'MÃ¸de' }),
+      el('span', { class: 'vote-meeting-label', text: lang === 'en' ? 'Meeting' : 'Møde' }),
       el('strong', { class: 'vote-meeting-number', text: String(round.id) }),
       extra ? el('span', { class: 'vote-meeting-title', text: extra }) : null,
     ]);
@@ -730,7 +730,7 @@ var STRINGS = {
     box.hidden = false;
   }
 
-  // â”€â”€ phase renderers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── phase renderers ─────────────────────────────────────────────────────────
   function renderNone() {
     clearApp();
     app.appendChild(el('div', { class: 'vote-round-hero vote-round-hero-empty' }, [
@@ -779,7 +779,7 @@ var STRINGS = {
     }
 
     // The disclosure reveals a container that walks through: a Steam yes/no
-    // question â†’ the matching form. Switching forms simply re-renders `panel`.
+    // question → the matching form. Switching forms simply re-renders `panel`.
     var panel = el('div');
     panel.hidden = true;
 
@@ -836,7 +836,7 @@ var STRINGS = {
 
     function showSteamForm() {
       clear(panel);
-      var steam = el('input', { class: 'vote-input', type: 'url', placeholder: 'https://store.steampowered.com/app/â€¦' });
+      var steam = el('input', { class: 'vote-input', type: 'url', placeholder: 'https://store.steampowered.com/app/…' });
       var pitch = el('textarea', { class: 'vote-textarea', placeholder: T.pitchPlaceholder, maxlength: '500' });
       var box = msgBox();
       var btn = el('button', { class: 'btn-green', type: 'submit', text: T.btnSuggest });
@@ -1011,7 +1011,7 @@ var STRINGS = {
     ]);
   }
 
-  // â”€â”€ boot â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── boot ─────────────────────────────────────────────────────────────────
   function load() {
     mountMeetingFlow();
     app.appendChild(el('p', { class: 'vote-intro', text: T.loading }));

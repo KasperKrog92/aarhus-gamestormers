@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
-  <title>Vote admin â€“ Aarhus Gamestormers</title>
+  <title>Vote admin – Aarhus Gamestormers</title>
   <link rel="icon" type="image/png" href="/favicon/favicon.png">
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=DM+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/style.css?v=22">
@@ -84,11 +84,11 @@
           </div>
           <div>
             <label class="admin-field-label" for="nr-venue-name">Venue name</label>
-            <input class="admin-input" id="nr-venue-name" type="text" value="Folkehuset MÃ¸llestien">
+            <input class="admin-input" id="nr-venue-name" type="text" value="Folkehuset Møllestien">
           </div>
           <div>
             <label class="admin-field-label" for="nr-venue-address">Venue address</label>
-            <input class="admin-input" id="nr-venue-address" type="text" value="GrÃ¸nnegade 10, 8000 Aarhus C">
+            <input class="admin-input" id="nr-venue-address" type="text" value="Grønnegade 10, 8000 Aarhus C">
           </div>
           <div>
             <label class="admin-field-label" for="nr-discord-invite">Discord invite</label>
@@ -158,8 +158,8 @@
   var TOKEN_KEY = 'gs-admin-token';
   var token = sessionStorage.getItem(TOKEN_KEY) || '';
   var currentRoundId = null;
-  var DEFAULT_VENUE_NAME = 'Folkehuset MÃ¸llestien';
-  var DEFAULT_VENUE_ADDRESS = 'GrÃ¸nnegade 10, 8000 Aarhus C';
+  var DEFAULT_VENUE_NAME = 'Folkehuset Møllestien';
+  var DEFAULT_VENUE_ADDRESS = 'Grønnegade 10, 8000 Aarhus C';
   var DEFAULT_DISCORD_INVITE = 'https://discord.gg/N2h6DJxVDF';
   var DEFAULT_SUGGESTIONS_OPEN_MONTHS_BEFORE = 2.8;
   var DEFAULT_VOTING_OPENS_MONTHS_BEFORE = 2.5;
@@ -261,13 +261,13 @@
     var totalApprovals = ballots.reduce(function (n, b) { return n + b.suggestionIds.length; }, 0);
 
     $('round-section-count').textContent = data.round
-      ? data.round.phase + (data.round.meeting_date ? ' Â· ' + data.round.meeting_date : '')
+      ? data.round.phase + (data.round.meeting_date ? ' · ' + data.round.meeting_date : '')
       : 'No round';
     $('selected-section-count').textContent = data.selectedGame
       ? data.selectedGame.title
       : 'Not selected';
-    $('suggestions-section-count').textContent = plural(suggestions.length, 'suggestion') + (pending ? ' Â· ' + pending + ' pending' : '');
-    $('votes-section-count').textContent = plural(ballots.length, 'ballot') + ' Â· ' + plural(totalApprovals, 'approval');
+    $('suggestions-section-count').textContent = plural(suggestions.length, 'suggestion') + (pending ? ' · ' + pending + ' pending' : '');
+    $('votes-section-count').textContent = plural(ballots.length, 'ballot') + ' · ' + plural(totalApprovals, 'approval');
   }
 
   function connect() {
@@ -283,7 +283,7 @@
     if (!rounds.length) {
       var opt = document.createElement('option');
       opt.disabled = true;
-      opt.textContent = 'No rounds yet â€” open one below';
+      opt.textContent = 'No rounds yet — open one below';
       sel.appendChild(opt);
       return;
     }
@@ -291,8 +291,8 @@
       var opt = document.createElement('option');
       opt.value = r.id;
       var label = 'Round #' + r.id;
-      if (r.title) label += ' â€” ' + r.title;
-      if (r.meeting_date) label += ' Â· ' + r.meeting_date;
+      if (r.title) label += ' — ' + r.title;
+      if (r.meeting_date) label += ' · ' + r.meeting_date;
       label += r.has_public_meeting ? ' - public meeting' : ' - missing public meeting';
       label += ' (' + r.phase + ')';
       opt.textContent = label;
@@ -358,7 +358,7 @@
       });
   }
 
-  // â”€â”€ current round â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── current round ──────────────────────────────────────────────────────────
   function renderRound(round, tallies, meeting) {
     var area = $('round-area');
     area.innerHTML = '';
@@ -466,13 +466,13 @@
           h('p', { class: 'admin-meta', text: [
             round.meeting_date ? 'Meeting date: ' + round.meeting_date : 'Meeting date missing',
             meeting ? 'public meeting: ' + meeting.status : 'public meeting missing',
-          ].join(' Â· ') }),
+          ].join(' · ') }),
         ]),
       ]),
       h('p', { class: 'admin-meta' }, [
         'Public URL: ',
         h('a', { href: '/vote', target: '_blank', rel: 'noopener' }, ['/vote']),
-        ' Â· phase controls what visitors see (suggesting -> voting -> revealed).',
+        ' · phase controls what visitors see (suggesting -> voting -> revealed).',
       ]),
       h('p', { class: 'admin-meta', text: meeting ? 'Public meeting record: yes (' + meeting.status + ')' : 'Public meeting record: missing. Save this round to create one from the event basics below.' }),
       h('div', { class: 'admin-grid' }, [
@@ -497,7 +497,7 @@
     ]));
   }
 
-  // â”€â”€ selected game (promote a winner, edit its public card) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── selected game (promote a winner, edit its public card) ─────────────────
   function readinessBanner(readiness) {
     if (!readiness) return null;
     if (readiness.ready) return h('div', { class: 'admin-msg ok', text: 'Homepage card is publish-ready.' });
@@ -565,11 +565,11 @@
     var sorted = suggestions.slice().sort(function (a, b) {
       return ((tallies[b.id] || 0) - (tallies[a.id] || 0)) || (order[a.status] - order[b.status]) || (a.id - b.id);
     });
-    var select = h('select', { class: 'admin-select' }, [h('option', { value: '', text: 'â€” choose a suggestion â€”' })].concat(
+    var select = h('select', { class: 'admin-select' }, [h('option', { value: '', text: '— choose a suggestion —' })].concat(
       sorted.map(function (s) {
         return h('option', {
           value: s.id,
-          text: '#' + s.id + ' Â· ' + s.title + ' Â· ' + (tallies[s.id] || 0) + ' votes' + (s.status !== 'approved' ? ' (' + s.status + ')' : ''),
+          text: '#' + s.id + ' · ' + s.title + ' · ' + (tallies[s.id] || 0) + ' votes' + (s.status !== 'approved' ? ' (' + s.status + ')' : ''),
           selected: round.winner_suggestion_id === s.id ? 'selected' : null,
         });
       })
@@ -668,7 +668,7 @@
     ]);
   }
 
-  // â”€â”€ suggestions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── suggestions ──────────────────────────────────────────────────────────
   function renderSuggestions(suggestions, tallies) {
     var wrap = $('suggestions');
     wrap.innerHTML = '';
@@ -755,7 +755,7 @@
       h('span', { class: 'admin-suggestion-title-wrap' }, [
         badges,
         h('span', { class: 'admin-suggestion-title', text: s.title || 'Untitled suggestion' }),
-        h('span', { class: 'admin-suggestion-sub', text: '#' + s.id + (s.suggested_by ? ' Â· suggested by ' + s.suggested_by : '') }),
+        h('span', { class: 'admin-suggestion-sub', text: '#' + s.id + (s.suggested_by ? ' · suggested by ' + s.suggested_by : '') }),
       ]),
       h('span', { class: 'admin-suggestion-votes' }, [
         h('strong', { text: String(votes) }),
@@ -789,7 +789,7 @@
     ]);
   }
 
-  // â”€â”€ votes / ballots (who voted for what; remove a ballot) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── votes / ballots (who voted for what; remove a ballot) ──────────────────
   function renderBallots(ballots, suggestions) {
     var wrap = $('ballots');
     wrap.innerHTML = '';

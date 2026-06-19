@@ -106,8 +106,8 @@ visible. See [`project-guide.md`](project-guide.md) and [`content-guide.md`](con
 
 ### Next-round notice
 
-`GET /api/round/current` includes a `nextRound` object â€” `{ id, title, meetingDate, suggestionsOpenAt,
-votingOpensAt, votingClosesAt }` â€” built from the next round whose id is greater than the current round.
+`GET /api/round/current` includes a `nextRound` object — `{ id, title, meetingDate, suggestionsOpenAt,
+votingOpensAt, votingClosesAt }` — built from the next round whose id is greater than the current round.
 When the current round is revealed or voting has closed, `js/vote.js` shows this as a bilingual "next round"
 notice. With a pre-created pipeline of future rounds, `nextRound` points at the round after whichever one is
 currently active.
