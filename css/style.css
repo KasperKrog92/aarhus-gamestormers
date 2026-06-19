@@ -1609,6 +1609,13 @@ img { display: block; max-width: 100%; height: auto; }
   color: rgba(247,244,238,0.72);
   line-height: 1.55;
 }
+.vote-auth .btn-green {
+  flex: 0 0 auto;
+  justify-content: center;
+  min-width: 190px;
+  text-align: center;
+  white-space: nowrap;
+}
 .vote-auth-identity {
   display: flex;
   align-items: center;
@@ -1640,6 +1647,13 @@ img { display: block; max-width: 100%; height: auto; }
 }
 .vote-auth-logout {
   flex: 0 0 auto;
+  background: rgba(247,244,238,0.06);
+  border-color: rgba(247,244,238,0.28);
+  color: var(--cream);
+}
+.vote-auth-logout:hover {
+  background: rgba(150,195,141,0.14);
+  border-color: rgba(150,195,141,0.62);
 }
 
 /* Form panel */
