@@ -58,7 +58,7 @@ Now built (Tasks 5-9):
 - Automated transition from `voting` to `revealed` (runner `reveal_winner`).
 - Winner selection in automation (pure `decideRoundActions`, with blocked tie/no-vote handling).
 - Discord notifications for phase changes and winners (separate `DISCORD_VOTING_WEBHOOK_URL`).
-- Automated use of the selected-game promotion endpoint, but only as a safe idempotent re-confirm when the card is already publish-ready.
+- Automated use of the selected-game promotion endpoint when the winner is already publish-ready or the winning suggestion can be copied into a publish-ready frontpage card.
 - A publication gate for missing manual fields, so automation does not expose an incomplete homepage card (`winnerPublicationPlan`, `mayPromote`).
 - Winner handoff generation for any manual fields that still need maintainer review (`buildHandoffMarkdown`, uploaded as a workflow artifact).
 - Hourly + manual GitHub Actions workflow driving the runner.
@@ -278,8 +278,8 @@ Purpose: move the winning suggestion toward the database-backed homepage without
   - whether automation may safely call selected-game promotion (`mayPromote`, with `needsHandoff` and a human-readable `reason`)
 - [x] Before enabling scheduled promotion, add one of these safety paths:
   - extend `POST /api/admin/round/:id/select` with a draft/not-public mode that copies the winner into `games` and `meetings` without exposing it through `/api/meetings/public`
-  - or keep promotion manual unless the selected-game data is already publish-ready
-  - Chosen: keep promotion manual. `mayPromote` is only true when the winner is already selected and the card is publish-ready (an idempotent re-confirm). A game freshly copied from a suggestion always lacks the HowLongToBeat URL, so the normal reveal flow never auto-publishes; no select-endpoint change was needed.
+  - or call promotion only when the winner is already publish-ready or the winning suggestion can be copied into a publish-ready card
+  - Chosen: auto-promote only when safe. `mayPromote` is true when the winner is already selected and the card is publish-ready (an idempotent re-confirm), or when the unselected winning suggestion already has every frontpage field that promotion copies into `games`. The planner directly requires HowLongToBeat URL and playtime hours in addition to the other homepage card fields. A game freshly copied from a suggestion can still lack manual fields such as HowLongToBeat data, GOG product ID, or localized event copy, so incomplete reveal flows still write a handoff instead of publishing.
 - [x] When promotion is allowed, call the existing selected-game API instead of editing `games` / `meetings` directly. (Done in Task 8: the runner calls `client.selectWinner` only when `plan.mayPromote` is true.)
 - [x] After promotion, refetch the admin round payload and use `publishReadiness` to decide whether a handoff artifact is needed. (Done in Task 8: the runner re-fetches via `getAdminRound`, recomputes the plan, and only writes a handoff when `plan.needsHandoff` is true.)
 - [x] Generate Markdown containing:

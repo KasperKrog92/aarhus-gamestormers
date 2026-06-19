@@ -7,17 +7,18 @@
 //                            selected-game promotion endpoint, given the current
 //                            admin round payload. Promotion publishes the meeting
 //                            card immediately through /api/meetings/public, so we
-//                            only allow it when the card is already publish-ready.
+//                            only allow it when the existing or projected card is
+//                            publish-ready.
 //   buildHandoffMarkdown()   render a maintainer-facing Markdown brief listing
 //                            the winner details and every manual field still
 //                            needed before publishing.
 //
-// Safety path (plan Task 7): we keep promotion manual unless the selected game is
-// already publish-ready, instead of adding a draft/not-public mode to the select
-// endpoint. A game freshly copied from a suggestion can never be publish-ready on
-// its own (it always lacks a HowLongToBeat URL, which needs human review), so in
-// the normal reveal flow the scheduler reveals the winner, writes this handoff,
-// and leaves homepage publication to MEETING_WORKFLOW.md.
+// Safety path (plan Task 7): we keep promotion automatic only when the selected
+// game is already publish-ready or when the winning suggestion can be copied into
+// a publish-ready card. A game freshly copied from a suggestion can still lack
+// manual fields such as HowLongToBeat data or localized copy, so the normal
+// incomplete reveal flow writes this handoff and leaves homepage publication to
+// MEETING_WORKFLOW.md.
 
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -26,6 +27,29 @@ function numberOrNull(value) {
   if (value == null || value === '') return null;
   const n = Number(value);
   return Number.isInteger(n) ? n : null;
+}
+
+function addMissing(missing, label) {
+  if (!missing.includes(label)) missing.push(label);
+}
+
+function winnerSuggestionMissingFields(suggestion) {
+  if (!suggestion) return ['winning suggestion'];
+  const missing = [];
+  if (!suggestion.title) missing.push('title');
+  if (!suggestion.header_image) missing.push('cover image');
+  if (!suggestion.store_url && !suggestion.gog_url) missing.push('store link');
+  if (!suggestion.genres) missing.push('genres');
+  if (!suggestion.platforms) missing.push('platforms');
+  if (suggestion.playtime_hours == null || suggestion.playtime_hours === '') missing.push('playtime hours');
+  if (!suggestion.hltb_url) missing.push('HowLongToBeat URL');
+  if (!suggestion.description_da) missing.push('Danish event description');
+  if (!suggestion.description_en) missing.push('English event description');
+  return missing;
+}
+
+function findSuggestion(suggestions, id) {
+  return (suggestions || []).find((s) => s && numberOrNull(s.id) === id) || null;
 }
 
 // Decide what the scheduler may do with the revealed winner. Pure: pass the admin
@@ -37,7 +61,9 @@ export function winnerPublicationPlan({ roundPayload, winnerSuggestionId } = {})
   const payload = roundPayload || {};
   const round = payload.round || null;
   const meeting = payload.meeting || null;
+  const selectedGame = payload.selectedGame || null;
   const readiness = payload.publishReadiness || null;
+  const suggestions = payload.suggestions || [];
 
   const roundId = round ? numberOrNull(round.id) : null;
   const selectedWinnerId = round ? numberOrNull(round.winner_suggestion_id) : null;
@@ -47,8 +73,14 @@ export function winnerPublicationPlan({ roundPayload, winnerSuggestionId } = {})
   const hasSelectedGame = Boolean(meeting && meeting.hasSelectedGame);
   const winnerAlreadySelected =
     hasSelectedGame && winnerId != null && selectedWinnerId === winnerId;
-  const publishReady = Boolean(readiness && readiness.ready);
   const missing = readiness && Array.isArray(readiness.missing) ? readiness.missing.slice() : [];
+  if (selectedGame) {
+    if (selectedGame.playtimeHours == null || selectedGame.playtimeHours === '') addMissing(missing, 'playtime hours');
+    if (!selectedGame.hltbUrl) addMissing(missing, 'HowLongToBeat URL');
+  }
+  const publishReady = Boolean(readiness && readiness.ready && missing.length === 0);
+  const projectedMissing = winnerSuggestionMissingFields(findSuggestion(suggestions, winnerId));
+  const projectedPublishReady = hasMeetingRecord && !hasSelectedGame && projectedMissing.length === 0;
 
   // A different suggestion is already attached as the winner. Never overwrite it
   // automatically; the maintainer has to resolve the mismatch.
@@ -67,15 +99,15 @@ export function winnerPublicationPlan({ roundPayload, winnerSuggestionId } = {})
   } else if (!hasMeetingRecord) {
     reason = 'No public meeting record exists yet; create the meeting before promoting.';
   } else if (winnerAlreadySelected && publishReady) {
-    // The only state where post-promotion readiness is guaranteed: the game is
-    // already attached and complete, so calling select again is a safe, idempotent
-    // re-confirm of an already-public card.
     mayPromote = true;
     reason = 'Winner is selected and the meeting card is publish-ready; promotion is safe and idempotent.';
   } else if (winnerAlreadySelected) {
     reason = `Winner is selected but the meeting card is missing manual fields (${missing.join(', ') || 'unknown'}); leaving publication manual.`;
+  } else if (projectedPublishReady) {
+    mayPromote = true;
+    reason = 'Winning suggestion has all frontpage fields; promotion can publish it automatically.';
   } else {
-    reason = 'Winner is not promoted yet; promoting now would publish an incomplete card, so publication stays manual.';
+    reason = `Winner is not promoted yet and is missing frontpage fields (${projectedMissing.join(', ') || 'unknown'}); publication stays manual.`;
   }
 
   return {
@@ -85,13 +117,13 @@ export function winnerPublicationPlan({ roundPayload, winnerSuggestionId } = {})
     hasSelectedGame,
     winnerAlreadySelected,
     conflict,
-    publishReady,
-    missing,
+    publishReady: publishReady || projectedPublishReady,
+    missing: winnerAlreadySelected ? missing : projectedMissing,
     mayPromote,
     // A handoff is worth generating whenever the card is not yet publish-ready
     // (which includes the not-yet-promoted reveal flow) or there is a conflict to
     // flag for the maintainer.
-    needsHandoff: conflict || !publishReady,
+    needsHandoff: conflict || !(publishReady || projectedPublishReady),
     reason,
   };
 }
@@ -115,10 +147,6 @@ function formatMeetingDate(isoDate) {
     month: 'long',
     year: 'numeric',
   }).format(date);
-}
-
-function findSuggestion(suggestions, id) {
-  return (suggestions || []).find((s) => s && numberOrNull(s.id) === id) || null;
 }
 
 // Rank tallies ({ [suggestionId]: votes }) high to low for the handoff summary.
@@ -171,7 +199,8 @@ export function buildHandoffMarkdown({ roundPayload, winnerSuggestionId, plan, b
   const pitch = (winner && winner.pitch) || '';
   const suggestedBy = (winner && winner.suggested_by) || '';
 
-  const hltbUrl = (game && game.hltbUrl) || '';
+  const hltbUrl = pick('hltbUrl', 'hltb_url');
+  const playtimeHours = (game && game.playtimeHours) || (winner && winner.playtime_hours) || '';
   const daDescription =
     (meetingCopy && meetingCopy.da && meetingCopy.da.eventDescription) ||
     (game && game.descriptionDa) ||
@@ -208,6 +237,8 @@ export function buildHandoffMarkdown({ roundPayload, winnerSuggestionId, plan, b
   lines.push(line('Banner image URL', image));
   lines.push(line('Genres', genres));
   lines.push(line('Platforms', platforms));
+  lines.push(line('HowLongToBeat URL', hltbUrl));
+  lines.push(line('Playtime hours', playtimeHours ? String(playtimeHours) : ''));
   lines.push(line('Suggested by', suggestedBy));
   lines.push(line('Pitch', pitch));
   lines.push('');
@@ -237,7 +268,7 @@ export function buildHandoffMarkdown({ roundPayload, winnerSuggestionId, plan, b
   // automatically and localized copy is hand-written), so remind whenever the
   // corresponding field is still empty.
   const reminders = [];
-  if (!hltbUrl) {
+  if (!hltbUrl || !playtimeHours) {
     reminders.push('HowLongToBeat link and hours are not fetched automatically. Ask the maintainer for the link and main-story hours.');
   }
   if (!daDescription) reminders.push('Danish event description still needs human review.');

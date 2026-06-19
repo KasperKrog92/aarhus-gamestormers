@@ -90,6 +90,7 @@ CREATE TABLE IF NOT EXISTS suggestions (
   price          TEXT,                                 -- formatted, e.g. "23,19€" (display only)
   platforms      TEXT,                                 -- comma-separated, e.g. "Windows, macOS"
   playtime_hours INTEGER,                              -- manual (HowLongToBeat has no API)
+  hltb_url       TEXT,                                 -- manual HowLongToBeat URL
   description_da TEXT,                                 -- Steam short_description, Danish/fallback
   description_en TEXT,                                 -- Steam short_description, English
   pitch          TEXT,                                 -- the suggester's short pitch

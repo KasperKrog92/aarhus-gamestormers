@@ -19,6 +19,8 @@ const WINNER_SUGGESTION = {
   header_image: 'https://cdn.example/hollow-knight.jpg',
   genres: 'Metroidvania, Action',
   platforms: 'Windows, macOS, Linux',
+  playtime_hours: 25,
+  hltb_url: 'https://howlongtobeat.com/game/26606',
   pitch: 'A gorgeous hand-drawn adventure.',
   suggested_by: 'Kasper',
   description_da: '',
@@ -30,6 +32,12 @@ const SUGGESTIONS = [
   { id: 102, title: 'Celeste' },
   { id: 103, title: 'Outer Wilds' },
 ];
+
+const READY_WINNER_SUGGESTION = {
+  ...WINNER_SUGGESTION,
+  description_da: 'Dansk beskrivelse.',
+  description_en: 'English description.',
+};
 
 // A round that has been revealed but not yet promoted into the meeting card.
 function revealPayload(overrides = {}) {
@@ -65,6 +73,7 @@ function promotedPayload(overrides = {}) {
       image: 'https://cdn.example/hollow-knight.jpg',
       genres: 'Metroidvania, Action',
       platforms: 'Windows, macOS, Linux',
+      playtimeHours: 25,
       hltbUrl: 'https://howlongtobeat.com/game/26606',
       descriptionDa: 'Dansk beskrivelse.',
       descriptionEn: 'English description.',
@@ -91,12 +100,64 @@ test('plan: reveal-flow winner is not auto-promotable and needs a handoff', () =
   assert.match(plan.reason, /not promoted yet/);
 });
 
+test('plan: an unselected winner with all frontpage fields can be promoted automatically', () => {
+  const plan = winnerPublicationPlan({
+    roundPayload: revealPayload({ suggestions: [READY_WINNER_SUGGESTION, ...SUGGESTIONS.slice(1)] }),
+    winnerSuggestionId: 101,
+  });
+  assert.equal(plan.hasSelectedGame, false);
+  assert.equal(plan.winnerAlreadySelected, false);
+  assert.equal(plan.publishReady, true);
+  assert.equal(plan.mayPromote, true);
+  assert.equal(plan.needsHandoff, false);
+  assert.deepEqual(plan.missing, []);
+  assert.match(plan.reason, /all frontpage fields/);
+});
+
+test('plan: an unselected winner missing frontpage fields is not promoted automatically', () => {
+  const plan = winnerPublicationPlan({
+    roundPayload: revealPayload({
+      suggestions: [
+        {
+          ...READY_WINNER_SUGGESTION,
+          playtime_hours: null,
+          hltb_url: '',
+          description_en: '',
+        },
+        ...SUGGESTIONS.slice(1),
+      ],
+    }),
+    winnerSuggestionId: 101,
+  });
+  assert.equal(plan.publishReady, false);
+  assert.equal(plan.mayPromote, false);
+  assert.equal(plan.needsHandoff, true);
+  assert.deepEqual(plan.missing, ['playtime hours', 'HowLongToBeat URL', 'English event description']);
+});
+
 test('plan: a selected, publish-ready winner is safely promotable and needs no handoff', () => {
   const plan = winnerPublicationPlan({ roundPayload: promotedPayload(), winnerSuggestionId: 101 });
   assert.equal(plan.winnerAlreadySelected, true);
   assert.equal(plan.publishReady, true);
   assert.equal(plan.mayPromote, true);
   assert.equal(plan.needsHandoff, false);
+});
+
+test('plan: HowLongToBeat fields are required before auto-promotion', () => {
+  const payload = promotedPayload({
+    selectedGame: {
+      ...promotedPayload().selectedGame,
+      playtimeHours: '',
+      hltbUrl: '',
+    },
+    publishReadiness: { ready: true, missing: [] },
+  });
+  const plan = winnerPublicationPlan({ roundPayload: payload, winnerSuggestionId: 101 });
+  assert.equal(plan.winnerAlreadySelected, true);
+  assert.equal(plan.publishReady, false);
+  assert.equal(plan.mayPromote, false);
+  assert.equal(plan.needsHandoff, true);
+  assert.deepEqual(plan.missing, ['playtime hours', 'HowLongToBeat URL']);
 });
 
 test('plan: a selected winner with missing manual fields is not promotable and needs a handoff', () => {
@@ -152,6 +213,8 @@ test('markdown: includes meeting, winner, tally, missing fields, reminders, and 
   assert.match(md, /Banner image URL: https:\/\/cdn\.example\/hollow-knight\.jpg/);
   assert.match(md, /Genres: Metroidvania, Action/);
   assert.match(md, /Platforms: Windows, macOS, Linux/);
+  assert.match(md, /HowLongToBeat URL: https:\/\/howlongtobeat\.com\/game\/26606/);
+  assert.match(md, /Playtime hours: 25/);
   assert.match(md, /Suggested by: Kasper/);
   assert.match(md, /Pitch: A gorgeous hand-drawn adventure\./);
 
@@ -163,7 +226,6 @@ test('markdown: includes meeting, winner, tally, missing fields, reminders, and 
 
   // Missing fields + reminders + checklist
   assert.match(md, /Still needed before publishing/);
-  assert.match(md, /HowLongToBeat link and hours are not fetched automatically/);
   assert.match(md, /Danish event description still needs human review/);
   assert.match(md, /English event description still needs human review/);
   assert.match(md, /MEETING_WORKFLOW\.md/);
@@ -171,6 +233,16 @@ test('markdown: includes meeting, winner, tally, missing fields, reminders, and 
 
   // No em dashes in agent-authored prose
   assert.ok(!md.includes('—'), 'handoff markdown should not contain em dashes');
+});
+
+test('markdown: reminds when HowLongToBeat data is missing', () => {
+  const payload = revealPayload({
+    suggestions: [{ ...WINNER_SUGGESTION, hltb_url: '', playtime_hours: null }, ...SUGGESTIONS.slice(1)],
+  });
+  const md = buildHandoffMarkdown({ roundPayload: payload, winnerSuggestionId: 101, baseUrl: BASE });
+  assert.match(md, /HowLongToBeat URL: \(not set\)/);
+  assert.match(md, /Playtime hours: \(not set\)/);
+  assert.match(md, /HowLongToBeat link and hours are not fetched automatically/);
 });
 
 test('markdown: omits the GOG line when the winner has no GOG URL', () => {

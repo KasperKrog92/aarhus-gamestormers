@@ -16,6 +16,23 @@ const SUGGESTIONS = [
   { id: 103, title: 'Outer Wilds' },
 ];
 
+const READY_SUGGESTIONS = [
+  {
+    id: 101,
+    title: 'Hollow Knight',
+    steam_appid: '367520',
+    store_url: 'https://store.steampowered.com/app/367520/',
+    header_image: 'https://cdn.example/hollow-knight.jpg',
+    genres: 'Metroidvania, Action',
+    platforms: 'Windows, macOS, Linux',
+    playtime_hours: 25,
+    hltb_url: 'https://howlongtobeat.com/game/26606',
+    description_da: 'da',
+    description_en: 'en',
+  },
+  ...SUGGESTIONS.slice(1),
+];
+
 // A round mid-voting whose close date has passed, with a clear winner.
 function votingPayload(overrides = {}) {
   return {
@@ -61,6 +78,7 @@ function promotedAdminPayload(overrides = {}) {
       id: 5,
       title: 'Hollow Knight',
       storeUrl: 'https://store.steampowered.com/app/367520/',
+      playtimeHours: 25,
       hltbUrl: 'https://howlongtobeat.com/game/26606',
     },
     meetingCopy: { da: { eventDescription: 'da' }, en: { eventDescription: 'en' } },
@@ -312,6 +330,74 @@ test('reveal_winner re-confirms and skips the handoff when the card is already p
   assert.equal(discord.calls[0].url, 'https://discord.example/webhook');
   assert.match(discord.calls[0].content, /Sign up here/);
   assert.deepEqual(client.calls.recordAutomationEvent.map((c) => c.eventType), ['winner_revealed', 'winner_announcement_posted']);
+});
+
+test('reveal_winner promotes an unselected winner when the suggestion has all frontpage fields', async () => {
+  const client = makeClient({
+    current: votingPayload(),
+    adminSequence: [
+      revealedAdminPayload({
+        suggestions: READY_SUGGESTIONS,
+      }),
+      promotedAdminPayload(),
+    ],
+    recordResults: [{ ok: true, duplicate: false, id: 1 }],
+  });
+  const discord = makeDiscord();
+  const handoff = makeWriteHandoff();
+  const { logger } = makeLogger();
+
+  const result = await runScheduler({
+    env: ENV,
+    today: '2026-07-10',
+    deps: { client, postDiscord: discord.fn, writeHandoff: handoff.fn, logger },
+  });
+
+  assert.equal(result.promoted, true);
+  assert.equal(result.handoffPath, null);
+  assert.deepEqual(client.calls.selectWinner[0], { id: 19, suggestionId: 101, options: undefined });
+  assert.equal(handoff.calls.length, 0, 'no handoff when the winning suggestion can publish cleanly');
+  assert.equal(discord.calls.length, 1);
+  assert.equal(discord.calls[0].url, 'https://discord.example/webhook');
+  assert.deepEqual(client.calls.recordAutomationEvent.map((c) => c.eventType), ['winner_revealed', 'winner_announcement_posted']);
+});
+
+test('reveal_winner does not re-confirm a selected game missing HowLongToBeat data', async () => {
+  const selectedGame = {
+    ...promotedAdminPayload().selectedGame,
+    playtimeHours: '',
+    hltbUrl: '',
+  };
+  const client = makeClient({
+    current: votingPayload(),
+    adminSequence: [
+      promotedAdminPayload({
+        selectedGame,
+        publishReadiness: { ready: true, missing: [] },
+        announcementReadiness: { ready: false, missing: ['playtime hours', 'HowLongToBeat URL'] },
+      }),
+    ],
+    recordResults: [
+      { ok: true, duplicate: false, id: 1 },
+      { ok: true, duplicate: false, id: 2 },
+      { ok: true, duplicate: false, id: 3 },
+    ],
+  });
+  const discord = makeDiscord();
+  const handoff = makeWriteHandoff();
+  const { logger } = makeLogger();
+
+  const result = await runScheduler({
+    env: ENV,
+    today: '2026-07-10',
+    deps: { client, postDiscord: discord.fn, writeHandoff: handoff.fn, logger },
+  });
+
+  assert.equal(result.promoted, false);
+  assert.equal(client.calls.selectWinner.length, 0, 'missing HLTB data blocks automatic frontpage promotion');
+  assert.equal(handoff.calls.length, 1);
+  assert.match(handoff.calls[0].markdown, /playtime hours/);
+  assert.match(handoff.calls[0].markdown, /HowLongToBeat URL/);
 });
 
 test('blocked states log a warning and never post to Discord', async () => {

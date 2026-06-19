@@ -223,11 +223,12 @@ async function handleRevealWinner(ctx, { payload, decision }) {
 
   let promoted = false;
   if (plan.mayPromote) {
-    // Safe idempotent re-confirm: the winner is already selected and the card is
-    // publish-ready, so calling select again does not expose anything new.
+    // Safe publication: either re-confirm an already-selected publish-ready
+    // winner, or promote a winning suggestion whose copied fields already make a
+    // complete frontpage card.
     await client.selectWinner(roundId, winnerSuggestionId);
     promoted = true;
-    logger.info(`Round ${roundId}: re-confirmed the already publish-ready selected game.`);
+    logger.info(`Round ${roundId}: promoted the publish-ready selected game.`);
     latest = await client.getAdminRound(roundId);
     plan = winnerPublicationPlan({ roundPayload: latest, winnerSuggestionId });
   }

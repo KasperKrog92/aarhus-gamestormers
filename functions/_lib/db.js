@@ -24,6 +24,7 @@ export async function ensureSuggestionDescriptionColumns(db) {
   if (descriptionColumnsChecked) return;
   await addColumnIfMissing(db, 'suggestions', 'description_da', 'TEXT');
   await addColumnIfMissing(db, 'suggestions', 'description_en', 'TEXT');
+  await addColumnIfMissing(db, 'suggestions', 'hltb_url', 'TEXT');
   descriptionColumnsChecked = true;
 }
 
@@ -343,8 +344,8 @@ export async function getGameById(db, id) {
 }
 
 // camelCase game input (the shape upsertGame expects) from a suggestion row.
-// gog_id and hltb_url have no suggestion source, so they start empty and are
-// filled in later through admin edits.
+// gog_id has no suggestion source, so it starts empty and is filled in later
+// through admin edits.
 export function gameInputFromSuggestion(s) {
   return {
     steamAppId: s.steam_appid || null,
@@ -357,7 +358,7 @@ export function gameInputFromSuggestion(s) {
     platforms: s.platforms || null,
     price: s.price || null,
     playtimeHours: s.playtime_hours != null ? s.playtime_hours : null,
-    hltbUrl: null,
+    hltbUrl: s.hltb_url || null,
     descriptionDa: s.description_da || null,
     descriptionEn: s.description_en || null,
   };

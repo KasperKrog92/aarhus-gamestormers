@@ -603,6 +603,7 @@ async function adminPatchSuggestion(db, request, id) {
   if (body.pitch !== undefined) put('pitch', clean(body.pitch, 500));
   if (body.suggestedBy !== undefined) put('suggested_by', clean(body.suggestedBy, 80));
   if (body.gogUrl !== undefined) put('gog_url', clean(body.gogUrl, 300) || null);
+  if (body.hltbUrl !== undefined) put('hltb_url', clean(body.hltbUrl, 300) || null);
   if (body.image !== undefined) put('header_image', clean(body.image, 400));
   if (body.storeUrl !== undefined) put('store_url', clean(body.storeUrl, 400));
   if (body.playtimeHours !== undefined) {

@@ -708,6 +708,7 @@
       price: h('input', { class: 'admin-input', type: 'text', value: s.price || '' }),
       platforms: h('input', { class: 'admin-input', type: 'text', value: s.platforms || '' }),
       playtimeHours: h('input', { class: 'admin-input', type: 'number', min: '0', value: s.playtime_hours != null ? s.playtime_hours : '' }),
+      hltbUrl: h('input', { class: 'admin-input', type: 'url', value: s.hltb_url || '' }),
       gogUrl: h('input', { class: 'admin-input', type: 'url', value: s.gog_url || '' }),
       suggestedBy: h('input', { class: 'admin-input', type: 'text', value: s.suggested_by || '' }),
       descriptionDa: h('textarea', { class: 'admin-textarea' }),
@@ -734,6 +735,7 @@
           price: inputs.price.value,
           platforms: inputs.platforms.value,
           playtimeHours: inputs.playtimeHours.value,
+          hltbUrl: inputs.hltbUrl.value,
           gogUrl: inputs.gogUrl.value,
           suggestedBy: inputs.suggestedBy.value,
           descriptionDa: inputs.descriptionDa.value,
@@ -777,6 +779,7 @@
       field('Price', inputs.price),
       field('Platforms', inputs.platforms),
       field('Playtime (hours)', inputs.playtimeHours),
+      field('HowLongToBeat URL', inputs.hltbUrl),
       field('GOG URL', inputs.gogUrl),
       field('Suggested by', inputs.suggestedBy),
     ]);

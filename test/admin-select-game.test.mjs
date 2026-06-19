@@ -78,6 +78,7 @@ test('selecting a suggestion promotes it, attaches the game, confirms the winner
       genres: 'Puzzle',
       platforms: 'Windows, macOS',
       playtime_hours: 4,
+      hltb_url: 'https://howlongtobeat.com/game/723',
       description_da: 'da',
       description_en: 'en',
     },
@@ -97,6 +98,7 @@ test('selecting a suggestion promotes it, attaches the game, confirms the winner
   const gameInsert = db.statements.find((s) => s.sql.includes('INSERT INTO games') && !s.sql.includes('ON CONFLICT'));
   assert.ok(gameInsert, 'creates a new game row');
   assert.equal(gameInsert.args[1], 'Portal'); // title is the second bound column (steam_appid, title, ...)
+  assert.equal(gameInsert.args[10], 'https://howlongtobeat.com/game/723');
 
   const attach = db.statements.find((s) => s.sql.includes('UPDATE meetings') && s.sql.includes('selected_game_id'));
   assert.ok(attach, 'attaches the game to the meeting');
@@ -244,6 +246,28 @@ test('patching game fields fails when no game has been selected', async () => {
   });
 
   assert.equal(response.status, 409);
+});
+
+test('patching a suggestion can save HowLongToBeat metadata', async () => {
+  const db = makeDb({
+    suggestion: { id: 5, round_id: 19, title: 'Portal' },
+  });
+
+  const response = await onRequest({
+    request: adminRequest('https://example.com/api/admin/suggestion/5', 'PATCH', {
+      hltbUrl: 'https://howlongtobeat.com/game/723',
+      playtimeHours: '4',
+    }),
+    env: { DB: db, ADMIN_TOKEN: 'test' },
+    params: { route: ['suggestion', '5'] },
+  });
+
+  assert.equal(response.status, 200);
+  const update = db.statements.find((s) => s.sql.includes('UPDATE suggestions SET'));
+  assert.ok(update, 'updates the suggestion row');
+  assert.match(update.sql, /hltb_url = \?/);
+  assert.match(update.sql, /playtime_hours = \?/);
+  assert.deepEqual(update.args, ['https://howlongtobeat.com/game/723', 4, 5]);
 });
 
 test('announcing the winner posts Discord and records the announcement event', async () => {
