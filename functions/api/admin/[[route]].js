@@ -10,6 +10,7 @@
 import { json, fail, readJson, clean } from '../../_lib/http.js';
 import { isAdmin } from '../../_lib/auth.js';
 import {
+  deleteDiscordMessage,
   postDiscord,
   winnerAnnouncementFromPayload,
 } from '../../../automation/voting/discord.mjs';
@@ -55,6 +56,7 @@ const AUTOMATION_EVENT_TYPES = [
   'suggestions_opened',
   'voting_opened',
   'winner_revealed',
+  'blocked_alerted',
   'winner_setup_needed_alerted',
   'winner_announcement_posted',
   'handoff_generated',
@@ -379,6 +381,11 @@ function automationEventExists(payload, eventType) {
   return (payload.automationEvents || []).some((event) => event && event.eventType === eventType);
 }
 
+function automationEventMessageId(payload, eventType) {
+  const event = (payload.automationEvents || []).find((entry) => entry && entry.eventType === eventType);
+  return event && event.payload && event.payload.messageId ? String(event.payload.messageId) : null;
+}
+
 async function adminAnnounceWinner(db, request, env, id) {
   if (!Number.isInteger(id) || id <= 0) return fail('Invalid round id');
   const round = await getRoundById(db, id);
@@ -410,6 +417,13 @@ async function adminAnnounceWinner(db, request, env, id) {
     source: 'admin',
     status: result.status,
   });
+
+  const previousMessageId = automationEventMessageId(payload, 'voting_opened');
+  if (previousMessageId) {
+    await deleteDiscordMessage(webhookUrl, previousMessageId, {
+      fetch: env.fetch || globalThis.fetch,
+    });
+  }
   return json({ ok: true, duplicate: record.duplicate, posted: true, status: result.status });
 }
 

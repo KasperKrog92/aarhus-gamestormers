@@ -302,6 +302,15 @@ test('announcing the winner posts Discord and records the announcement event', a
       { lang: 'da', event_description: 'Dansk eventtekst', history_description: '' },
       { lang: 'en', event_description: 'English event copy', history_description: '' },
     ],
+    automationEvents: [
+      {
+        id: 1,
+        round_id: 19,
+        event_type: 'voting_opened',
+        payload_json: '{"messageId":"voting-message-1"}',
+        created_at: '2026-07-01 09:00:00',
+      },
+    ],
   });
 
   const response = await onRequest({
@@ -322,6 +331,8 @@ test('announcing the winner posts Discord and records the announcement event', a
   assert.equal(response.status, 200);
   assert.equal(fetchCalls[0].url, 'https://discord.example/webhook');
   assert.match(JSON.parse(fetchCalls[0].init.body).content, /Portal/);
+  assert.equal(fetchCalls[1].url, 'https://discord.example/webhook/messages/voting-message-1');
+  assert.equal(fetchCalls[1].init.method, 'DELETE');
 
   const insert = db.statements.find((s) => s.sql.includes('INSERT INTO automation_events'));
   assert.deepEqual(insert.args, [19, 'winner_announcement_posted', '{"source":"admin","status":204}']);

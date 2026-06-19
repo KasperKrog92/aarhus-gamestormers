@@ -308,16 +308,54 @@ export function toWebhookPayload(content) {
   };
 }
 
+function webhookWaitUrl(url) {
+  const parsed = new URL(url);
+  parsed.searchParams.set('wait', 'true');
+  return parsed.toString();
+}
+
+function webhookMessageUrl(url, messageId) {
+  const parsed = new URL(url);
+  parsed.search = '';
+  parsed.hash = '';
+  parsed.pathname = `${parsed.pathname.replace(/\/+$/, '')}/messages/${encodeURIComponent(messageId)}`;
+  return parsed.toString();
+}
+
 // POST a content string to a Discord webhook. A missing url or content is a
 // no-op (returns { skipped: true }) so the runner works without the secret.
 // Non-ok responses are reported via `posted`/`status` rather than thrown: a
 // failed announcement should not undo a phase change the runner already made.
-export async function postDiscord(url, content, { fetch = globalThis.fetch } = {}) {
+export async function postDiscord(url, content, { fetch = globalThis.fetch, wait = false } = {}) {
   if (!url || !content) return { skipped: true, posted: false };
-  const response = await fetch(url, {
+  const response = await fetch(wait ? webhookWaitUrl(url) : url, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(toWebhookPayload(content)),
   });
-  return { skipped: false, posted: Boolean(response.ok), status: response.status };
+  const result = { skipped: false, posted: Boolean(response.ok), status: response.status };
+  if (!wait) return result;
+
+  let messageId = null;
+  if (response.ok && typeof response.json === 'function') {
+    try {
+      const body = await response.json();
+      messageId = body && body.id ? String(body.id) : null;
+    } catch {
+      messageId = null;
+    }
+  }
+  return { ...result, messageId };
+}
+
+// Delete a webhook-created message. This is intentionally best-effort: rolling
+// announcement cleanup should never make an otherwise-valid scheduler run fail.
+export async function deleteDiscordMessage(url, messageId, { fetch = globalThis.fetch } = {}) {
+  if (!url || !messageId) return { skipped: true, deleted: false };
+  try {
+    const response = await fetch(webhookMessageUrl(url, messageId), { method: 'DELETE' });
+    return { skipped: false, deleted: Boolean(response.ok || response.status === 404), status: response.status };
+  } catch (err) {
+    return { skipped: false, deleted: false, status: null, error: err && err.message ? err.message : String(err) };
+  }
 }

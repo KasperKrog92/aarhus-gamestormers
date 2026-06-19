@@ -4,14 +4,14 @@
 // is the only place that performs phase patches, Discord posts, promotion, and
 // handoff writes.
 //
-// Idempotency model: every transition first patches the round phase, then records
-// an automation event through the admin API. `recordAutomationEvent` returns
-// { duplicate } using a UNIQUE (round_id, event_type) constraint, so the event
-// acts as a test-and-set lock: only the run that first records it posts the
-// matching Discord announcement. The phase change is a second guard, because
-// decideRoundActions branches on phase and never re-opens or re-reveals a round
-// that already moved on. Blocked states (tie / no votes) only log and exit 0 so
-// the schedule never turns into red-run or Discord noise.
+// Idempotency model: phase transitions patch the round first, then post Discord
+// and record an automation event through the admin API. `recordAutomationEvent`
+// returns { duplicate } using a UNIQUE (round_id, event_type) constraint. For
+// rolling public announcements, Discord is posted with wait=true so the returned
+// message id can be stored in the event payload and later deleted. The phase
+// change is the primary re-entry guard, because decideRoundActions branches on
+// phase and never re-opens or re-reveals a round that already moved on. Blocked
+// states (tie / no votes) post one private alert, guarded by blocked_alerted.
 
 import { pathToFileURL } from 'node:url';
 
@@ -19,6 +19,7 @@ import { createApiClient } from './api-client.mjs';
 import { ACTIONS, decideRoundActions } from './scheduler.mjs';
 import {
   blockedMessage,
+  deleteDiscordMessage,
   postDiscord,
   suggestionsOpenedMessage,
   votingOpenedMessage,
@@ -77,9 +78,17 @@ async function patchPhaseAndRecord({ client, logger }, { roundId, patch, eventTy
 
 async function announce(
   { postDiscordFn, logger, webhookUrl },
-  { roundId, eventType, content, url = webhookUrl, label = 'Discord', webhookName = 'DISCORD_VOTING_WEBHOOK_URL' }
+  {
+    roundId,
+    eventType,
+    content,
+    url = webhookUrl,
+    label = 'Discord',
+    webhookName = 'DISCORD_VOTING_WEBHOOK_URL',
+    wait = false,
+  }
 ) {
-  const result = await postDiscordFn(url, content);
+  const result = await postDiscordFn(url, content, { wait });
   if (result.skipped) {
     logger.info(`Round ${roundId}: no ${webhookName} set, skipped ${eventType} announcement.`);
   } else if (result.posted) {
@@ -88,6 +97,53 @@ async function announce(
     logger.warn(`Round ${roundId}: ${label} ${eventType} announcement returned status ${result.status}.`);
   }
   return result;
+}
+
+function automationEventPayload(events, eventType) {
+  const event = (events || []).find((entry) => entry && entry.eventType === eventType);
+  return event && event.payload && typeof event.payload === 'object' ? event.payload : null;
+}
+
+function messageIdForEvent(events, eventType) {
+  const payload = automationEventPayload(events, eventType);
+  return payload && payload.messageId ? String(payload.messageId) : null;
+}
+
+async function cleanupPostedMessage(ctx, { roundId, messageId, reason }) {
+  if (!messageId) return { skipped: true, deleted: false };
+  const result = await ctx.deleteDiscordMessageFn(ctx.webhookUrl, messageId);
+  if (result.deleted) {
+    ctx.logger.info(`Round ${roundId}: deleted Discord message ${messageId}${reason ? ` (${reason})` : ''}.`);
+  } else if (!result.skipped) {
+    ctx.logger.warn(
+      `Round ${roundId}: could not delete Discord message ${messageId}${reason ? ` (${reason})` : ''}; status ${result.status}.`
+    );
+  }
+  return result;
+}
+
+async function recordEventAfterDiscord(ctx, { roundId, eventType, payload, postedMessageId }) {
+  try {
+    const record = await ctx.client.recordAutomationEvent({ roundId, eventType, payload });
+    if (record.duplicate) {
+      await cleanupPostedMessage(ctx, {
+        roundId,
+        messageId: postedMessageId,
+        reason: `duplicate ${eventType} event`,
+      });
+    }
+    return record;
+  } catch (err) {
+    await cleanupPostedMessage(ctx, {
+      roundId,
+      messageId: postedMessageId,
+      reason: `failed ${eventType} event record`,
+    });
+    ctx.logger.error(
+      `Round ${roundId}: posted "${eventType}" Discord message but recording the automation event failed: ${err.message}.`
+    );
+    throw err;
+  }
 }
 
 function approvedGameTitles(suggestions) {
@@ -102,22 +158,19 @@ function hasEvent(events, eventType) {
 
 async function handleAnnounceSuggestions(ctx, { round }) {
   const roundId = round.id;
-  const record = await ctx.client.recordAutomationEvent({
+  const discord = await announce(ctx, {
     roundId,
     eventType: 'suggestions_opened',
-    payload: { today: ctx.today },
+    content: suggestionsOpenedMessage({ round, baseUrl: ctx.baseUrl }),
+    wait: true,
   });
-
-  let discord = { skipped: true, posted: false };
-  if (record.duplicate) {
-    ctx.logger.info(`Round ${roundId}: suggestions_opened already recorded, skipping announcement.`);
-  } else {
-    discord = await announce(ctx, {
-      roundId,
-      eventType: 'suggestions_opened',
-      content: suggestionsOpenedMessage({ round, baseUrl: ctx.baseUrl }),
-    });
-  }
+  const record = await recordEventAfterDiscord(ctx, {
+    roundId,
+    eventType: 'suggestions_opened',
+    payload: { today: ctx.today, messageId: discord.messageId || null, status: discord.status || null },
+    postedMessageId: discord.messageId,
+  });
+  if (record.duplicate) ctx.logger.info(`Round ${roundId}: suggestions_opened already recorded; cleaned up duplicate post if needed.`);
 
   return { action: ACTIONS.ANNOUNCE_SUGGESTIONS, roundId, duplicate: Boolean(record.duplicate), discordPosted: Boolean(discord.posted) };
 }
@@ -178,23 +231,27 @@ async function handleOpenVoting(ctx, { round }) {
   const { logger, baseUrl } = ctx;
   const roundId = round.id;
 
-  const record = await patchPhaseAndRecord(ctx, {
-    roundId,
-    patch: { phase: 'voting' },
-    eventType: 'voting_opened',
-    payload: { today: ctx.today },
-  });
+  await ctx.client.patchRound(roundId, { phase: 'voting' });
+  logger.info(`Patched round ${roundId}: ${JSON.stringify({ phase: 'voting' })}.`);
 
-  let discord = { skipped: true, posted: false };
-  if (record.duplicate) {
-    logger.info(`Round ${roundId}: voting_opened already recorded, skipping announcement.`);
-  } else {
-    discord = await announce(ctx, {
-      roundId,
-      eventType: 'voting_opened',
-      content: votingOpenedMessage({ round, baseUrl, games: approvedGameTitles(ctx.suggestions) }),
-    });
-  }
+  const discord = await announce(ctx, {
+    roundId,
+    eventType: 'voting_opened',
+    content: votingOpenedMessage({ round, baseUrl, games: approvedGameTitles(ctx.suggestions) }),
+    wait: true,
+  });
+  await cleanupPostedMessage(ctx, {
+    roundId,
+    messageId: messageIdForEvent(ctx.automationEvents, 'suggestions_opened'),
+    reason: 'voting opened',
+  });
+  const record = await recordEventAfterDiscord(ctx, {
+    roundId,
+    eventType: 'voting_opened',
+    payload: { today: ctx.today, messageId: discord.messageId || null, status: discord.status || null },
+    postedMessageId: discord.messageId,
+  });
+  if (record.duplicate) logger.info(`Round ${roundId}: voting_opened already recorded; cleaned up duplicate post if needed.`);
 
   return { action: ACTIONS.OPEN_VOTING, roundId, duplicate: Boolean(record.duplicate), discordPosted: Boolean(discord.posted) };
 }
@@ -237,6 +294,13 @@ async function handleRevealWinner(ctx, { payload, decision }) {
     const readiness = latest.announcementReadiness || latest.publishReadiness || { ready: false, missing: [] };
     if (readiness.ready) {
       discord = await postWinnerAnnouncement(ctx, { roundPayload: latest, source: 'scheduler' });
+      if (discord.posted) {
+        await cleanupPostedMessage(ctx, {
+          roundId,
+          messageId: messageIdForEvent(payload.automationEvents, 'voting_opened'),
+          reason: 'winner announcement posted',
+        });
+      }
     } else {
       await alertWinnerSetupNeeded(ctx, { roundPayload: latest });
     }
@@ -270,10 +334,51 @@ async function handleRevealWinner(ctx, { payload, decision }) {
   };
 }
 
+async function handleBlocked(ctx, { round, decision }) {
+  const roundId = decision.roundId;
+  const content = blockedMessage({ round, decision });
+  ctx.logger.warn(content);
+
+  if (hasEvent(ctx.automationEvents, 'blocked_alerted')) {
+    ctx.logger.info(`Round ${roundId}: blocked_alerted already recorded, skipping private alert.`);
+    return { action: ACTIONS.BLOCKED, roundId, blocker: decision.blocker, reason: decision.reason, alertPosted: false, duplicate: true };
+  }
+  if (!ctx.alertsWebhookUrl) {
+    ctx.logger.info(`Round ${roundId}: no DISCORD_VOTING_ALERTS_WEBHOOK_URL set, skipped blocked alert.`);
+    return { action: ACTIONS.BLOCKED, roundId, blocker: decision.blocker, reason: decision.reason, alertPosted: false };
+  }
+
+  const discord = await announce(ctx, {
+    roundId,
+    eventType: 'blocked_alerted',
+    content,
+    url: ctx.alertsWebhookUrl,
+    label: 'Discord alerts',
+    webhookName: 'DISCORD_VOTING_ALERTS_WEBHOOK_URL',
+  });
+  if (discord.posted) {
+    const record = await ctx.client.recordAutomationEvent({
+      roundId,
+      eventType: 'blocked_alerted',
+      payload: { today: ctx.today, blocker: decision.blocker, status: discord.status || null },
+    });
+    if (record.duplicate) ctx.logger.info(`Round ${roundId}: blocked_alerted was already recorded.`);
+  }
+
+  return {
+    action: ACTIONS.BLOCKED,
+    roundId,
+    blocker: decision.blocker,
+    reason: decision.reason,
+    alertPosted: Boolean(discord.posted),
+  };
+}
+
 // Run one scheduler pass. Side-effecting dependencies are injectable so the flow
 // can be tested without real network or filesystem access:
 //   deps.client        api client (defaults to a real createApiClient)
 //   deps.postDiscord   Discord poster (defaults to the real postDiscord)
+//   deps.deleteDiscordMessage best-effort Discord message cleanup
 //   deps.writeHandoff  handoff writer (defaults to the real writeHandoff)
 //   deps.logger        { info, warn, error } (defaults to console)
 // `today` defaults to the real current date (YYYY-MM-DD).
@@ -282,6 +387,7 @@ export async function runScheduler({ env = process.env, today, deps = {} } = {})
   const logger = deps.logger || defaultLogger();
   const client = deps.client || createApiClient({ baseUrl: config.baseUrl, adminToken: config.adminToken });
   const postDiscordFn = deps.postDiscord || postDiscord;
+  const deleteDiscordMessageFn = deps.deleteDiscordMessage || deleteDiscordMessage;
   const writeHandoffFn = deps.writeHandoff || writeHandoff;
   const day = today || todayDateOnly();
 
@@ -306,11 +412,13 @@ export async function runScheduler({ env = process.env, today, deps = {} } = {})
     logger,
     postDiscordFn,
     writeHandoffFn,
+    deleteDiscordMessageFn,
     baseUrl: config.baseUrl,
     webhookUrl: config.discordWebhookUrl,
     alertsWebhookUrl: config.discordAlertsWebhookUrl,
     today: day,
     suggestions: payload.suggestions || [],
+    automationEvents: payload.automationEvents || [],
   };
 
   if (decision.action === ACTIONS.ANNOUNCE_SUGGESTIONS) {
@@ -323,11 +431,7 @@ export async function runScheduler({ env = process.env, today, deps = {} } = {})
     return await handleRevealWinner(ctx, { payload, decision });
   }
   if (decision.action === ACTIONS.BLOCKED) {
-    // No idempotency key exists for blocked states (the event types are fixed),
-    // so posting to Discord every hour would spam the channel. Log loudly and
-    // exit 0 instead; the maintainer resolves the tie / no-votes manually.
-    logger.warn(blockedMessage({ round, decision }));
-    return { action: ACTIONS.BLOCKED, roundId: decision.roundId, blocker: decision.blocker, reason: decision.reason };
+    return await handleBlocked(ctx, { round, decision });
   }
 
   return { action: ACTIONS.NOOP, roundId: decision.roundId, reason: decision.reason };

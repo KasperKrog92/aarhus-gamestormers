@@ -80,14 +80,14 @@ test('recording an automation event inserts it and reports it as new', async () 
   assert.deepEqual(insert.args, [19, 'voting_opened', '{"posted":true}']);
 });
 
-test('recording accepts the winner announcement event type', async () => {
+test('recording accepts newer lifecycle event types', async () => {
   const db = makeDb({ round: { id: 19, phase: 'revealed' } });
 
   const response = await onRequest({
     request: adminRequest('https://example.com/api/admin/automation-event', 'POST', {
       roundId: 19,
-      eventType: 'winner_announcement_posted',
-      payload: { source: 'admin' },
+      eventType: 'blocked_alerted',
+      payload: { blocker: 'tie' },
     }),
     env: { DB: db, ADMIN_TOKEN: 'test' },
     params: { route: ['automation-event'] },
@@ -95,7 +95,7 @@ test('recording accepts the winner announcement event type', async () => {
 
   assert.equal(response.status, 200);
   const insert = db.statements.find((s) => s.sql.includes('INSERT INTO automation_events'));
-  assert.deepEqual(insert.args, [19, 'winner_announcement_posted', '{"source":"admin"}']);
+  assert.deepEqual(insert.args, [19, 'blocked_alerted', '{"blocker":"tie"}']);
 });
 
 

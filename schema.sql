@@ -121,7 +121,8 @@ CREATE TABLE IF NOT EXISTS votes (
 -- workflow dispatch that tries to record an already-handled event hits the
 -- constraint instead of duplicating a Discord post or handoff.
 -- Known event_type values: suggestions_opened, voting_opened, winner_revealed,
--- winner_setup_needed_alerted, winner_announcement_posted, handoff_generated.
+-- blocked_alerted, winner_setup_needed_alerted, winner_announcement_posted,
+-- handoff_generated.
 CREATE TABLE IF NOT EXISTS automation_events (
   id           INTEGER PRIMARY KEY AUTOINCREMENT,
   round_id     INTEGER NOT NULL REFERENCES rounds(id) ON DELETE CASCADE,

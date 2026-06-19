@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import {
   blockedMessage,
+  deleteDiscordMessage,
   postDiscord,
   suggestionsOpenedMessage,
   toWebhookPayload,
@@ -193,6 +194,19 @@ test('postDiscord posts the webhook payload and reports the status', async () =>
   });
 });
 
+test('postDiscord can wait for and return the created message id', async () => {
+  const calls = [];
+  const fetch = async (url, init) => {
+    calls.push({ url, init });
+    return { ok: true, status: 200, json: async () => ({ id: '1234567890' }) };
+  };
+
+  const result = await postDiscord('https://discord.example/webhook?thread_id=abc', 'hi there', { fetch, wait: true });
+
+  assert.deepEqual(result, { skipped: false, posted: true, status: 200, messageId: '1234567890' });
+  assert.equal(calls[0].url, 'https://discord.example/webhook?thread_id=abc&wait=true');
+});
+
 test('postDiscord reports a non-ok webhook response without throwing', async () => {
   const fetch = async () => ({ ok: false, status: 400 });
   const result = await postDiscord('https://discord.example/webhook', 'hi', { fetch });
@@ -212,4 +226,32 @@ test('postDiscord is a no-op without a url or content', async () => {
     posted: false,
   });
   assert.equal(called, false);
+});
+
+test('deleteDiscordMessage deletes through the webhook message endpoint', async () => {
+  const calls = [];
+  const fetch = async (url, init) => {
+    calls.push({ url, init });
+    return { ok: true, status: 204 };
+  };
+
+  const result = await deleteDiscordMessage('https://discord.example/webhook?wait=true', '1234567890', { fetch });
+
+  assert.deepEqual(result, { skipped: false, deleted: true, status: 204 });
+  assert.equal(calls[0].url, 'https://discord.example/webhook/messages/1234567890');
+  assert.equal(calls[0].init.method, 'DELETE');
+});
+
+test('deleteDiscordMessage treats missing messages and fetch errors as best-effort results', async () => {
+  const missing = await deleteDiscordMessage('https://discord.example/webhook', '123', {
+    fetch: async () => ({ ok: false, status: 404 }),
+  });
+  assert.deepEqual(missing, { skipped: false, deleted: true, status: 404 });
+
+  const failed = await deleteDiscordMessage('https://discord.example/webhook', '123', {
+    fetch: async () => {
+      throw new Error('network down');
+    },
+  });
+  assert.deepEqual(failed, { skipped: false, deleted: false, status: null, error: 'network down' });
 });

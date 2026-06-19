@@ -91,12 +91,16 @@ the live admin API over HTTPS and needs these **GitHub Actions secrets** (Settin
   still changes phases and writes handoffs, it just skips public announcements.
 - `DISCORD_VOTING_ALERTS_WEBHOOK_URL`: private maintainer/admin channel webhook. Use the channel where only
   maintainers should see "winner setup needed" alerts for missing HowLongToBeat, copy, Discord event URL, or other
-  reveal fields. Optional; if unset, the scheduler still writes the handoff artifact and logs the missing setup.
+  reveal fields, plus blocked-round alerts for ties or no-vote outcomes. Optional; if unset, the scheduler still
+  writes the handoff artifact and logs missing setup/blocked states. Blocked alerts are not recorded when the webhook
+  is unset, so adding the secret later will still send the first private alert for an unresolved blocked round.
 
 These are distinct from the sales workflow's `DISCORD_WEBHOOK_URL` and from the Cloudflare Pages
 `DISCORD_SUGGESTIONS_WEBHOOK_URL`, so voting lifecycle posts, private maintainer alerts, sale alerts, and
 new-suggestion posts can target different channels. Before trusting the daily schedule, run `workflow_dispatch` once
-against the current round and confirm the Discord post lands in the intended public channel. The workflow has read-only
+against the current round and confirm the Discord post lands in the intended public channel. The public voting
+announcements are rolling webhook messages: the scheduler stores Discord message IDs for suggestions/voting posts and
+deletes the previous phase's message after the next public announcement succeeds. The workflow has read-only
 permissions and never commits to the repo; the winner handoff is uploaded as the `winner-handoff` artifact and homepage publication stays manual via
 [`../MEETING_WORKFLOW.md`](../MEETING_WORKFLOW.md). See [`voting-system.md`](voting-system.md) for the runner flow.
 

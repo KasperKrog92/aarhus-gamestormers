@@ -134,8 +134,19 @@ function makeClient({ current, adminSequence = [], recordResults = [] } = {}) {
 
 function makeDiscord(result = { skipped: false, posted: true, status: 204 }) {
   const calls = [];
-  const fn = async (url, content) => {
-    calls.push({ url, content });
+  const results = Array.isArray(result) ? [...result] : null;
+  const fn = async (url, content, options = {}) => {
+    calls.push({ url, content, options });
+    if (!results) return result;
+    return results.length > 1 ? results.shift() : results[0];
+  };
+  return { fn, calls };
+}
+
+function makeDeleteDiscord(result = { skipped: false, deleted: true, status: 204 }) {
+  const calls = [];
+  const fn = async (url, messageId) => {
+    calls.push({ url, messageId });
     return result;
   };
   return { fn, calls };
@@ -192,7 +203,7 @@ test('announce_suggestions records the event and posts the suggestions-open temp
     },
     recordResults: [{ ok: true, duplicate: false, id: 1 }],
   });
-  const discord = makeDiscord();
+  const discord = makeDiscord({ skipped: false, posted: true, status: 200, messageId: 'suggestions-message-1' });
   const { logger } = makeLogger();
 
   const result = await runScheduler({
@@ -203,6 +214,12 @@ test('announce_suggestions records the event and posts the suggestions-open temp
 
   assert.equal(result.action, 'announce_suggestions');
   assert.equal(client.calls.recordAutomationEvent[0].eventType, 'suggestions_opened');
+  assert.deepEqual(client.calls.recordAutomationEvent[0].payload, {
+    today: '2026-06-20',
+    messageId: 'suggestions-message-1',
+    status: 200,
+  });
+  assert.equal(discord.calls[0].options.wait, true);
   assert.match(discord.calls[0].content, /Game Suggestions Open/);
 });
 
@@ -226,53 +243,63 @@ test('open_voting patches the phase, records the event, then announces', async (
         { id: 102, title: 'Pending Game', status: 'pending' },
       ],
       tallies: {},
-      automationEvents: [],
+      automationEvents: [{ eventType: 'suggestions_opened', payload: { messageId: 'suggestions-message-1' } }],
     },
     recordResults: [{ ok: true, duplicate: false, id: 1 }],
   });
-  const discord = makeDiscord();
+  const discord = makeDiscord({ skipped: false, posted: true, status: 200, messageId: 'voting-message-1' });
+  const deletes = makeDeleteDiscord();
   const { logger } = makeLogger();
 
   const result = await runScheduler({
     env: ENV,
     today: '2026-06-30',
-    deps: { client, postDiscord: discord.fn, logger },
+    deps: { client, postDiscord: discord.fn, deleteDiscordMessage: deletes.fn, logger },
   });
 
   assert.equal(result.action, 'open_voting');
   assert.equal(result.discordPosted, true);
   assert.deepEqual(client.calls.patchRound[0], { id: 19, body: { phase: 'voting' } });
   assert.equal(client.calls.recordAutomationEvent[0].eventType, 'voting_opened');
+  assert.deepEqual(client.calls.recordAutomationEvent[0].payload, {
+    today: '2026-06-30',
+    messageId: 'voting-message-1',
+    status: 200,
+  });
   assert.equal(discord.calls.length, 1);
+  assert.equal(discord.calls[0].options.wait, true);
   assert.match(discord.calls[0].content, /Voting Has Begun/);
   assert.match(discord.calls[0].content, /Hollow Knight/);
   assert.doesNotMatch(discord.calls[0].content, /Pending Game/);
+  assert.deepEqual(deletes.calls, [{ url: 'https://discord.example/webhook', messageId: 'suggestions-message-1' }]);
   // patch happens before the announcement
   assert.equal(client.calls.patchRound.length, 1);
 });
 
-test('open_voting skips the announcement when the event was already recorded', async () => {
+test('open_voting deletes a just-posted message when event recording reports a duplicate', async () => {
   const client = makeClient({
     current: { round: { id: 19, phase: 'suggesting', voting_opens_at: '2026-06-30' }, suggestions: [], tallies: {}, automationEvents: [] },
     recordResults: [{ ok: true, duplicate: true, id: null }],
   });
-  const discord = makeDiscord();
+  const discord = makeDiscord({ skipped: false, posted: true, status: 200, messageId: 'orphan-voting-message' });
+  const deletes = makeDeleteDiscord();
   const { logger } = makeLogger();
 
   const result = await runScheduler({
     env: ENV,
     today: '2026-06-30',
-    deps: { client, postDiscord: discord.fn, logger },
+    deps: { client, postDiscord: discord.fn, deleteDiscordMessage: deletes.fn, logger },
   });
 
   assert.equal(result.duplicate, true);
-  assert.equal(result.discordPosted, false);
-  assert.equal(discord.calls.length, 0, 'no Discord post on a duplicate event');
+  assert.equal(result.discordPosted, true);
+  assert.equal(discord.calls.length, 1, 'the duplicate is only known after posting and recording');
+  assert.deepEqual(deletes.calls, [{ url: 'https://discord.example/webhook', messageId: 'orphan-voting-message' }]);
 });
 
 test('reveal_winner reveals, alerts admins, and writes a handoff in the normal unpromoted flow', async () => {
   const client = makeClient({
-    current: votingPayload(),
+    current: votingPayload({ automationEvents: [{ eventType: 'voting_opened', payload: { messageId: 'voting-message-1' } }] }),
     adminSequence: [revealedAdminPayload()],
     recordResults: [
       { ok: true, duplicate: false, id: 1 }, // winner_revealed
@@ -307,19 +334,20 @@ test('reveal_winner reveals, alerts admins, and writes a handoff in the normal u
 
 test('reveal_winner re-confirms and skips the handoff when the card is already publish-ready', async () => {
   const client = makeClient({
-    current: votingPayload(),
+    current: votingPayload({ automationEvents: [{ eventType: 'voting_opened', payload: { messageId: 'voting-message-1' } }] }),
     // First refetch shows a promoted, publish-ready card; after re-confirm it stays ready.
     adminSequence: [promotedAdminPayload(), promotedAdminPayload()],
     recordResults: [{ ok: true, duplicate: false, id: 1 }],
   });
   const discord = makeDiscord();
+  const deletes = makeDeleteDiscord();
   const handoff = makeWriteHandoff();
   const { logger } = makeLogger();
 
   const result = await runScheduler({
     env: ENV,
     today: '2026-07-10',
-    deps: { client, postDiscord: discord.fn, writeHandoff: handoff.fn, logger },
+    deps: { client, postDiscord: discord.fn, deleteDiscordMessage: deletes.fn, writeHandoff: handoff.fn, logger },
   });
 
   assert.equal(result.promoted, true);
@@ -329,12 +357,13 @@ test('reveal_winner re-confirms and skips the handoff when the card is already p
   assert.equal(discord.calls.length, 1);
   assert.equal(discord.calls[0].url, 'https://discord.example/webhook');
   assert.match(discord.calls[0].content, /Sign up here/);
+  assert.deepEqual(deletes.calls, [{ url: 'https://discord.example/webhook', messageId: 'voting-message-1' }]);
   assert.deepEqual(client.calls.recordAutomationEvent.map((c) => c.eventType), ['winner_revealed', 'winner_announcement_posted']);
 });
 
 test('reveal_winner promotes an unselected winner when the suggestion has all frontpage fields', async () => {
   const client = makeClient({
-    current: votingPayload(),
+    current: votingPayload({ automationEvents: [{ eventType: 'voting_opened', payload: { messageId: 'voting-message-1' } }] }),
     adminSequence: [
       revealedAdminPayload({
         suggestions: READY_SUGGESTIONS,
@@ -344,13 +373,14 @@ test('reveal_winner promotes an unselected winner when the suggestion has all fr
     recordResults: [{ ok: true, duplicate: false, id: 1 }],
   });
   const discord = makeDiscord();
+  const deletes = makeDeleteDiscord();
   const handoff = makeWriteHandoff();
   const { logger } = makeLogger();
 
   const result = await runScheduler({
     env: ENV,
     today: '2026-07-10',
-    deps: { client, postDiscord: discord.fn, writeHandoff: handoff.fn, logger },
+    deps: { client, postDiscord: discord.fn, deleteDiscordMessage: deletes.fn, writeHandoff: handoff.fn, logger },
   });
 
   assert.equal(result.promoted, true);
@@ -359,6 +389,7 @@ test('reveal_winner promotes an unselected winner when the suggestion has all fr
   assert.equal(handoff.calls.length, 0, 'no handoff when the winning suggestion can publish cleanly');
   assert.equal(discord.calls.length, 1);
   assert.equal(discord.calls[0].url, 'https://discord.example/webhook');
+  assert.deepEqual(deletes.calls, [{ url: 'https://discord.example/webhook', messageId: 'voting-message-1' }]);
   assert.deepEqual(client.calls.recordAutomationEvent.map((c) => c.eventType), ['winner_revealed', 'winner_announcement_posted']);
 });
 
@@ -369,7 +400,7 @@ test('reveal_winner does not re-confirm a selected game missing HowLongToBeat da
     hltbUrl: '',
   };
   const client = makeClient({
-    current: votingPayload(),
+    current: votingPayload({ automationEvents: [{ eventType: 'voting_opened', payload: { messageId: 'voting-message-1' } }] }),
     adminSequence: [
       promotedAdminPayload({
         selectedGame,
@@ -384,13 +415,14 @@ test('reveal_winner does not re-confirm a selected game missing HowLongToBeat da
     ],
   });
   const discord = makeDiscord();
+  const deletes = makeDeleteDiscord();
   const handoff = makeWriteHandoff();
   const { logger } = makeLogger();
 
   const result = await runScheduler({
     env: ENV,
     today: '2026-07-10',
-    deps: { client, postDiscord: discord.fn, writeHandoff: handoff.fn, logger },
+    deps: { client, postDiscord: discord.fn, deleteDiscordMessage: deletes.fn, writeHandoff: handoff.fn, logger },
   });
 
   assert.equal(result.promoted, false);
@@ -400,7 +432,7 @@ test('reveal_winner does not re-confirm a selected game missing HowLongToBeat da
   assert.match(handoff.calls[0].markdown, /HowLongToBeat URL/);
 });
 
-test('blocked states log a warning and never post to Discord', async () => {
+test('blocked states alert the private channel once and record the alert', async () => {
   const client = makeClient({ current: votingPayload({ tallies: { 101: 4, 102: 4 } }) });
   const discord = makeDiscord();
   const { logger, messages } = makeLogger();
@@ -413,9 +445,36 @@ test('blocked states log a warning and never post to Discord', async () => {
 
   assert.equal(result.action, 'blocked');
   assert.equal(result.blocker, 'tie');
+  assert.equal(result.alertPosted, true);
   assert.equal(client.calls.patchRound.length, 0);
-  assert.equal(discord.calls.length, 0, 'blocked states must not spam Discord every run');
+  assert.equal(discord.calls.length, 1);
+  assert.equal(discord.calls[0].url, 'https://discord.example/alerts');
+  assert.equal(client.calls.recordAutomationEvent[0].eventType, 'blocked_alerted');
+  assert.deepEqual(client.calls.recordAutomationEvent[0].payload, { today: '2026-07-10', blocker: 'tie', status: 204 });
   assert.match(messages.warn.join('\n'), /needs attention/);
+});
+
+test('blocked states stay quiet after blocked_alerted is recorded', async () => {
+  const client = makeClient({
+    current: votingPayload({
+      tallies: { 101: 4, 102: 4 },
+      automationEvents: [{ eventType: 'blocked_alerted', payload: { blocker: 'tie' } }],
+    }),
+  });
+  const discord = makeDiscord();
+  const { logger } = makeLogger();
+
+  const result = await runScheduler({
+    env: ENV,
+    today: '2026-07-10',
+    deps: { client, postDiscord: discord.fn, logger },
+  });
+
+  assert.equal(result.action, 'blocked');
+  assert.equal(result.duplicate, true);
+  assert.equal(result.alertPosted, false);
+  assert.equal(discord.calls.length, 0);
+  assert.equal(client.calls.recordAutomationEvent.length, 0);
 });
 
 test('a record failure after a successful phase patch is logged loudly and re-thrown', async () => {
@@ -423,17 +482,19 @@ test('a record failure after a successful phase patch is logged loudly and re-th
     current: { round: { id: 19, phase: 'suggesting', voting_opens_at: '2026-06-30' }, suggestions: [], tallies: {}, automationEvents: [] },
     recordResults: [new Error('D1 unavailable')],
   });
-  const discord = makeDiscord();
+  const discord = makeDiscord({ skipped: false, posted: true, status: 200, messageId: 'orphan-voting-message' });
+  const deletes = makeDeleteDiscord();
   const { logger, messages } = makeLogger();
 
   await assert.rejects(
-    () => runScheduler({ env: ENV, today: '2026-06-30', deps: { client, postDiscord: discord.fn, logger } }),
+    () => runScheduler({ env: ENV, today: '2026-06-30', deps: { client, postDiscord: discord.fn, deleteDiscordMessage: deletes.fn, logger } }),
     /D1 unavailable/
   );
 
   assert.equal(client.calls.patchRound.length, 1, 'phase was patched before the record failed');
-  assert.equal(discord.calls.length, 0, 'no announcement when the record fails');
-  assert.match(messages.error.join('\n'), /recording "voting_opened" failed/);
+  assert.equal(discord.calls.length, 1, 'message id comes from the post before recording');
+  assert.deepEqual(deletes.calls, [{ url: 'https://discord.example/webhook', messageId: 'orphan-voting-message' }]);
+  assert.match(messages.error.join('\n'), /posted "voting_opened" Discord message but recording/);
 });
 
 test('a missing webhook skips the announcement without failing the run', async () => {

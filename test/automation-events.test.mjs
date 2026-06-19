@@ -63,12 +63,15 @@ test('recordAutomationEvent stores a null payload when none is given', async () 
 
 test('recordAutomationEvent accepts newer Discord lifecycle event types', async () => {
   const db = makeDb();
-  await recordAutomationEvent(db, 19, 'suggestions_opened', { posted: true });
+  await recordAutomationEvent(db, 19, 'suggestions_opened', { messageId: 'abc123' });
+  await recordAutomationEvent(db, 19, 'blocked_alerted', { blocker: 'tie' });
   await recordAutomationEvent(db, 19, 'winner_announcement_posted', { source: 'admin' });
 
   const inserts = db.statements.filter((s) => s.sql.includes('INSERT INTO automation_events'));
   assert.equal(inserts[0].args[1], 'suggestions_opened');
-  assert.equal(inserts[1].args[1], 'winner_announcement_posted');
+  assert.equal(inserts[0].args[2], '{"messageId":"abc123"}');
+  assert.equal(inserts[1].args[1], 'blocked_alerted');
+  assert.equal(inserts[2].args[1], 'winner_announcement_posted');
 });
 
 test('recordAutomationEvent reports a duplicate instead of throwing on a unique violation', async () => {
