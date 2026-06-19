@@ -704,5 +704,6 @@ export function toOwnedSuggestion(s) {
     status: s.status,
     suggestedBy: s.suggested_by || null,
     showName,
+    pitch: s.pitch || null,
   };
 }

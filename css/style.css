@@ -1788,6 +1788,7 @@ img { display: block; max-width: 100%; height: auto; }
 }
 .vote-owner-item .vote-msg { grid-column: 1 / -1; margin-top: 0; }
 .vote-owner-toggle { justify-self: end; }
+.vote-owner-pitch { grid-column: 1 / -1; display: grid; gap: 8px; }
 .vote-actions { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
 .vote-msg {
   border-radius: 10px;

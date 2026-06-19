@@ -92,6 +92,11 @@ var STRINGS = {
     showNameHint: 'Du kan ændre dette senere, når du er logget ind.',
     manageNamesTitle: 'Dit navn på dine forslag',
     manageNamesHint: 'Vælg selv, hvilke forslag der viser dit Discord-navn offentligt.',
+    editPitchLabel: 'Din pitch',
+    savePitch: 'Gem pitch',
+    pitchSaved: 'Din pitch er opdateret.',
+    managePitchTitle: 'Dine forslag',
+    managePitchHint: 'Rediger din pitch og vælg, om dit Discord-navn vises offentligt.',
     suggestionPending: 'Afventer godkendelse',
     suggestionApproved: 'Godkendt',
     suggestionRejected: 'Afvist',
@@ -206,6 +211,11 @@ var STRINGS = {
     showNameHint: 'You can change this later while you are logged in.',
     manageNamesTitle: 'Your name on your suggestions',
     manageNamesHint: 'Choose which suggestions publicly show your Discord name.',
+    editPitchLabel: 'Your pitch',
+    savePitch: 'Save pitch',
+    pitchSaved: 'Your pitch has been updated.',
+    managePitchTitle: 'Your suggestions',
+    managePitchHint: 'Edit your pitch and choose whether your Discord name is shown publicly.',
     suggestionPending: 'Pending approval',
     suggestionApproved: 'Approved',
     suggestionRejected: 'Rejected',
@@ -242,6 +252,7 @@ var STRINGS = {
 
   var session = { authenticated: false, user: null, discordInvite: 'https://discord.gg/N2h6DJxVDF' };
   var mySuggestions = [];
+  var pitchEditable = false;
   var countdownTimerIds = [];
 
   // ── helpers ───────────────────────────────────────────────────────────────
@@ -377,6 +388,68 @@ var STRINGS = {
     });
   }
 
+  // Reflect an edited pitch on any visible suggestion card without a full
+  // reload: update the pitch block in place, create it when a pitch was added,
+  // or remove it when the pitch was cleared.
+  function syncSuggestionPitch(id, pitch) {
+    document.querySelectorAll('[data-suggestion-card-id="' + Number(id) + '"]').forEach(function (cardEl) {
+      var bodyEl = cardEl.querySelector('.suggestion-body');
+      if (!bodyEl) return;
+      var block = bodyEl.querySelector('.suggestion-copy-pitch');
+      if (!pitch) {
+        if (block) block.remove();
+        return;
+      }
+      if (!block) {
+        block = el('div', { class: 'suggestion-copy suggestion-copy-pitch' }, [
+          el('span', { class: 'suggestion-copy-label', text: T.suggestedPitch }),
+          el('p', { class: 'suggestion-pitch', text: pitch }),
+        ]);
+        var byline = bodyEl.querySelector('.suggestion-by');
+        if (byline) bodyEl.insertBefore(block, byline);
+        else bodyEl.appendChild(block);
+        return;
+      }
+      var p = block.querySelector('.suggestion-pitch');
+      if (p) p.textContent = pitch;
+    });
+  }
+
+  // Pitch editor for one owned suggestion, shown only while suggestions are open.
+  function buildPitchEditor(suggestion, message) {
+    var textarea = el('textarea', { class: 'vote-textarea', maxlength: '500', placeholder: T.pitchPlaceholder });
+    textarea.value = suggestion.pitch || '';
+    var saveBtn = el('button', { class: 'btn-green', type: 'button', text: T.savePitch });
+
+    saveBtn.addEventListener('click', function () {
+      var requested = textarea.value;
+      saveBtn.disabled = true;
+      api('/suggestions/' + suggestion.id, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ pitch: requested }),
+      })
+        .then(function (res) {
+          mySuggestions = mySuggestions.map(function (item) {
+            return Number(item.id) === Number(res.suggestion.id) ? res.suggestion : item;
+          });
+          textarea.value = res.suggestion.pitch || '';
+          syncSuggestionPitch(suggestion.id, res.suggestion.pitch);
+          showMsg(message, T.pitchSaved, true);
+        })
+        .catch(function (err) {
+          showMsg(message, err.message, false);
+        })
+        .finally(function () { saveBtn.disabled = false; });
+    });
+
+    return el('div', { class: 'vote-owner-pitch' }, [
+      el('label', { class: 'vote-label', text: T.editPitchLabel }),
+      textarea,
+      el('div', { class: 'vote-actions' }, [saveBtn]),
+    ]);
+  }
+
   function renderOwnerPanelInto(slot) {
     clear(slot);
     slot.hidden = !mySuggestions.length;
@@ -409,6 +482,8 @@ var STRINGS = {
           });
       });
 
+      var pitchEditor = pitchEditable ? buildPitchEditor(suggestion, message) : null;
+
       list.appendChild(el('div', { class: 'vote-owner-item' }, [
         el('div', { class: 'vote-owner-copy' }, [
           el('strong', { text: suggestion.title }),
@@ -418,13 +493,14 @@ var STRINGS = {
           checkbox,
           el('span', { text: T.showNameLabel }),
         ]),
+        pitchEditor,
         message,
       ]));
     });
 
     slot.appendChild(el('aside', { class: 'vote-panel vote-owner-panel' }, [
-      el('h2', { class: 'vote-panel-title', text: T.manageNamesTitle }),
-      el('p', { class: 'vote-hint', text: T.manageNamesHint }),
+      el('h2', { class: 'vote-panel-title', text: pitchEditable ? T.managePitchTitle : T.manageNamesTitle }),
+      el('p', { class: 'vote-hint', text: pitchEditable ? T.managePitchHint : T.manageNamesHint }),
       list,
     ]));
   }
@@ -1178,6 +1254,7 @@ var STRINGS = {
           : Promise.resolve({ suggestions: [] });
         return mineRequest.then(function (mine) {
           mySuggestions = mine.suggestions || [];
+          pitchEditable = !!(data.round && data.round.phase === 'suggesting' && data.round.suggestionsAreOpen);
           if (!data.round) return renderNone();
           if (data.round.phase === 'suggesting') return renderSuggesting(data);
           if (data.round.phase === 'voting') return renderVoting(data);

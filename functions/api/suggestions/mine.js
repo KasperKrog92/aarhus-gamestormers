@@ -23,7 +23,7 @@ export async function onRequestGet({ request, env }) {
 
   const { results } = await db
     .prepare(
-      `SELECT id, title, status, suggested_by, discord_user_id, show_suggester_name
+      `SELECT id, title, status, suggested_by, discord_user_id, show_suggester_name, pitch
          FROM suggestions
         WHERE round_id = ? AND discord_user_id = ?
         ORDER BY created_at ASC, id ASC`
