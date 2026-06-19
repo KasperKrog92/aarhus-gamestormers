@@ -30,7 +30,8 @@ var STRINGS = {
     nonMemberText: 'Denne Discord-konto ser ikke ud til at være medlem af Aarhus Gamestormers-serveren endnu.',
     inviteLink: 'Gå til Discord-serveren',
     retryLogin: 'Log ud og ind igen, når du er med i serveren.',
-    privacyNote: 'We use Discord login only to confirm membership in the Aarhus Gamestormers Discord server and prevent duplicate voting/suggestions. We do not access your messages, friends, or email.',
+    privacyToggle: 'Om Discord-login og data',
+    privacyNote: 'Vi bruger kun Discord-login til at bekræfte medlemskab af Aarhus Gamestormers Discord-serveren og til at forhindre dobbelte stemmer og forslag. Vi har ikke adgang til dine beskeder, venner eller e-mail.',
     authError: 'Discord-login lykkedes ikke. Prøv igen.',
     scheduleMeetingDate: 'Mødedato',
     scheduleSuggestionsOpen: 'Forslag åbner',
@@ -149,6 +150,7 @@ var STRINGS = {
     nonMemberText: 'This Discord account does not seem to be a member of the Aarhus Gamestormers Discord server yet.',
     inviteLink: 'Join the Discord server',
     retryLogin: 'Log out and log in again once you have joined the server.',
+    privacyToggle: 'About Discord login and data',
     privacyNote: 'We use Discord login only to confirm membership in the Aarhus Gamestormers Discord server and prevent duplicate voting/suggestions. We do not access your messages, friends, or email.',
     authError: 'Discord login did not complete. Please try again.',
     scheduleMeetingDate: 'Meeting date',
@@ -254,6 +256,7 @@ var STRINGS = {
   var mySuggestions = [];
   var pitchEditable = false;
   var countdownTimerIds = [];
+  var lastCountdownReload = 0;
 
   // ── helpers ───────────────────────────────────────────────────────────────
   function el(tag, attrs, children) {
@@ -322,6 +325,28 @@ var STRINGS = {
       .catch(function () { window.location.reload(); });
   }
 
+  var DISCORD_GLYPH = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>';
+  var LOCK_GLYPH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>';
+  var CHEVRON_GLYPH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>';
+
+  function discordLoginButton() {
+    return el('a', { class: 'btn-green vote-auth-login', href: loginUrl() }, [
+      el('span', { class: 'btn-glyph', html: DISCORD_GLYPH }),
+      el('span', { text: T.loginButton }),
+    ]);
+  }
+
+  function privacyDisclosure() {
+    return el('details', { class: 'vote-privacy' }, [
+      el('summary', { class: 'vote-privacy-summary' }, [
+        el('span', { class: 'vote-privacy-icon', html: LOCK_GLYPH }),
+        el('span', { class: 'vote-privacy-label', text: T.privacyToggle }),
+        el('span', { class: 'vote-privacy-chevron', html: CHEVRON_GLYPH }),
+      ]),
+      el('p', { class: 'vote-privacy-text', text: T.privacyNote }),
+    ]);
+  }
+
   function authPanel(kind) {
     var message = kind === 'vote' ? T.loginVote : T.loginSuggest;
     var queryMessage = authQueryMessage();
@@ -356,14 +381,14 @@ var STRINGS = {
       ]);
     }
 
-    return el('aside', { class: 'vote-auth' }, [
+    return el('aside', { class: 'vote-auth vote-auth-login-card' }, [
       el('div', { class: 'vote-auth-copy' }, [
         el('h2', { class: 'vote-panel-title', text: T.loginTitle }),
         el('p', { text: message }),
         queryMessage ? el('p', { class: 'vote-msg err', text: queryMessage }) : null,
-        el('p', { class: 'vote-hint', text: T.privacyNote }),
+        privacyDisclosure(),
       ]),
-      el('a', { class: 'btn-green', href: loginUrl(), text: T.loginButton }),
+      discordLoginButton(),
     ]);
   }
 
@@ -675,7 +700,18 @@ var STRINGS = {
     return null;
   }
 
-  function countdownDetail(dateString, label) {
+  // Re-fetch and re-render when a watched countdown reaches zero. Throttled so a
+  // small client/server clock skew (the server may flip a few seconds later)
+  // polls every few seconds instead of hammering the API, and stops once the new
+  // state renders and the zeroed countdown is gone.
+  function autoReload() {
+    var now = Date.now();
+    if (now - lastCountdownReload < 5000) return;
+    lastCountdownReload = now;
+    fetchState().catch(function () {});
+  }
+
+  function countdownDetail(dateString, label, onComplete) {
     var target = parseDateOnly(dateString);
     if (!target) return null;
     var valueNodes = {
@@ -707,7 +743,10 @@ var STRINGS = {
       valueNodes.hours.textContent = String(hours).padStart(2, '0');
       valueNodes.minutes.textContent = String(minutes).padStart(2, '0');
       valueNodes.seconds.textContent = String(seconds).padStart(2, '0');
-      if (diff === 0) note.textContent = T.countdownNow;
+      if (diff === 0) {
+        note.textContent = T.countdownNow;
+        if (onComplete) onComplete();
+      }
     }
 
     update();
@@ -718,7 +757,11 @@ var STRINGS = {
   function nextDateDetail(round) {
     var item = countdownTarget(round);
     if (!item || !formatDate(item[1])) return null;
-    return countdownDetail(item[1], item[0]);
+    // Suggestions opening is a pure date boundary (not a scheduler phase flip),
+    // so it is the one transition that goes live at local midnight. Auto-refresh
+    // when its countdown hits zero; other transitions wait on the 09:00 scheduler.
+    var onZero = round.phase === 'suggesting' && round.suggestionsAreOpen === false ? autoReload : null;
+    return countdownDetail(item[1], item[0], onZero);
   }
 
   function dateCard(label, dateString) {
@@ -1237,36 +1280,45 @@ var STRINGS = {
   }
 
   // ── boot ─────────────────────────────────────────────────────────────────
-  function load() {
-    mountMeetingFlow();
-    app.appendChild(el('p', { class: 'vote-intro', text: T.loading }));
-    Promise.all([
+  function renderRound(data) {
+    pitchEditable = !!(data.round && data.round.phase === 'suggesting' && data.round.suggestionsAreOpen);
+    if (!data.round) return renderNone();
+    if (data.round.phase === 'suggesting') return renderSuggesting(data);
+    if (data.round.phase === 'voting') return renderVoting(data);
+    return renderRevealed(data); // revealed | closed
+  }
+
+  // Re-fetch round + session state and re-render. Used on first load and when a
+  // countdown reaches zero so the page reflects the new state without a manual
+  // reload. Each phase renderer clears the app, so this safely replaces the view.
+  function fetchState() {
+    return Promise.all([
       api('/round/current'),
       api('/auth/session').catch(function () {
         return { authenticated: false, user: null, discordInvite: 'https://discord.gg/N2h6DJxVDF' };
       }),
-    ])
-      .then(function (results) {
-        var data = results[0];
-        session = results[1] || session;
-        var mineRequest = session.authenticated
-          ? api('/suggestions/mine').catch(function () { return { suggestions: [] }; })
-          : Promise.resolve({ suggestions: [] });
-        return mineRequest.then(function (mine) {
-          mySuggestions = mine.suggestions || [];
-          pitchEditable = !!(data.round && data.round.phase === 'suggesting' && data.round.suggestionsAreOpen);
-          if (!data.round) return renderNone();
-          if (data.round.phase === 'suggesting') return renderSuggesting(data);
-          if (data.round.phase === 'voting') return renderVoting(data);
-          return renderRevealed(data); // revealed | closed
-        });
-      })
-      .catch(function (err) {
-        clearApp();
-        var box = msgBox();
-        app.appendChild(box);
-        showMsg(box, err.message, false);
+    ]).then(function (results) {
+      var data = results[0];
+      session = results[1] || session;
+      var mineRequest = session.authenticated
+        ? api('/suggestions/mine').catch(function () { return { suggestions: [] }; })
+        : Promise.resolve({ suggestions: [] });
+      return mineRequest.then(function (mine) {
+        mySuggestions = mine.suggestions || [];
+        return renderRound(data);
       });
+    });
+  }
+
+  function load() {
+    mountMeetingFlow();
+    app.appendChild(el('p', { class: 'vote-intro', text: T.loading }));
+    fetchState().catch(function (err) {
+      clearApp();
+      var box = msgBox();
+      app.appendChild(box);
+      showMsg(box, err.message, false);
+    });
   }
 
   load();

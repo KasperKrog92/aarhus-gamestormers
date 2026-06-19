@@ -92,8 +92,18 @@ export function defaultScheduleForMeetingDate(
   };
 }
 
-export function todayDateOnly(now = new Date()) {
-  return dateOnly(now);
+// "Today" as a YYYY-MM-DD date in the club's local timezone (Europe/Copenhagen
+// by default). Schedule boundaries (suggestions open, voting open/close, round
+// close) are whole-day comparisons, so they use the Danish calendar day: the
+// suggestions-open gate flips at local midnight, matching the on-page countdown,
+// rather than at UTC midnight (which is 02:00 in Denmark during summer time).
+export function todayDateOnly(now = new Date(), timeZone = DEFAULT_MEETING_TIMEZONE) {
+  const parts = getTimeZoneParts(now, timeZone);
+  return (
+    String(parts.year).padStart(4, '0') + '-' +
+    String(parts.month).padStart(2, '0') + '-' +
+    String(parts.day).padStart(2, '0')
+  );
 }
 
 export function isBeforeDateOnly(date, boundary) {

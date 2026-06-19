@@ -131,6 +131,14 @@ The public vote page shows the meeting date and the resulting suggestion/voting 
 - Votes are rejected before `voting_opens_at` when the round is in `voting`.
 - Votes are rejected after `voting_closes_at` when the round is in `voting`; the close date itself is inclusive for the whole day.
 
+### Schedule timezone and live opening
+
+All schedule boundaries are whole-day comparisons evaluated in the club's local timezone (`Europe/Copenhagen`), not UTC. `todayDateOnly` in `functions/_lib/schedule.js` resolves "today" to the Danish calendar day, so every boundary that flows through `roundScheduleState` (`suggestionsAreOpen`, `votingHasStarted`, `votingIsOpen`), the scheduler, and `closeDueRevealedRounds` flips at local midnight. This matches the on-page countdowns, which target local midnight, instead of UTC midnight (02:00 in Denmark during summer time).
+
+Suggestions opening is a pure date boundary inside the `suggesting` phase, so it goes live the instant the local day reaches `suggestions_open_at`, independent of the scheduler. The Discord "suggestions open" announcement is separate: the scheduler posts it at 09:00 Europe/Copenhagen, so the form can be open for hours before the announcement. Voting opening and the winner reveal are scheduler-driven phase changes, so they still happen on the 09:00 run rather than at midnight.
+
+`js/vote.js` re-fetches `/api/round/current` and re-renders when the suggestions-open countdown reaches zero (throttled `autoReload`), so a member already sitting on the vote page sees the suggestion form appear without a manual reload.
+
 ## Automation Events
 
 The `automation_events` table is the idempotency log for the planned voting scheduler. Each row records one automated action taken on a round, keyed by a `UNIQUE (round_id, event_type)` constraint. Known event types are `suggestions_opened`, `voting_opened`, `winner_revealed`, `blocked_alerted`, `winner_setup_needed_alerted`, `winner_announcement_posted`, and `handoff_generated`; the database does not enforce a fixed CHECK so new lifecycle events do not require a table rebuild. An optional JSON `payload` captures context such as webhook status, missing fields, and Discord message IDs for rolling public announcements.

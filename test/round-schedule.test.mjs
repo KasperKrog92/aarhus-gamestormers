@@ -57,6 +57,20 @@ test('round schedule state respects suggestion start and inclusive voting close 
   });
 });
 
+test('schedule boundaries flip at Copenhagen midnight, not UTC midnight', () => {
+  const round = {
+    suggestions_open_at: '2026-06-20',
+    voting_opens_at: '2026-06-29',
+    voting_closes_at: '2026-07-08',
+  };
+
+  // 2026-06-19 23:00 Copenhagen (CEST = UTC+2): still the 19th locally -> closed.
+  assert.equal(roundScheduleState(round, new Date('2026-06-19T21:00:00Z')).suggestionsAreOpen, false);
+  // 2026-06-20 00:02 Copenhagen: the day has changed locally -> open, even though
+  // it is still 2026-06-19 in UTC (the old behaviour would keep this closed).
+  assert.equal(roundScheduleState(round, new Date('2026-06-19T22:02:00Z')).suggestionsAreOpen, true);
+});
+
 test('midpointDateOnly floors the halfway day between two dates', () => {
   // Reveal anchor 2026-07-08, next suggestions open 2026-07-12 -> 4-day gap, midpoint 07-10.
   assert.equal(midpointDateOnly('2026-07-08', '2026-07-12'), '2026-07-10');
