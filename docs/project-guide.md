@@ -12,6 +12,7 @@ Aarhus Gamestormers is a mostly static HTML website for a monthly video game dis
 |-- README.md
 |-- index.html
 |-- index_en.html
+|-- privacy.html
 |-- vote.html
 |-- vote-admin.html
 |-- css/
@@ -22,6 +23,7 @@ Aarhus Gamestormers is a mostly static HTML website for a monthly video game dis
 |   `-- vote.js
 |-- en/
 |   |-- index.html
+|   |-- privacy.html
 |   `-- vote.html
 |-- functions/
 |   |-- _lib/
@@ -69,6 +71,8 @@ The homepage upcoming-events and history sections are database-backed. D1 is the
 | `index_en.html` | Redirect | Legacy redirect to `/en/` |
 | `vote.html` | Danish | Game suggestion and voting page |
 | `en/vote.html` | English | Game suggestion and voting page |
+| `privacy.html` | Danish | Privacy policy, linked from every footer |
+| `en/privacy.html` | English | Privacy policy, linked from every footer |
 | `vote-admin.html` | English | Unlisted maintainer curation tool, `noindex`, admin-token gated |
 
 The landing pages share the same structure: sticky header, hero, how-it-works cards, upcoming events, about/practical info, history grid, and footer.
