@@ -16,6 +16,7 @@ The repo is `github.com/KasperKrog92/aarhus-gamestormers`. The live site is `htt
 - [`docs/content-guide.md`](docs/content-guide.md): event cards, history cards, calendar links, store links, SEO metadata, and content verification.
 - [`docs/voting-system.md`](docs/voting-system.md): Cloudflare Pages Functions, D1 schema/API, suggestion curation, voting phases, Discord login, and admin behavior.
 - [`docs/deployment-guide.md`](docs/deployment-guide.md): local preview, Cloudflare Pages settings, manual deploy safety, and D1 setup.
+- [`docs/roadmap.md`](docs/roadmap.md): future work that is intentionally out of scope for current changes.
 - [`MEETING_WORKFLOW.md`](MEETING_WORKFLOW.md): step-by-step runbook when a new game has been chosen for a meeting.
 
 `AGENTS.md` is intentionally a short pointer for Codex-style tools. Do not duplicate detailed workflow guidance there.

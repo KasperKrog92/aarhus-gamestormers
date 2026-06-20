@@ -96,3 +96,28 @@ test('opening a round creates the matching public meeting row', async () => {
   assert.equal(meetingUpsert.args[8], null);
   assert.equal(meetingUpsert.args[9], 'suggesting');
 });
+
+test('deleting a round removes only the round and leaves the public meeting row', async () => {
+  const db = fakeD1();
+  const request = new Request('https://example.com/api/admin/round/19', {
+    method: 'DELETE',
+    headers: { authorization: 'Bearer test' },
+  });
+
+  const response = await onRequest({
+    request,
+    env: { DB: db, ADMIN_TOKEN: 'test' },
+    params: { route: ['round', '19'] },
+  });
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { ok: true });
+
+  const roundDelete = db.statements.find((entry) => entry.sql.includes('DELETE FROM rounds'));
+  assert.ok(roundDelete, 'should delete from rounds');
+  assert.deepEqual(roundDelete.args, [19]);
+
+  // Round-only semantics: nothing should ever touch the public meetings table.
+  const touchesMeetings = db.statements.some((entry) => /\bmeetings\b/i.test(entry.sql));
+  assert.equal(touchesMeetings, false, 'round delete must not modify the meetings table');
+});

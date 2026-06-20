@@ -2200,6 +2200,9 @@ img { display: block; max-width: 100%; height: auto; }
   margin-left: 22px;
   margin-right: 22px;
 }
+.admin-round-card > .admin-actions {
+  margin-bottom: 22px;
+}
 .admin-round-card > .admin-msg:last-child {
   margin-bottom: 22px;
 }
@@ -2222,6 +2225,18 @@ img { display: block; max-width: 100%; height: auto; }
 }
 .admin-field {
   min-width: 0;
+}
+/* Bottom-align controls inside grid cells so inputs line up across a row
+   even when a label wraps to two lines. */
+.admin-grid > div,
+.admin-grid > .admin-field {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.admin-grid > div > :last-child,
+.admin-grid > .admin-field > :last-child {
+  margin-top: auto;
 }
 .admin-field-label {
   display: block;
