@@ -447,12 +447,18 @@
         .catch(function (e) { showMsg(msg, e.message, false); });
     } }, ['Save']);
 
+    // A meeting reaches the front page only once a game is selected. While it is
+    // unpublished, deleting the round also removes its public meeting record.
+    var meetingPublished = !!(meeting && meeting.hasSelectedGame);
+    var deleteWarning = meetingPublished
+      ? 'Delete voting round #' + round.id + ' and ALL its suggestions and votes? This cannot be undone. The public meeting (homepage event/history card) stays live because a game has been selected.'
+      : 'Delete voting round #' + round.id + ' and ALL its suggestions and votes? This cannot be undone. Its public meeting record is also removed because no game has been selected yet (it is not on the front page).';
     var deleteBtn = h('button', { class: 'admin-btn danger', onclick: function () {
-      if (!confirm('Delete voting round #' + round.id + ' and ALL its suggestions and votes? This cannot be undone. The public meeting record (homepage event/history card) is NOT removed.')) return;
+      if (!confirm(deleteWarning)) return;
       authedFetch('/round/' + round.id, { method: 'DELETE' })
         .then(function () { currentRoundId = null; load(); })
         .catch(function (e) { showMsg(msg, e.message, false); });
-    } }, ['Delete voting round only']);
+    } }, [meetingPublished ? 'Delete voting round only' : 'Delete round and meeting']);
 
     area.appendChild(h('div', { class: 'admin-card admin-round-card' }, [
       h('div', { class: 'admin-round-overview' }, [

@@ -97,7 +97,7 @@ test('opening a round creates the matching public meeting row', async () => {
   assert.equal(meetingUpsert.args[9], 'suggesting');
 });
 
-test('deleting a round removes only the round and leaves the public meeting row', async () => {
+test('deleting a round removes the round and only an unpublished meeting', async () => {
   const db = fakeD1();
   const request = new Request('https://example.com/api/admin/round/19', {
     method: 'DELETE',
@@ -117,7 +117,16 @@ test('deleting a round removes only the round and leaves the public meeting row'
   assert.ok(roundDelete, 'should delete from rounds');
   assert.deepEqual(roundDelete.args, [19]);
 
-  // Round-only semantics: nothing should ever touch the public meetings table.
-  const touchesMeetings = db.statements.some((entry) => /\bmeetings\b/i.test(entry.sql));
-  assert.equal(touchesMeetings, false, 'round delete must not modify the meetings table');
+  // The meeting is removed only while it is unpublished. A published meeting
+  // (selected_game_id set) reaches the front page, so the delete must be guarded
+  // by `selected_game_id IS NULL` and never touch the meetings table unguarded.
+  const meetingDeletes = db.statements.filter((entry) => /DELETE FROM meetings/i.test(entry.sql));
+  assert.equal(meetingDeletes.length, 1, 'should issue exactly one meetings delete');
+  assert.match(meetingDeletes[0].sql, /selected_game_id IS NULL/i);
+  assert.deepEqual(meetingDeletes[0].args, [19]);
+
+  const otherMeetingWrites = db.statements.some(
+    (entry) => /\bmeetings\b/i.test(entry.sql) && !/DELETE FROM meetings WHERE id = \? AND selected_game_id IS NULL/i.test(entry.sql)
+  );
+  assert.equal(otherMeetingWrites, false, 'no unguarded write to the meetings table');
 });

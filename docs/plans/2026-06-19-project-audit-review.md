@@ -31,27 +31,20 @@ The main opportunities are not broad rewrites. They are small hardening passes a
 
 ### 1. Round deletion can leave public meeting content behind
 
-Severity: Low (semantics decided 2026-06-20 — behavior is correct, copy clarity remains)
+Severity: Low (semantics decided 2026-06-20, implemented same day)
 
-Decision (2026-06-20): Deleting a round should delete the voting round only. The public meeting record must remain public. There is no "cascade into meetings" requirement. Managing or removing public meetings is deferred to the future-scope admin section below.
+Decision (2026-06-20, refined): Deleting a round deletes the voting round (and its suggestions/votes). The public meeting record is removed only while it is unpublished, meaning no game has been selected yet. Once a meeting has reached the front page (a game is selected, so it renders as an upcoming/history card), deleting the round must NOT delete the meeting. Cancelling or removing a published meeting is deferred to the future admin section in [`docs/roadmap.md`](../roadmap.md).
 
-This makes the current code behavior correct: `adminDeleteRound` already deletes only from `rounds` (`functions/api/admin/[[route]].js:181-185`), so the surviving `meetings` row is now intended, not a bug. What remains is a copy-clarity gap so the maintainer is not surprised that the homepage meeting persists.
+Front-page signal: `getPublicMeetings` (`functions/_lib/db.js:599-671`) only surfaces a meeting as an upcoming or history card when it has a selected game; `js/meetings.js` renders only those two buckets (not the computed "planned" bucket). So "on the front page" equals "has a selected game" (`meetings.selected_game_id IS NOT NULL`). The admin payload already exposes this as `meeting.hasSelectedGame` (`functions/api/admin/[[route]].js:329`).
 
-Evidence:
+Implemented 2026-06-20:
 
-- `functions/api/admin/[[route]].js:181-185` deletes only from `rounds`, which matches the decision.
-- `schema.sql:34-50` defines `meetings` as an independent table whose `id` matches `rounds.id`; keeping it free of `ON DELETE CASCADE` from `rounds` is now the intended design.
-- `functions/_lib/db.js:589-660` reads homepage data from `meetings`, so a selected meeting stays public after its round is deleted (intended).
-- `vote-admin.html:451` confirms "Delete round #N and ALL its suggestions and votes? This cannot be undone." and the button label is "Delete round" (`vote-admin.html:455`); neither states that the public meeting record survives.
+- `adminDeleteRound` deletes the round, then runs `DELETE FROM meetings WHERE id = ? AND selected_game_id IS NULL`, so a published meeting is preserved and an unpublished one is cleaned up (`meeting_copy` cascades). The `selected_game_id IS NULL` guard is documented in a comment so it is not removed by accident (`functions/api/admin/[[route]].js:181-194`).
+- Admin UI copy is now conditional on `meeting.hasSelectedGame`: the button reads "Delete voting round only" with a keep-the-meeting warning when published, and "Delete round and meeting" with a removes-the-meeting warning when unpublished (`vote-admin.html:450-461`).
+- Test asserts the meetings delete is always guarded by `selected_game_id IS NULL` and that there is no unguarded write to `meetings` (`test/admin-round-meeting.test.mjs`, "deleting a round removes the round and only an unpublished meeting").
+- Documented the round-delete endpoint and its published/unpublished semantics in `docs/voting-system.md` (admin endpoints table).
 
-Remaining fix (small, in scope) — DONE 2026-06-20:
-
-- Button renamed to "Delete voting round only" and the confirm copy now states the public meeting/homepage card is not removed (`vote-admin.html:450-455`).
-- Comment added near `adminDeleteRound` documenting the deliberate round-only semantics so a future change does not add a meetings cascade (`functions/api/admin/[[route]].js:181-191`).
-- Test added asserting a round delete hits only `rounds` and never touches `meetings` (`test/admin-round-meeting.test.mjs`, "deleting a round removes only the round and leaves the public meeting row").
-- Documented the round-delete endpoint and its round-only semantics in `docs/voting-system.md` (admin endpoints table).
-
-The broader public-meeting management work (a dedicated admin section to cancel or remove public meetings independently of voting rounds) is tracked in [`docs/roadmap.md`](../roadmap.md).
+The broader public-meeting management work (a dedicated admin section to cancel or remove published meetings independently of voting rounds) is tracked in [`docs/roadmap.md`](../roadmap.md).
 
 ### 2. Admin-entered URLs are rendered publicly without server-side protocol validation
 

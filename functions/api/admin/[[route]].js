@@ -180,12 +180,17 @@ async function adminGetRoundById(db, id) {
 
 async function adminDeleteRound(db, id) {
   if (!Number.isInteger(id) || id <= 0) return fail('Invalid id');
-  // Round-only delete by design: this removes the voting round and (via
-  // ON DELETE CASCADE in schema) its suggestions and votes, but intentionally
-  // leaves the matching public `meetings` row live so the homepage event/history
-  // card survives. Do NOT add a cascade into `meetings` here; cancelling or
-  // removing a public meeting is handled separately. See docs/voting-system.md.
+  // Delete the voting round and (via ON DELETE CASCADE) its suggestions and
+  // votes. The matching public `meetings` row is removed ONLY when it has not
+  // reached the front page yet, i.e. no game has been selected
+  // (selected_game_id IS NULL). A meeting with a selected game is already shown
+  // as an upcoming/history card, so it is kept; cancelling or removing a
+  // published meeting is handled separately. The `selected_game_id IS NULL`
+  // guard must stay so a published meeting is never deleted here.
+  // meeting_copy cascades when an unpublished meeting row is removed.
+  // See docs/voting-system.md.
   await db.prepare('DELETE FROM rounds WHERE id = ?').bind(id).run();
+  await db.prepare('DELETE FROM meetings WHERE id = ? AND selected_game_id IS NULL').bind(id).run();
   return json({ ok: true });
 }
 
