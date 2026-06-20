@@ -26,7 +26,8 @@ test('suggestions opened message: header, en links, Discord login note, and date
   assert.match(content, /^# 🎮 Game Suggestions Open - Club Meeting #19$/m);
   assert.match(content, /Aarhus Gamestormers #19 on \*\*15 September 2026\*\*/);
   // Masked links target the /en/ pages and suppress the preview card (<...>).
-  assert.match(content, /\[frontpage\]\(<https:\/\/www\.gamestormers\.dk\/en\/>\)/);
+  assert.match(content, /\[past games\]\(<https:\/\/www\.gamestormers\.dk\/en\/#history>\)/);
+  assert.match(content, /\[upcoming games\]\(<https:\/\/www\.gamestormers\.dk\/en\/#events>\)/);
   assert.match(content, /\[the vote page\]\(<https:\/\/www\.gamestormers\.dk\/en\/vote>\)/);
   assert.match(content, /Log in with Discord on the page to confirm club membership\./);
   assert.match(content, /Voting opens on \*\*20 July 2026\*\*/);

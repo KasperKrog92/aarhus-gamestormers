@@ -137,12 +137,12 @@ export function suggestionsOpenedMessage({ round, baseUrl }) {
     '- The game should be available on PC',
     '- Aim for something finishable in around 10 hours or less',
     '- Longer or "never-ending" games are welcome too, just say so in your pitch',
-    `- Check the ${link('frontpage', frontUrl(baseUrl))} for past games and what's coming up`,
+    `- Check out our ${link('past games', `${frontUrl(baseUrl)}#history`)} and ${link('upcoming games', `${frontUrl(baseUrl)}#events`)}`,
     '- If the game is on Steam, add a Steam link and your suggestion fills in the title, image, genres, and description automatically',
   ].join('\n');
 
   const suggestBlock = [
-    'Suggest your games here:',
+    '**Suggest your games here:**',
     `🔗 ${link('the vote page', voteUrl(baseUrl))}`,
     'Log in with Discord on the page to confirm club membership.',
   ].filter(Boolean).join('\n');
