@@ -73,7 +73,7 @@ The homepage upcoming-events and history sections are database-backed. D1 is the
 | `en/vote.html` | English | Game suggestion and voting page |
 | `privacy.html` | Danish | Privacy policy, linked from every footer |
 | `en/privacy.html` | English | Privacy policy, linked from every footer |
-| `vote-admin.html` | English | Unlisted maintainer curation tool, `noindex`, admin-token gated |
+| `vote-admin.html` | English | Maintainer curation tool. Out of nav and search (`noindex`, `robots.txt`), reachable via a hidden footer link, admin-token gated |
 
 The landing pages share the same structure: sticky header, hero, how-it-works cards, upcoming events, about/practical info, history grid, and footer.
 

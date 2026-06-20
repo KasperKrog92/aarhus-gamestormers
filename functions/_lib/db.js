@@ -45,6 +45,7 @@ export async function ensureRoundScheduleColumns(db) {
   await addColumnIfMissing(db, 'rounds', 'voting_closes_months_before', 'REAL DEFAULT 2.2');
   await addColumnIfMissing(db, 'rounds', 'suggestions_open_at', 'TEXT');
   await addColumnIfMissing(db, 'rounds', 'voting_opens_at', 'TEXT');
+  await addColumnIfMissing(db, 'rounds', 'voting_closes_at', 'TEXT');
   roundScheduleColumnsChecked = true;
 }
 

@@ -14,7 +14,7 @@ The repo is `github.com/KasperKrog92/aarhus-gamestormers`. The live site is `htt
 
 - [`docs/project-guide.md`](docs/project-guide.md): project structure, technology, pages, CSS component contracts, images, and i18n.
 - [`docs/content-guide.md`](docs/content-guide.md): event cards, history cards, calendar links, store links, SEO metadata, and content verification.
-- [`docs/voting-system.md`](docs/voting-system.md): Cloudflare Pages Functions, D1 schema/API, suggestion curation, voting phases, Turnstile, and admin behavior.
+- [`docs/voting-system.md`](docs/voting-system.md): Cloudflare Pages Functions, D1 schema/API, suggestion curation, voting phases, Discord login, and admin behavior.
 - [`docs/deployment-guide.md`](docs/deployment-guide.md): local preview, Cloudflare Pages settings, manual deploy safety, and D1 setup.
 - [`MEETING_WORKFLOW.md`](MEETING_WORKFLOW.md): step-by-step runbook when a new game has been chosen for a meeting.
 
@@ -22,7 +22,7 @@ The repo is `github.com/KasperKrog92/aarhus-gamestormers`. The live site is `htt
 
 ## High-Priority Rules
 
-- Content is hardcoded in HTML. Keep `index.html` and `en/index.html` structurally synchronized.
+- The page shell (hero, nav, about copy, SEO `<head>`) is hardcoded in HTML; keep `index.html` and `en/index.html` structurally synchronized. Homepage event/history content is D1-backed and entered through `vote-admin.html`, not by hand-editing HTML. The static event/history cards remain only as a no-JS/empty-database fallback. See [`docs/content-guide.md`](docs/content-guide.md).
 - Writing style: avoid em dashes in site copy and agent-authored prose. Keep wording plain and specific, not generic AI-sounding filler.
 - When a new game has been chosen, follow [`MEETING_WORKFLOW.md`](MEETING_WORKFLOW.md).
 - Always verify Steam app IDs from the canonical Steam store URL before using banners or links.

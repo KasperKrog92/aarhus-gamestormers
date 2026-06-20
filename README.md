@@ -12,28 +12,41 @@ Hosted on Cloudflare Pages. Changes pushed to `main` deploy automatically.
 
 ```
 /
-├── index.html          # Danish version (primary)
-├── en/index.html       # English version
+├── index.html          # Danish landing page (primary)
+├── en/index.html       # English landing page
 ├── index_en.html       # Redirect to /en/ for old links
+├── privacy.html        # Danish privacy policy (en/privacy.html is the English one)
+├── vote.html           # Danish suggestion & voting page (en/vote.html is English)
+├── vote-admin.html     # Maintainer curation tool, token-gated
 ├── css/style.css       # All styles
 ├── js/script.js        # Calendar dropdowns, countdown, history, sale badges
+├── js/meetings.js      # Renders homepage event/history cards from the D1 API
+├── js/vote.js          # Suggestion & voting UI
+├── functions/          # Cloudflare Pages Functions (/api/*) for voting + meetings
+├── schema.sql          # Cloudflare D1 (SQLite) schema
+├── automation/voting/  # Daily voting scheduler (GitHub Actions, not Pages)
+├── scripts/            # Backfill SQL generator + manual-deploy prep
+├── backfill-meetings.sql  # One-time historical meeting backfill for D1
 ├── data/               # Generated Steam/GOG sale data for upcoming events
 ├── img/                # Logos and social images
 ├── favicon/            # Favicon image
+├── docs/               # Focused maintenance guides (see CLAUDE.md)
+├── wrangler.toml       # Cloudflare Pages/D1 config
 ├── robots.txt
 └── sitemap.xml
 ```
 
 ## Making Changes
 
-All content is hardcoded in HTML. There is no build step or CMS. Agent maintenance guidance starts in [CLAUDE.md](CLAUDE.md), which links to focused docs under `docs/`; read the relevant guide before changing events, history cards, SEO metadata, voting, or deployment details.
+There is no build step or CMS. The page shell (hero, navigation, about copy, SEO `<head>`) is hardcoded in HTML, but the homepage **upcoming-events and history sections are database-backed**: they render from Cloudflare D1 through `GET /api/meetings/public`. Meeting content is entered through `vote-admin.html`, not by editing HTML. The static event/history cards in the page are only a no-JS / empty-database fallback.
+
+Agent maintenance guidance starts in [CLAUDE.md](CLAUDE.md), which links to focused docs under `docs/`; read the relevant guide before changing events, history cards, SEO metadata, voting, or deployment details.
 
 Common updates:
 
-1. Edit upcoming events in both `index.html` and `en/index.html`.
-2. Keep event cards, calendar links, ICS attributes, and JSON-LD `Event` blocks in sync.
-3. Add past meetings to the history grid in both languages.
-4. Update `sitemap.xml` `lastmod` for meaningful content changes.
+1. Add or edit a meeting and its selected game through `vote-admin.html`; the renderer (`js/meetings.js`) builds the event/history cards, calendar links, and JSON-LD for both languages. When a new game is chosen, follow [MEETING_WORKFLOW.md](MEETING_WORKFLOW.md).
+2. Keep the hardcoded page shell (and any static fallback cards) in sync between `index.html` and `en/index.html`.
+3. Update `sitemap.xml` `lastmod` for meaningful content changes.
 
 ## Automation
 

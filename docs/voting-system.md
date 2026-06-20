@@ -14,7 +14,7 @@ It is the site's only dynamic feature. It runs on Cloudflare Pages Functions and
 - Backend: Cloudflare Pages Functions in `functions/api/*`.
 - Shared backend helpers: `functions/_lib/`.
 - Storage: Cloudflare D1 with schema in `schema.sql`.
-- Admin UI: `vote-admin.html`, unlisted, `noindex`, gated by Bearer `ADMIN_TOKEN`.
+- Admin UI: `vote-admin.html`, kept out of navigation and search (`noindex`, disallowed in `robots.txt`) but reachable via a hidden footer link (the "o" in "Gamestormers"), and gated by Bearer `ADMIN_TOKEN`.
 
 `js/vote.js` is bilingual via `STRINGS[lang]`. It renders suggestion, voting, and result states based on the current round phase.
 
