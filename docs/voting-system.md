@@ -18,6 +18,15 @@ It is the site's only dynamic feature. It runs on Cloudflare Pages Functions and
 
 `js/vote.js` is bilingual via `STRINGS[lang]`. It renders suggestion, voting, and result states based on the current round phase.
 
+## Text Field Hardening
+
+All user-supplied text is sanitized server-side before it is stored, through helpers in `functions/_lib/http.js`:
+
+- `clean(value, maxLen)` trims, caps length, and strips control characters plus invisible/bidirectional formatting characters (zero-width spaces, joiners, BOM, RTL override, etc.) that enable invisible content or "Trojan Source" spoofing. Tabs and line breaks are preserved, so multi-line fields (pitches, descriptions) keep their formatting.
+- `cleanLine(value, maxLen)` does the same but also collapses every run of whitespace (including newlines) to a single space. It is used for single-line fields, such as a game title or suggester name, so a value cannot smuggle line breaks into a Discord notification or break a card's layout.
+
+Member-submitted store links are additionally scheme-checked (`isHttpUrl` in `functions/api/suggest.js`) so only `http(s)` URLs are accepted as hrefs. On output, every renderer (`js/vote.js`, `js/meetings.js`, `vote-admin.html`) writes user text via `textContent` or explicit HTML escaping, never raw `innerHTML`.
+
 ## D1 Tables
 
 - `rounds`: meeting round, meeting date, schedule windows, phase, and winner. `storm_code` is a legacy unused column kept for compatibility.

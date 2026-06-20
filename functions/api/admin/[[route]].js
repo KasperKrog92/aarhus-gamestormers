@@ -7,7 +7,7 @@
 //   PATCH  /api/admin/suggestion/:id   edit/approve/reject a suggestion
 //   DELETE /api/admin/suggestion/:id   delete a suggestion
 //   DELETE /api/admin/ballot/:ballotId remove a single ballot (all its votes)
-import { json, fail, readJson, clean } from '../../_lib/http.js';
+import { json, fail, readJson, clean, cleanLine } from '../../_lib/http.js';
 import { isAdmin } from '../../_lib/auth.js';
 import {
   deleteDiscordMessage,
@@ -210,7 +210,7 @@ async function adminOpenRound(db, request) {
     )
     .bind(
       id,
-      clean(body.title, 120) || null,
+      cleanLine(body.title, 120) || null,
       meetingDate || null,
       null,
       suggestionsOpenMonthsBefore,
@@ -243,7 +243,7 @@ async function adminPatchRound(db, request, id) {
     if (!PHASES.includes(phase)) return fail('Invalid phase');
     put('phase', phase);
   }
-  if (body.title !== undefined) put('title', clean(body.title, 120));
+  if (body.title !== undefined) put('title', cleanLine(body.title, 120));
   if (body.meetingDate !== undefined) put('meeting_date', cleanDateOnly(body.meetingDate) || null);
   if (body.suggestionsOpenMonthsBefore !== undefined) {
     put('suggestions_open_months_before', cleanMonthsBefore(body.suggestionsOpenMonthsBefore, DEFAULT_SUGGESTIONS_OPEN_MONTHS_BEFORE));
@@ -484,15 +484,15 @@ async function adminPatchMeeting(db, request, id) {
     const existing = await getGameById(db, meeting.selected_game_id);
     if (!existing) return fail('Selected game record missing', 404);
     const input = gameRowToInput(existing);
-    if (body.title !== undefined) input.title = clean(body.title, 200) || existing.title;
-    if (body.image !== undefined) input.image = clean(body.image, 400) || null;
-    if (body.storeUrl !== undefined) input.storeUrl = clean(body.storeUrl, 400) || null;
-    if (body.price !== undefined) input.price = clean(body.price, 60) || null;
-    if (body.genres !== undefined) input.genres = clean(body.genres, 200) || null;
-    if (body.platforms !== undefined) input.platforms = clean(body.platforms, 160) || null;
-    if (body.gogUrl !== undefined) input.gogUrl = clean(body.gogUrl, 300) || null;
-    if (body.gogId !== undefined) input.gogId = clean(body.gogId, 80) || null;
-    if (body.hltbUrl !== undefined) input.hltbUrl = clean(body.hltbUrl, 300) || null;
+    if (body.title !== undefined) input.title = cleanLine(body.title, 200) || existing.title;
+    if (body.image !== undefined) input.image = cleanLine(body.image, 400) || null;
+    if (body.storeUrl !== undefined) input.storeUrl = cleanLine(body.storeUrl, 400) || null;
+    if (body.price !== undefined) input.price = cleanLine(body.price, 60) || null;
+    if (body.genres !== undefined) input.genres = cleanLine(body.genres, 200) || null;
+    if (body.platforms !== undefined) input.platforms = cleanLine(body.platforms, 160) || null;
+    if (body.gogUrl !== undefined) input.gogUrl = cleanLine(body.gogUrl, 300) || null;
+    if (body.gogId !== undefined) input.gogId = cleanLine(body.gogId, 80) || null;
+    if (body.hltbUrl !== undefined) input.hltbUrl = cleanLine(body.hltbUrl, 300) || null;
     if (body.playtimeHours !== undefined) {
       if (body.playtimeHours === '' || body.playtimeHours === null) input.playtimeHours = null;
       else {
@@ -545,19 +545,19 @@ function meetingFromInput(body, round, existing = null) {
         ? timeOnlyInZone(existing.ends_at_utc, timeZone)
         : '21:00'
   );
-  const venueName = clean(
+  const venueName = cleanLine(
     body.venueName !== undefined ? body.venueName : existing ? existing.venue_name : DEFAULT_VENUE_NAME,
     160
   );
-  const venueAddress = clean(
+  const venueAddress = cleanLine(
     body.venueAddress !== undefined ? body.venueAddress : existing ? existing.venue_address : DEFAULT_VENUE_ADDRESS,
     240
   );
-  const discordInvite = clean(
+  const discordInvite = cleanLine(
     body.discordInvite !== undefined ? body.discordInvite : existing ? existing.discord_invite : DEFAULT_DISCORD_INVITE,
     300
   );
-  const discordEventUrl = clean(
+  const discordEventUrl = cleanLine(
     body.discordEventUrl !== undefined ? body.discordEventUrl : existing ? existing.discord_event_url : '',
     500
   );
@@ -605,18 +605,18 @@ async function adminPatchSuggestion(db, request, id) {
     if (!STATUSES.includes(v)) return fail('Invalid status');
     put('status', v);
   }
-  if (body.title !== undefined) put('title', clean(body.title, 200));
-  if (body.genres !== undefined) put('genres', clean(body.genres, 200));
-  if (body.price !== undefined) put('price', clean(body.price, 60));
-  if (body.platforms !== undefined) put('platforms', clean(body.platforms, 120));
+  if (body.title !== undefined) put('title', cleanLine(body.title, 200));
+  if (body.genres !== undefined) put('genres', cleanLine(body.genres, 200));
+  if (body.price !== undefined) put('price', cleanLine(body.price, 60));
+  if (body.platforms !== undefined) put('platforms', cleanLine(body.platforms, 120));
   if (body.descriptionDa !== undefined) put('description_da', clean(body.descriptionDa, 1000));
   if (body.descriptionEn !== undefined) put('description_en', clean(body.descriptionEn, 1000));
   if (body.pitch !== undefined) put('pitch', clean(body.pitch, 500));
-  if (body.suggestedBy !== undefined) put('suggested_by', clean(body.suggestedBy, 80));
-  if (body.gogUrl !== undefined) put('gog_url', clean(body.gogUrl, 300) || null);
-  if (body.hltbUrl !== undefined) put('hltb_url', clean(body.hltbUrl, 300) || null);
-  if (body.image !== undefined) put('header_image', clean(body.image, 400));
-  if (body.storeUrl !== undefined) put('store_url', clean(body.storeUrl, 400));
+  if (body.suggestedBy !== undefined) put('suggested_by', cleanLine(body.suggestedBy, 80));
+  if (body.gogUrl !== undefined) put('gog_url', cleanLine(body.gogUrl, 300) || null);
+  if (body.hltbUrl !== undefined) put('hltb_url', cleanLine(body.hltbUrl, 300) || null);
+  if (body.image !== undefined) put('header_image', cleanLine(body.image, 400));
+  if (body.storeUrl !== undefined) put('store_url', cleanLine(body.storeUrl, 400));
   if (body.playtimeHours !== undefined) {
     if (body.playtimeHours === '' || body.playtimeHours === null) put('playtime_hours', null);
     else {

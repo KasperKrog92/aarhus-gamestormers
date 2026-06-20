@@ -2,7 +2,7 @@
 // Body (Steam):     { onSteam:true,  steamUrl, pitch, showName }
 // Body (non-Steam): { onSteam:false, title, storeUrl, genres, pitch, showName }
 // Gated by: phase === 'suggesting' and authenticated Discord guild membership.
-import { json, fail, readJson, clean } from '../_lib/http.js';
+import { json, fail, readJson, clean, cleanLine } from '../_lib/http.js';
 import {
   ensureRoundScheduleColumns,
   ensureSuggestionDescriptionColumns,
@@ -129,10 +129,10 @@ async function suggestSteam(db, round, body, user, env, waitUntil) {
 }
 
 async function suggestManual(db, round, body, user, env, waitUntil) {
-  const title = clean(body.title, 200);
+  const title = cleanLine(body.title, 200);
   if (!title) return fail('Please enter the game title.');
 
-  const storeUrl = clean(body.storeUrl, 400);
+  const storeUrl = cleanLine(body.storeUrl, 400);
   if (storeUrl && !isHttpUrl(storeUrl)) return fail('Store link must be a valid http(s) URL.');
 
   const dup = await db
@@ -153,7 +153,7 @@ async function suggestManual(db, round, body, user, env, waitUntil) {
       round.id,
       title,
       storeUrl || null,
-      clean(body.genres, 200),
+      cleanLine(body.genres, 200),
       clean(body.pitch, 500),
       displayName(user),
       user.discordId,
