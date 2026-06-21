@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-06-20T08:29:32.750Z",
+  "updatedAt": "2026-06-21T09:04:10.731Z",
   "country": "DK",
   "apps": {
     "1569580": {
@@ -10,10 +10,10 @@
       "currency": "EUR"
     },
     "2592160": {
-      "onSale": true,
-      "discountPercent": 20,
-      "initialFormatted": "28,99€",
-      "finalFormatted": "23,19€",
+      "onSale": false,
+      "discountPercent": 0,
+      "initialFormatted": "",
+      "finalFormatted": "28,99€",
       "currency": "EUR"
     }
   }
