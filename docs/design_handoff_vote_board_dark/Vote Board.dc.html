@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'DM Sans',system-ui,sans-serif;background:#2B2436;-webkit-font-smoothing:antialiased;}
+  .gx-board *::-webkit-scrollbar{height:8px;width:8px;}
+  @keyframes gxbar{from{width:0;}}
+  .gx-line-clamp{display:-webkit-box;-webkit-box-orient:vertical;overflow:hidden;}
+  /* collapsible board disclosures (suggest panel + your-suggestions panel) */
+  .gx-disc>summary{list-style:none;}
+  .gx-disc>summary::-webkit-details-marker{display:none;}
+  .gx-disc>summary:focus-visible{outline:2px solid var(--accent);outline-offset:-2px;border-radius:18px;}
+  .gx-disc[open] .gx-chev{transform:rotate(180deg);}
+</style>
+</helmet>
+
+<div style="min-height:100vh;background:var(--board-bg,#2B2436);--board-bg:{{ t.boardBg }};--board-bg2:{{ t.boardBg2 }};--card-bg:{{ t.cardBg }};--card-border:{{ t.cardBorder }};--card-hover:{{ t.cardHover }};--ink:{{ t.ink }};--ink-soft:{{ t.inkSoft }};--ink-faint:{{ t.inkFaint }};--accent:{{ t.accent }};--accent-strong:{{ t.accentStrong }};--panel-bg:{{ t.panelBg }};--hairline:{{ t.hairline }};--chip-bg:{{ t.chipBg }};--cta-bg:{{ t.ctaBg }};--cta-ink:{{ t.ctaInk }};--winner-glow:{{ t.winnerGlow }};">
+
+  <!-- ░░░ KEPT: purple nav ░░░ -->
+  <header style="position:sticky;top:0;z-index:50;height:72px;background:#2B2436;display:flex;align-items:center;box-shadow:0 1px 0 rgba(150,195,141,.12);">
+    <div style="max-width:1160px;margin:0 auto;padding:0 32px;width:100%;display:flex;align-items:center;justify-content:space-between;gap:24px;">
+      <img src="assets/logo.webp" alt="Aarhus Gamestormers" style="height:38px;width:auto;display:block;">
+      <nav style="display:flex;align-items:center;gap:26px;">
+        <a href="#" style="color:rgba(247,244,238,.75);font-weight:500;font-size:.95rem;">Events</a>
+        <a href="#" style="color:rgba(247,244,238,.75);font-weight:500;font-size:.95rem;">Om</a>
+        <a href="#" style="color:rgba(247,244,238,.75);font-weight:500;font-size:.95rem;">Historik</a>
+        <div style="display:flex;gap:2px;background:rgba(255,255,255,.08);border-radius:8px;padding:3px;">
+          <a href="#" style="background:#F7F4EE;color:#2B2436;font-weight:700;font-size:.8rem;padding:4px 9px;border-radius:6px;">DA</a>
+          <a href="#" style="color:rgba(247,244,238,.6);font-weight:700;font-size:.8rem;padding:4px 9px;border-radius:6px;">EN</a>
+        </div>
+        <a href="#" style="background:#96C38D;color:#2B2436;font-weight:700;padding:9px 18px;border-radius:10px;font-size:.9rem;">Stem</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- ░░░ KEPT: green hero + cream poster ░░░ -->
+  <section style="position:relative;overflow:hidden;padding:clamp(48px,7vw,88px) 0 116px;background:#96C38D;">
+    <div style="position:relative;z-index:1;max-width:1160px;margin:0 auto;padding:0 32px;display:grid;grid-template-columns:minmax(0,1.08fr) minmax(280px,.78fr);align-items:center;gap:clamp(32px,7vw,80px);">
+      <div style="max-width:630px;">
+        <p style="margin:0 0 12px;color:rgba(28,24,38,.78);font-size:.75rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase;">Videospilklub · Aarhus</p>
+        <h1 style="margin:0 0 20px;color:#2B2436;font-family:'Barlow Condensed',sans-serif;font-size:clamp(3.6rem,8vw,6.6rem);font-weight:800;letter-spacing:-.045em;line-height:.84;">Stem på næste spil</h1>
+        <p style="max-width:520px;margin:0;color:rgba(28,24,38,.84);font-size:clamp(1rem,1.6vw,1.14rem);line-height:1.6;">Fællesskabet foreslår spil, vi stemmer sammen, og mødes derefter for at diskutere månedens valg.</p>
+        <div style="display:flex;align-items:center;gap:14px;margin-top:26px;flex-wrap:wrap;">
+          <span style="display:inline-flex;align-items:center;gap:8px;color:#2B2436;font-weight:700;font-size:.82rem;"><span style="width:8px;height:8px;border-radius:50%;background:#2B2436;display:inline-block;"></span>{{ statusText }}</span>
+          <span style="color:rgba(28,24,38,.6);font-weight:700;font-size:.82rem;">Møde {{ meetingNo }}</span>
+        </div>
+        <div style="margin-top:22px;">
+          <a href="#" style="display:inline-flex;align-items:center;gap:10px;background:#2B2436;color:#F7F4EE;font-weight:700;font-size:.95rem;padding:13px 20px;border-radius:10px;">
+            <span style="width:18px;height:18px;display:inline-flex;" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.37a19.79 19.79 0 0 0-4.885-1.515.07.07 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.6 12.6 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.06.06 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg></span>
+            Log ind med Discord
+          </a>
+        </div>
+      </div>
+      <aside style="justify-self:center;width:min(100%,358px);min-height:340px;padding:30px 26px 26px;border-radius:2px;background:#F7F4EE;box-shadow:9px 9px 0 rgba(43,36,54,.1);transform:rotate(.55deg);text-align:center;">
+        <span style="display:block;margin-bottom:6px;color:#2B2436;font-family:'Barlow Condensed',sans-serif;font-size:.82rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;">Møde {{ meetingNo }}</span>
+        <span style="display:block;color:rgba(28,24,38,.72);font-size:.78rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;">{{ posterLabel }}</span>
+        <strong style="display:block;color:#2B2436;font-family:'Barlow Condensed',sans-serif;font-size:clamp(6rem,13vw,9rem);font-weight:800;letter-spacing:-.09em;line-height:.74;margin:6px 0 2px;">{{ posterBig }}</strong>
+        <span style="display:block;color:#7aaa71;font-weight:800;font-size:1.1rem;letter-spacing:.02em;text-transform:uppercase;">{{ posterUnit }}</span>
+        <span style="display:block;margin-top:14px;color:#2B2436;font-weight:700;font-size:.85rem;">{{ posterNote }}</span>
+      </aside>
+    </div>
+    <div style="position:absolute;right:0;bottom:-1px;left:0;height:80px;background:#F7F4EE;clip-path:ellipse(60% 100% at 50% 100%);"></div>
+  </section>
+
+  <!-- ░░░ KEPT: cream phase timeline ░░░ -->
+  <section style="position:relative;z-index:2;padding:0 0 56px;background:#F7F4EE;">
+    <div style="max-width:1000px;margin:0 auto -38px;padding:0 32px;transform:translateY(-38px);">
+      <div style="position:relative;">
+        <div style="position:absolute;top:34px;left:11%;right:11%;height:3px;background:rgba(43,36,54,.16);border-radius:2px;"></div>
+        <div style="position:absolute;top:34px;left:11%;width:{{ timelineFill }};height:3px;background:#7aaa71;border-radius:2px;transition:width .5s ease;"></div>
+        <ol style="position:relative;display:grid;grid-template-columns:repeat(4,1fr);gap:18px;list-style:none;text-align:center;">
+          <sc-for list="{{ timeline }}" as="step" hint-placeholder-count="4">
+            <li style="display:flex;flex-direction:column;align-items:center;gap:6px;">
+              <span style="width:68px;height:68px;display:flex;align-items:center;justify-content:center;border-radius:50%;border:3px solid #F7F4EE;background:{{ step.markerBg }};color:{{ step.markerInk }};font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:1.5rem;box-shadow:0 0 0 1px rgba(43,36,54,.18);">{{ step.marker }}</span>
+              <span style="color:#2B2436;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:1.08rem;letter-spacing:.01em;">{{ step.label }}</span>
+              <time style="color:rgba(28,24,38,.7);font-size:.82rem;">{{ step.date }}</time>
+            </li>
+          </sc-for>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <!-- ░░░ REDESIGNED BOARD ░░░ -->
+  <main class="gx-board" data-screen-label="Vote board" style="background:var(--board-bg,#2B2436);padding:56px 0 80px;color:var(--ink,#F7F4EE);">
+    <div style="max-width:1160px;margin:0 auto;padding:0 32px;">
+
+      <p style="max-width:640px;margin:0 0 8px;color:var(--ink-soft,#bbb);font-size:1.06rem;line-height:1.6;">{{ introText }}</p>
+
+      <!-- ===== SUGGESTING ===== -->
+      <sc-if value="{{ isSuggesting }}">
+        <div style="margin-top:30px;display:grid;grid-template-columns:minmax(0,1fr);gap:30px;">
+
+          <!-- suggest panel — collapsible; closed by default in production (shown open here for review) -->
+          <details class="gx-disc" open style="border:1px solid var(--card-border);background:var(--panel-bg);border-radius:18px;overflow:hidden;">
+            <summary style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:14px;padding:20px 24px;color:var(--ink);">
+              <span style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:clamp(1.6rem,2.6vw,2.1rem);letter-spacing:-.02em;line-height:1;">Foreslå et spil</span>
+              <svg class="gx-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none;width:20px;height:20px;color:var(--ink-soft);transition:transform .18s ease;"><polyline points="6 9 12 15 18 9"/></svg>
+            </summary>
+            <div style="padding:0 26px;">
+              <p style="margin:0;color:var(--ink-soft);font-size:.95rem;max-width:560px;">Steam-spil får titel, billede, genrer og beskrivelse automatisk. Andre spil bliver gennemset af en admin først.</p>
+              <div style="display:flex;flex-wrap:wrap;gap:8px;margin:18px 0 22px;">
+                <span style="display:inline-flex;align-items:center;gap:7px;padding:7px 13px;border-radius:999px;background:var(--chip-bg);color:var(--ink-soft);font-size:.82rem;font-weight:600;"><span style="color:var(--accent);font-weight:800;">PC</span>Spilbart på PC</span>
+                <span style="display:inline-flex;align-items:center;gap:7px;padding:7px 13px;border-radius:999px;background:var(--chip-bg);color:var(--ink-soft);font-size:.82rem;font-weight:600;"><span style="color:var(--accent);font-weight:800;">~10t</span>eller mindre</span>
+                <span style="display:inline-flex;align-items:center;gap:7px;padding:7px 13px;border-radius:999px;background:var(--chip-bg);color:var(--ink-soft);font-size:.82rem;font-weight:600;">Tjek <a href="#" style="color:var(--accent);text-decoration:underline;text-underline-offset:2px;">kommende</a> &amp; <a href="#" style="color:var(--accent);text-decoration:underline;text-underline-offset:2px;">tidligere</a> spil</span>
+              </div>
+            </div>
+
+            <div style="padding:0 26px;">
+              <div style="display:inline-flex;padding:5px;gap:4px;background:var(--chip-bg);border-radius:12px;">
+                <button type="button" onClick="{{ chooseSteam }}" style="{{ steamTabStyle }}">På Steam</button>
+                <button type="button" onClick="{{ chooseManual }}" style="{{ manualTabStyle }}">Ikke på Steam</button>
+              </div>
+            </div>
+
+            <!-- steam form -->
+            <sc-if value="{{ isSteamPath }}">
+              <div style="padding:22px 26px 28px;display:grid;gap:18px;max-width:620px;">
+                <label style="display:grid;gap:7px;">
+                  <span style="font-weight:700;font-size:.86rem;color:var(--ink);">Steam-link</span>
+                  <input type="url" placeholder="https://store.steampowered.com/app/…" style="padding:13px 15px;border-radius:10px;border:1px solid var(--card-border);background:var(--card-bg);color:var(--ink);font-size:.95rem;font-family:inherit;">
+                  <span style="color:var(--ink-faint);font-size:.8rem;">Fx https://store.steampowered.com/app/753640/Outer_Wilds/</span>
+                </label>
+                <label style="display:grid;gap:7px;">
+                  <span style="font-weight:700;font-size:.86rem;color:var(--ink);">Din pitch <span style="color:var(--ink-faint);font-weight:500;">(valgfri)</span></span>
+                  <textarea rows="3" placeholder="Hvorfor skulle vi spille det? Skriv et par linjer." style="padding:13px 15px;border-radius:10px;border:1px solid var(--card-border);background:var(--card-bg);color:var(--ink);font-size:.95rem;font-family:inherit;resize:vertical;"></textarea>
+                </label>
+                <label style="display:flex;align-items:center;gap:10px;cursor:pointer;color:var(--ink-soft);font-size:.9rem;">
+                  <input type="checkbox" checked style="width:17px;height:17px;accent-color:var(--accent);">Vis mit Discord-navn på forslaget
+                </label>
+                <div><button type="button" style="{{ ctaStyle }}">Send forslag</button></div>
+              </div>
+            </sc-if>
+
+            <!-- manual form -->
+            <sc-if value="{{ isManualPath }}">
+              <div style="padding:22px 26px 28px;display:grid;gap:18px;max-width:620px;">
+                <p style="margin:0;padding:11px 14px;border-radius:10px;background:var(--chip-bg);color:var(--ink-soft);font-size:.84rem;line-height:1.5;">Spil uden Steam-side bliver gennemset af en admin, før de vises på listen.</p>
+                <label style="display:grid;gap:7px;">
+                  <span style="font-weight:700;font-size:.86rem;color:var(--ink);">Spillets titel</span>
+                  <input type="text" placeholder="Fx Hollow Knight: Silksong" style="padding:13px 15px;border-radius:10px;border:1px solid var(--card-border);background:var(--card-bg);color:var(--ink);font-size:.95rem;font-family:inherit;">
+                </label>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+                  <label style="display:grid;gap:7px;">
+                    <span style="font-weight:700;font-size:.86rem;color:var(--ink);">Butikslink <span style="color:var(--ink-faint);font-weight:500;">(valgfri)</span></span>
+                    <input type="url" placeholder="GOG, Epic, itch.io …" style="padding:13px 15px;border-radius:10px;border:1px solid var(--card-border);background:var(--card-bg);color:var(--ink);font-size:.95rem;font-family:inherit;">
+                  </label>
+                  <label style="display:grid;gap:7px;">
+                    <span style="font-weight:700;font-size:.86rem;color:var(--ink);">Genrer <span style="color:var(--ink-faint);font-weight:500;">(valgfri)</span></span>
+                    <input type="text" placeholder="Fx Puzzle, Horror" style="padding:13px 15px;border-radius:10px;border:1px solid var(--card-border);background:var(--card-bg);color:var(--ink);font-size:.95rem;font-family:inherit;">
+                  </label>
+                </div>
+                <label style="display:grid;gap:7px;">
+                  <span style="font-weight:700;font-size:.86rem;color:var(--ink);">Din pitch <span style="color:var(--ink-faint);font-weight:500;">(valgfri)</span></span>
+                  <textarea rows="3" placeholder="Hvorfor skulle vi spille det?" style="padding:13px 15px;border-radius:10px;border:1px solid var(--card-border);background:var(--card-bg);color:var(--ink);font-size:.95rem;font-family:inherit;resize:vertical;"></textarea>
+                </label>
+                <label style="display:flex;align-items:center;gap:10px;cursor:pointer;color:var(--ink-soft);font-size:.9rem;">
+                  <input type="checkbox" checked style="width:17px;height:17px;accent-color:var(--accent);">Vis mit Discord-navn på forslaget
+                </label>
+                <div><button type="button" style="{{ ctaStyle }}">Send forslag</button></div>
+              </div>
+            </sc-if>
+          </details>
+
+          <!-- your-suggestions (owner/management) panel — NOT in the original prototype; added for the
+               redesign. Collapsible, closed by default, rendered only when the member owns suggestions. -->
+          <details class="gx-disc" style="border:1px solid var(--card-border);background:var(--panel-bg);border-radius:18px;overflow:hidden;">
+            <summary style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:14px;padding:20px 24px;color:var(--ink);">
+              <span style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:clamp(1.6rem,2.6vw,2.1rem);letter-spacing:-.02em;line-height:1;">Dine forslag <span style="color:var(--ink-faint);font-weight:600;font-size:.9rem;margin-left:8px;">2</span></span>
+              <svg class="gx-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none;width:20px;height:20px;color:var(--ink-soft);transition:transform .18s ease;"><polyline points="6 9 12 15 18 9"/></svg>
+            </summary>
+            <div style="padding:0 24px 24px;">
+              <p style="margin:0 0 16px;color:var(--ink-soft);font-size:.9rem;">Rediger din pitch og vælg, om dit Discord-navn vises offentligt.</p>
+              <div style="display:flex;flex-direction:column;gap:14px;">
+                <div style="border:1px solid var(--card-border);background:var(--card-bg);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:12px;">
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+                    <strong style="color:var(--ink);font-size:1rem;">Tunic</strong>
+                    <span style="color:var(--accent-strong);font-size:.78rem;font-weight:700;">Godkendt</span>
+                  </div>
+                  <label style="display:flex;align-items:center;gap:10px;cursor:pointer;color:var(--ink-soft);font-size:.9rem;"><input type="checkbox" checked style="width:17px;height:17px;accent-color:var(--accent);">Vis mit Discord-navn på forslaget</label>
+                  <label style="display:grid;gap:7px;">
+                    <span style="font-weight:700;font-size:.86rem;color:var(--ink);">Din pitch</span>
+                    <textarea rows="2" style="padding:13px 15px;border-radius:10px;border:1px solid var(--card-border);background:var(--card-bg);color:var(--ink);font-size:.95rem;font-family:inherit;resize:vertical;">Føles som at være barn med en lånt strategiguide. Hemmelighederne stikker dybere end de ser ud.</textarea>
+                  </label>
+                  <div><button type="button" style="padding:10px 18px;border-radius:9px;border:1px solid var(--card-border);background:transparent;color:var(--ink);font-weight:700;font-size:.88rem;cursor:pointer;font-family:inherit;">Gem pitch</button></div>
+                </div>
+                <div style="border:1px solid var(--card-border);background:var(--card-bg);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:12px;">
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+                    <strong style="color:var(--ink);font-size:1rem;">Lokal indie-perle</strong>
+                    <span style="color:var(--ink-faint);font-size:.78rem;font-weight:700;">Afventer godkendelse</span>
+                  </div>
+                  <label style="display:flex;align-items:center;gap:10px;cursor:pointer;color:var(--ink-soft);font-size:.9rem;"><input type="checkbox" style="width:17px;height:17px;accent-color:var(--accent);">Vis mit Discord-navn på forslaget</label>
+                  <label style="display:grid;gap:7px;">
+                    <span style="font-weight:700;font-size:.86rem;color:var(--ink);">Din pitch</span>
+                    <textarea rows="2" style="padding:13px 15px;border-radius:10px;border:1px solid var(--card-border);background:var(--card-bg);color:var(--ink);font-size:.95rem;font-family:inherit;resize:vertical;">Ikke på Steam, men værd at kigge på. Kort og hyggeligt.</textarea>
+                  </label>
+                  <div><button type="button" style="padding:10px 18px;border-radius:9px;border:1px solid var(--card-border);background:transparent;color:var(--ink);font-weight:700;font-size:.88rem;cursor:pointer;font-family:inherit;">Gem pitch</button></div>
+                </div>
+              </div>
+            </div>
+          </details>
+
+          <!-- suggestions list -->
+          <div>
+            <div style="display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:10px;margin:8px 0 18px;">
+              <h2 style="margin:0;font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:clamp(2rem,3.4vw,2.8rem);letter-spacing:-.025em;color:var(--ink);">Spilforslag</h2>
+              <span style="color:var(--ink-faint);font-size:.95rem;"><b style="color:var(--ink-soft);">{{ statGames }}</b> spil foreslået af <b style="color:var(--ink-soft);">{{ statPeople }}</b> medlemmer</span>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px;">
+              <sc-for list="{{ games }}" as="g" hint-placeholder-count="6">
+                <article style="display:flex;flex-direction:column;border:1px solid var(--card-border);background:var(--card-bg);border-radius:14px;overflow:hidden;">
+                  <div style="position:relative;aspect-ratio:16/8.3;background:{{ g.cover }};display:flex;align-items:flex-end;padding:14px 15px;">
+                    <span style="position:absolute;top:11px;right:11px;padding:4px 9px;border-radius:6px;background:rgba(0,0,0,.45);color:#fff;font-size:.66rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;">{{ g.store }}</span>
+                    <h3 style="margin:0;font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:1.65rem;color:#fff;text-transform:uppercase;line-height:.92;text-shadow:0 2px 14px rgba(0,0,0,.45);">{{ g.title }}</h3>
+                  </div>
+                  <div style="padding:15px 16px 17px;display:flex;flex-direction:column;gap:10px;flex:1;">
+                    <div style="color:var(--ink-faint);font-size:.8rem;font-weight:600;">{{ g.meta }}</div>
+                    <p class="gx-line-clamp" style="-webkit-line-clamp:3;color:var(--ink-soft);font-size:.9rem;line-height:1.5;margin:0;">{{ g.desc }}</p>
+                    <div style="padding-top:11px;border-top:1px solid var(--hairline);">
+                      <span style="display:block;color:var(--accent);font-size:.65rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px;">Pitch fra forslagsstiller</span>
+                      <p class="gx-line-clamp" style="-webkit-line-clamp:3;margin:0;color:var(--ink-soft);font-size:.85rem;line-height:1.5;">{{ g.pitch }}</p>
+                    </div>
+                    <p style="margin:6px 0 0;color:var(--ink-faint);font-size:.8rem;">Foreslået af <b style="color:var(--ink-soft);">{{ g.by }}</b></p>
+                  </div>
+                </article>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- ===== VOTING ===== -->
+      <sc-if value="{{ isVoting }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex;align-items:center;gap:9px;margin:14px 0 26px;color:var(--ink-soft);font-size:.9rem;font-weight:600;"><span style="width:8px;height:8px;border-radius:50%;background:var(--accent);display:inline-block;"></span>{{ participation }}</div>
+        <div style="display:grid;grid-template-columns:minmax(0,1.7fr) minmax(290px,1fr);gap:26px;align-items:start;">
+
+          <!-- slate -->
+          <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;">
+            <sc-for list="{{ games }}" as="g" hint-placeholder-count="6">
+              <article onClick="{{ g.onToggle }}" style="{{ g.cardStyle }}">
+                <div style="position:relative;aspect-ratio:16/8.3;background:{{ g.cover }};display:flex;align-items:flex-end;padding:14px 15px;">
+                  <span style="position:absolute;top:11px;right:11px;padding:4px 9px;border-radius:6px;background:rgba(0,0,0,.45);color:#fff;font-size:.66rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;">{{ g.store }}</span>
+                  <span style="{{ g.badgeStyle }}">{{ g.rankPos }}</span>
+                  <h3 style="margin:0;font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:1.6rem;color:#fff;text-transform:uppercase;line-height:.92;text-shadow:0 2px 14px rgba(0,0,0,.45);">{{ g.title }}</h3>
+                </div>
+                <div style="padding:14px 16px 16px;display:flex;flex-direction:column;gap:9px;flex:1;">
+                  <div style="color:var(--ink-faint);font-size:.8rem;font-weight:600;">{{ g.meta }}</div>
+                  <p class="gx-line-clamp" style="-webkit-line-clamp:2;color:var(--ink-soft);font-size:.88rem;line-height:1.5;margin:0;">{{ g.desc }}</p>
+                  <p style="margin:2px 0 0;color:var(--ink-faint);font-size:.78rem;">Foreslået af <b style="color:var(--ink-soft);">{{ g.by }}</b></p>
+                  <button type="button" onClick="{{ g.onToggle }}" style="{{ g.toggleStyle }}">{{ g.toggleLabel }}</button>
+                </div>
+              </article>
+            </sc-for>
+          </div>
+
+          <!-- ballot -->
+          <aside style="position:sticky;top:88px;border:1px solid var(--card-border);background:var(--panel-bg);border-radius:16px;padding:20px;">
+            <h2 style="margin:0;font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:1.7rem;letter-spacing:-.01em;color:var(--ink);">Din rangering</h2>
+            <p style="margin:6px 0 16px;color:var(--ink-soft);font-size:.84rem;line-height:1.5;">Tilføj spil i din foretrukne rækkefølge. En lavere placering tæller kun, hvis dine højere valg elimineres undervejs.</p>
+
+            <sc-if value="{{ ballotEmpty }}">
+              <p style="margin:0 0 16px;padding:18px;border:1px dashed var(--card-border);border-radius:12px;color:var(--ink-faint);font-size:.86rem;text-align:center;">Du har ikke tilføjet nogen spil endnu. Vælg de spil, du gerne vil rangere.</p>
+            </sc-if>
+
+            <ol style="list-style:none;display:flex;flex-direction:column;gap:8px;margin:0 0 16px;">
+              <sc-for list="{{ ballot }}" as="b" hint-placeholder-count="2">
+                <li style="display:flex;align-items:center;gap:10px;padding:9px 10px 9px 9px;border-radius:11px;background:var(--card-bg);border:1px solid var(--card-border);">
+                  <span style="flex:none;width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:8px;background:var(--accent);color:var(--cta-ink);font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:1.05rem;">{{ b.pos }}</span>
+                  <span style="flex:1;min-width:0;color:var(--ink);font-weight:600;font-size:.9rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ b.title }}</span>
+                  <span style="display:flex;gap:3px;flex:none;">
+                    <button type="button" onClick="{{ b.onUp }}" aria-label="Flyt op" style="{{ b.upStyle }}">↑</button>
+                    <button type="button" onClick="{{ b.onDown }}" aria-label="Flyt ned" style="{{ b.downStyle }}">↓</button>
+                    <button type="button" onClick="{{ b.onRemove }}" aria-label="Fjern" style="width:28px;height:28px;border:1px solid var(--card-border);background:transparent;color:var(--ink-faint);border-radius:7px;cursor:pointer;font-size:.8rem;">✕</button>
+                  </span>
+                </li>
+              </sc-for>
+            </ol>
+
+            <button type="button" onClick="{{ submitVote }}" style="{{ voteBtnStyle }}">{{ voteBtnLabel }}</button>
+            <sc-if value="{{ voted }}">
+              <p style="margin:12px 0 0;padding:10px 12px;border-radius:10px;background:rgba(150,195,141,.16);color:var(--accent-strong);font-size:.85rem;font-weight:600;text-align:center;">Tak for din stemme! Du kan ændre din rangering, så længe afstemningen er åben.</p>
+            </sc-if>
+            <p style="margin:14px 0 0;display:flex;gap:8px;color:var(--ink-faint);font-size:.78rem;line-height:1.45;"><span aria-hidden="true">⚖︎</span>Vinderen findes med ranglisteafstemning (instant-runoff).</p>
+          </aside>
+        </div>
+      </sc-if>
+
+      <!-- ===== REVEALED ===== -->
+      <sc-if value="{{ isRevealed }}">
+        <!-- winner reveal -->
+        <div style="margin-top:24px;display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:0;border-radius:20px;overflow:hidden;border:1px solid var(--card-border);background:var(--panel-bg);box-shadow:0 0 0 1px var(--accent),0 24px 60px var(--winner-glow);">
+          <div style="position:relative;min-height:300px;background:{{ winner.cover }};display:flex;align-items:flex-end;padding:26px;">
+            <span style="position:absolute;top:18px;left:18px;display:inline-flex;align-items:center;gap:7px;padding:7px 13px;border-radius:999px;background:#96C38D;color:#2B2436;font-weight:800;font-size:.78rem;letter-spacing:.04em;text-transform:uppercase;">★ Vinder</span>
+            <h2 style="margin:0;font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:clamp(2.6rem,5vw,4rem);color:#fff;text-transform:uppercase;line-height:.9;text-shadow:0 3px 18px rgba(0,0,0,.5);">{{ winner.title }}</h2>
+          </div>
+          <div style="padding:30px 30px 32px;display:flex;flex-direction:column;justify-content:center;gap:14px;">
+            <p style="margin:0;color:var(--accent);font-size:.78rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase;">Vinderen er</p>
+            <div style="display:flex;align-items:flex-end;gap:11px;">
+              <strong style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:3rem;line-height:.78;color:var(--ink);letter-spacing:-.02em;flex:none;">{{ winner.votes }}</strong>
+              <span style="color:var(--ink-soft);font-weight:600;padding-bottom:4px;">stemmer i sidste runde</span>
+            </div>
+            <div style="color:var(--ink-faint);font-size:.85rem;font-weight:600;">{{ winner.meta }}</div>
+            <p style="margin:0;color:var(--ink-soft);font-size:.95rem;line-height:1.55;">{{ winner.pitch }}</p>
+            <div style="display:flex;gap:8px;margin-top:4px;">
+              <a href="#" style="padding:9px 16px;border-radius:9px;background:var(--cta-bg);color:var(--cta-ink);font-weight:700;font-size:.88rem;">Se på Steam</a>
+              <a href="#" style="padding:9px 16px;border-radius:9px;border:1px solid var(--card-border);color:var(--ink);font-weight:700;font-size:.88rem;">Tilføj til kalender</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- IRV breakdown -->
+        <section style="margin-top:46px;">
+          <h2 style="margin:0;font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:clamp(2rem,3.6vw,2.9rem);letter-spacing:-.025em;color:var(--ink);">Sådan blev vinderen fundet</h2>
+          <p style="max-width:660px;margin:8px 0 26px;color:var(--ink-soft);font-size:.95rem;line-height:1.6;">Stemmerne blev talt med ranglisteafstemning. I hver runde elimineres spillet med færrest stemmer, og dets stemmer flyttes til næste valg på sedlen, indtil ét spil har et flertal.</p>
+
+          <ol style="list-style:none;display:flex;flex-direction:column;gap:14px;margin:0;">
+            <sc-for list="{{ irvRounds }}" as="r" hint-placeholder-count="5">
+              <li style="{{ r.roundStyle }}">
+                <div style="display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:14px;">
+                  <span style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:1.25rem;color:var(--ink);letter-spacing:.01em;white-space:nowrap;flex:none;">{{ r.title }}</span>
+                  <span style="color:var(--ink-faint);font-size:.82rem;font-weight:600;">{{ r.meta }}</span>
+                </div>
+                <ul style="list-style:none;display:flex;flex-direction:column;gap:9px;margin:0;">
+                  <sc-for list="{{ r.candidates }}" as="c" hint-placeholder-count="4">
+                    <li>
+                      <div style="display:flex;align-items:center;gap:10px;margin-bottom:5px;">
+                        <span style="{{ c.nameStyle }}">{{ c.title }}</span>
+                        <sc-if value="{{ c.transferText }}"><span style="flex:none;color:var(--accent);font-size:.74rem;font-weight:700;">{{ c.transferText }}</span></sc-if>
+                        <sc-if value="{{ c.tag }}"><span style="{{ c.tagStyle }}">{{ c.tag }}</span></sc-if>
+                        <span style="flex:none;margin-left:auto;color:var(--ink-soft);font-weight:700;font-size:.85rem;">{{ c.votesLabel }}</span>
+                      </div>
+                      <div style="position:relative;height:11px;border-radius:6px;background:var(--chip-bg);overflow:visible;">
+                        <div style="height:100%;border-radius:6px;width:{{ c.barWidth }};background:{{ c.barColor }};transition:width .6s ease;"></div>
+                        <span style="position:absolute;top:-3px;bottom:-3px;left:{{ r.majorityLeft }};width:2px;background:var(--ink-faint);" aria-hidden="true"></span>
+                      </div>
+                    </li>
+                  </sc-for>
+                </ul>
+                <sc-if value="{{ r.isFinal }}"><p style="margin:13px 0 0;color:var(--accent-strong);font-size:.85rem;font-weight:700;">{{ winner.title }} nåede et flertal og vinder.</p></sc-if>
+              </li>
+            </sc-for>
+          </ol>
+        </section>
+
+        <!-- next round -->
+        <aside style="margin-top:40px;border:1px solid var(--card-border);background:var(--panel-bg);border-radius:16px;padding:24px 26px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:24px;align-items:center;">
+          <div>
+            <span style="display:block;color:var(--accent);font-size:.72rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase;margin-bottom:6px;">Næste runde</span>
+            <h3 style="margin:0 0 4px;font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:1.7rem;color:var(--ink);">Møde 13 · Forslag åbner snart</h3>
+            <p style="margin:0;color:var(--ink-soft);font-size:.9rem;">Vil du være med igen? Forslag åbner 5. august 2026 — mødet er 30. august.</p>
+          </div>
+          <div style="text-align:center;padding:14px 22px;border-radius:14px;background:var(--chip-bg);">
+            <strong style="display:block;font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:2.6rem;line-height:1;color:var(--ink);">44</strong>
+            <span style="color:var(--ink-faint);font-size:.76rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;">dage</span>
+          </div>
+        </aside>
+      </sc-if>
+
+    </div>
+  </main>
+
+  <!-- ░░░ KEPT: footer ░░░ -->
+  <footer style="background:#2B2436;border-top:1px solid rgba(247,244,238,.1);padding:30px 0;">
+    <div style="max-width:1160px;margin:0 auto;padding:0 32px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;">
+      <img src="assets/logo.webp" alt="Aarhus Gamestormers" style="height:34px;opacity:.85;">
+      <p style="color:rgba(247,244,238,.55);font-size:.82rem;">© 2026 Aarhus Gamestormers · Discord · Privatlivspolitik</p>
+    </div>
+  </footer>
+
+  <!-- preview switcher (not part of the design) -->
+  <div style="position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:100;display:flex;gap:14px;align-items:center;padding:8px 10px;border-radius:14px;background:rgba(20,17,28,.92);box-shadow:0 12px 40px rgba(0,0,0,.4);backdrop-filter:blur(8px);">
+    <div style="display:flex;align-items:center;gap:7px;">
+      <span style="color:rgba(255,255,255,.45);font-size:.66rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;">Stil</span>
+      <button type="button" onClick="{{ setVarA }}" style="{{ varAStyle }}">A · Mørk</button>
+      <button type="button" onClick="{{ setVarB }}" style="{{ varBStyle }}">B · Lys</button>
+    </div>
+    <span style="width:1px;height:22px;background:rgba(255,255,255,.15);"></span>
+    <div style="display:flex;align-items:center;gap:7px;">
+      <span style="color:rgba(255,255,255,.45);font-size:.66rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;">Fase</span>
+      <button type="button" onClick="{{ setSuggesting }}" style="{{ phaseSugStyle }}">Foreslå</button>
+      <button type="button" onClick="{{ setVotingPhase }}" style="{{ phaseVoteStyle }}">Stem</button>
+      <button type="button" onClick="{{ setRevealed }}" style="{{ phaseRevStyle }}">Resultat</button>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { variation: 'a', phase: 'voting', ranking: [4, 1], path: 'steam', voted: false };
+
+  themes = {
+    a: { boardBg:'#241f30', boardBg2:'#2B2436', cardBg:'rgba(247,244,238,.055)', cardBorder:'rgba(247,244,238,.14)', cardHover:'rgba(247,244,238,.09)', ink:'#F7F4EE', inkSoft:'rgba(247,244,238,.74)', inkFaint:'rgba(247,244,238,.5)', accent:'#96C38D', accentStrong:'#bfe0b7', panelBg:'rgba(247,244,238,.045)', hairline:'rgba(247,244,238,.12)', chipBg:'rgba(247,244,238,.08)', ctaBg:'#96C38D', ctaInk:'#241f30', winnerGlow:'rgba(150,195,141,.22)' },
+    b: { boardBg:'#F7F4EE', boardBg2:'#EDE8DF', cardBg:'#ffffff', cardBorder:'rgba(43,36,54,.12)', cardHover:'#ffffff', ink:'#1C1826', inkSoft:'#5a5366', inkFaint:'#8b8597', accent:'#5e8d56', accentStrong:'#4d7746', panelBg:'#ffffff', hairline:'rgba(43,36,54,.1)', chipBg:'#EDE8DF', ctaBg:'#2B2436', ctaInk:'#F7F4EE', winnerGlow:'rgba(122,170,113,.2)' },
+  };
+
+  games = [
+    { id:1, title:'Outer Wilds', c1:'#143a5c', c2:'#3f86c4', genres:['Eventyr','Mystik'], hours:15, store:'Steam', by:'Mette',
+      desc:'En 22-minutters tidssløjfe og et helt solsystem fuldt af hemmeligheder, du selv kortlægger.',
+      pitch:'Det bedste "aha"-spil jeg kender. Ingen guider, ingen kamp — bare ren opdagelse. Perfekt til snak bagefter.' },
+    { id:2, title:'Inscryption', c1:'#241431', c2:'#5a2d6e', genres:['Kort','Horror'], hours:12, store:'Steam', by:'Jonas',
+      desc:'Et uhyggeligt kortspil, der hele tiden bryder sine egne regler og bliver til noget andet.',
+      pitch:'Starter som et hyggeligt deckbuilder og ender et helt andet sted. Svært at sige mere uden at spoile.' },
+    { id:3, title:'Return of the Obra Dinn', c1:'#33321f', c2:'#6e6a44', genres:['Mystik','Deduktion'], hours:8, store:'Steam', by:'Sofie',
+      desc:'Genskab skæbnen for 60 sømænd på et spøgelsesskib, kun ud fra et øjebliksbillede af deres død.',
+      pitch:'Ren detektivlogik i 1-bit grafik. Kort nok til at nå på en aften, og en fantastisk fælles gåde.' },
+    { id:4, title:'Tunic', c1:'#8a4413', c2:'#e0913f', genres:['Action','Eventyr'], hours:11, store:'Steam', by:'Anders',
+      desc:'En lille ræv, et stort eventyr og en manual du selv samler side for side på et fremmed sprog.',
+      pitch:'Føles som at være barn med en lånt strategiguide. Hemmelighederne stikker dybere end de ser ud.' },
+    { id:5, title:'Pentiment', c1:'#5e3219', c2:'#a9692f', genres:['Fortælling','Mystik'], hours:18, store:'Steam', by:'Laura',
+      desc:'Et håndtegnet drama i 1500-tallets Bayern, hvor dine valg former en landsbys skæbne over årtier.',
+      pitch:'Lidt længere end vores norm, men så smukt og velskrevet at det er det værd. God til diskussion.' },
+    { id:6, title:'Citizen Sleeper', c1:'#103631', c2:'#2f8278', genres:['Rollespil','Fortælling'], hours:9, store:'Steam', by:'Kasper',
+      desc:'Overlev som en flygtet android på en forfalden rumstation, et terningekast og et valg ad gangen.',
+      pitch:'Stemningsfuld og menneskelig sci-fi. Korte sessioner, stærke karakterer — passer perfekt til klubben.' },
+  ];
+
+  // Consistent 5-round instant-runoff. winner = Outer Wilds (id 1).
+  irv = {
+    winnerId: 1,
+    rounds: [
+      { round:1, active:24, majority:13, exhausted:0, counts:[
+        {id:1,v:7},{id:2,v:6},{id:4,v:4},{id:3,v:3},{id:5,v:2},{id:6,v:2,elim:true} ] },
+      { round:2, active:24, majority:13, exhausted:0, counts:[
+        {id:1,v:8,t:1},{id:2,v:6},{id:4,v:4},{id:5,v:3,t:1},{id:3,v:3,elim:true} ] },
+      { round:3, active:23, majority:12, exhausted:1, counts:[
+        {id:1,v:8},{id:2,v:7,t:1},{id:4,v:5,t:1},{id:5,v:3,elim:true} ] },
+      { round:4, active:22, majority:12, exhausted:2, counts:[
+        {id:1,v:9,t:1},{id:2,v:8,t:1},{id:4,v:5,elim:true} ] },
+      { round:5, active:21, majority:11, exhausted:3, counts:[
+        {id:1,v:12,t:3,win:true},{id:2,v:9,t:1} ] },
+    ],
+  };
+
+  titleOf(id) { const g = this.games.find(x => x.id === id); return g ? g.title : ('#' + id); }
+
+  toggle(id) {
+    this.setState(s => {
+      const r = s.ranking.slice();
+      const i = r.indexOf(id);
+      if (i === -1) r.push(id); else r.splice(i, 1);
+      return { ranking: r, voted: false };
+    });
+  }
+  move(id, d) {
+    this.setState(s => {
+      const r = s.ranking.slice();
+      const i = r.indexOf(id), j = i + d;
+      if (i === -1 || j < 0 || j >= r.length) return null;
+      [r[i], r[j]] = [r[j], r[i]];
+      return { ranking: r, voted: false };
+    });
+  }
+
+  pillStyle(active) {
+    return active
+      ? 'padding:7px 13px;border-radius:9px;border:0;background:#96C38D;color:#1a1622;font-weight:700;font-size:.8rem;cursor:pointer;'
+      : 'padding:7px 13px;border-radius:9px;border:0;background:transparent;color:rgba(255,255,255,.6);font-weight:700;font-size:.8rem;cursor:pointer;';
+  }
+  tabStyle(active) {
+    return active
+      ? "padding:9px 18px;border-radius:9px;border:0;background:var(--cta-bg);color:var(--cta-ink);font-weight:700;font-size:.88rem;cursor:pointer;font-family:inherit;"
+      : "padding:9px 18px;border-radius:9px;border:0;background:transparent;color:var(--ink-soft);font-weight:700;font-size:.88rem;cursor:pointer;font-family:inherit;";
+  }
+
+  renderVals() {
+    const t = this.themes[this.state.variation];
+    const phase = this.state.phase;
+    const ranking = this.state.ranking;
+
+    const cover = g => `linear-gradient(150deg, ${g.c1} 0%, ${g.c2} 100%)`;
+    const metaOf = g => g.genres.join(' · ') + ' · ~' + g.hours + ' t';
+
+    // games view
+    const games = this.games.map(g => {
+      const pos = ranking.indexOf(g.id);
+      const ranked = pos !== -1;
+      return {
+        ...g, cover: cover(g), meta: metaOf(g),
+        ranked, rankPos: ranked ? String(pos + 1) : '',
+        onToggle: () => this.toggle(g.id),
+        cardStyle: 'display:flex;flex-direction:column;border:1px solid ' + (ranked ? 'var(--accent)' : 'var(--card-border)')
+          + ';background:' + (ranked ? 'rgba(150,195,141,.10)' : 'var(--card-bg)')
+          + ';border-radius:14px;overflow:hidden;cursor:pointer;transition:transform .12s ease,border-color .12s ease;',
+        badgeStyle: 'position:absolute;top:11px;left:11px;width:32px;height:32px;display:' + (ranked ? 'flex' : 'none')
+          + ';align-items:center;justify-content:center;border-radius:9px;background:var(--accent);color:var(--cta-ink);font-family:\'Barlow Condensed\',sans-serif;font-weight:800;font-size:1.15rem;box-shadow:0 2px 10px rgba(0,0,0,.3);',
+        toggleLabel: ranked ? '✓ På din rangering · fjern' : 'Tilføj til rangering',
+        toggleStyle: 'margin-top:auto;padding:10px 12px;border-radius:9px;font-weight:700;font-size:.85rem;cursor:pointer;font-family:inherit;border:1px solid '
+          + (ranked ? 'var(--accent)' : 'var(--card-border)') + ';background:' + (ranked ? 'rgba(150,195,141,.14)' : 'transparent')
+          + ';color:' + (ranked ? 'var(--accent-strong)' : 'var(--ink)') + ';',
+      };
+    });
+
+    // ballot view
+    const ballot = ranking.map((id, i) => ({
+      id, pos: i + 1, title: this.titleOf(id),
+      onUp: () => this.move(id, -1), onDown: () => this.move(id, 1), onRemove: () => this.toggle(id),
+      upStyle: 'width:28px;height:28px;border:1px solid var(--card-border);background:transparent;color:var(--ink-soft);border-radius:7px;cursor:' + (i === 0 ? 'default' : 'pointer') + ';opacity:' + (i === 0 ? '.35' : '1') + ';font-size:.85rem;',
+      downStyle: 'width:28px;height:28px;border:1px solid var(--card-border);background:transparent;color:var(--ink-soft);border-radius:7px;cursor:' + (i === ranking.length - 1 ? 'default' : 'pointer') + ';opacity:' + (i === ranking.length - 1 ? '.35' : '1') + ';font-size:.85rem;',
+    }));
+
+    // irv view
+    const irvRounds = this.irv.rounds.map(r => {
+      const majLeft = (r.majority / r.active * 100) + '%';
+      let meta = 'Flertal: ' + r.majority + ' af ' + r.active;
+      if (r.exhausted) meta += ' · ' + r.exhausted + ' udtømte';
+      const candidates = r.counts.map(c => {
+        const tag = c.win ? 'Vinder' : (c.elim ? 'Elimineret' : '');
+        return {
+          id: c.id, title: this.titleOf(c.id),
+          votesLabel: c.v + ' stemmer',
+          barWidth: (c.v / r.active * 100) + '%',
+          barColor: c.win ? '#96C38D' : (c.elim ? 'var(--ink-faint)' : 'var(--accent-strong)'),
+          transferText: c.t ? ('+' + c.t + ' overført') : '',
+          tag,
+          tagStyle: c.win
+            ? "flex:none;padding:2px 9px;border-radius:999px;background:#96C38D;color:#2B2436;font-size:.68rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase;"
+            : "flex:none;padding:2px 9px;border-radius:999px;background:var(--chip-bg);color:var(--ink-faint);font-size:.68rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;",
+          nameStyle: 'font-weight:700;font-size:.9rem;color:' + (c.elim ? 'var(--ink-faint)' : 'var(--ink)') + ';' + (c.elim ? 'text-decoration:line-through;text-decoration-color:var(--ink-faint);' : ''),
+        };
+      });
+      return {
+        round: r.round, title: 'Runde ' + r.round, meta, majorityLeft: majLeft, candidates,
+        isFinal: !!r.counts.find(c => c.win),
+        roundStyle: 'border:1px solid var(--card-border);border-radius:14px;padding:18px 20px;background:'
+          + (r.counts.find(c => c.win) ? 'rgba(150,195,141,.07)' : 'var(--card-bg)') + ';'
+          + (r.counts.find(c => c.win) ? 'box-shadow:0 0 0 1px var(--accent);' : ''),
+      };
+    });
+
+    const w = this.games.find(g => g.id === this.irv.winnerId);
+    const winner = { title: w.title, cover: cover(w), meta: metaOf(w), pitch: w.pitch, votes: '12' };
+
+    // hero / timeline by phase
+    const statusMap = { suggesting:'Forslag er åbne', voting:'Afstemning er åben', revealed:'Resultatet er klar' };
+    const introMap = {
+      suggesting:'Foreslå et spil til mødet. Steam-spil får titel, billede, genrer og beskrivelse automatisk.',
+      voting:'Rangér spillene i den rækkefølge, du helst vil spille dem. Du behøver ikke rangere dem alle.',
+      revealed:'Tak til alle der stemte. Her er resultatet, og vinderen er spillet til mødet.',
+    };
+    const poster = {
+      suggesting:{ label:'Afstemning åbner om', big:'9', unit:'Dage', note:'25. juni 2026' },
+      voting:{ label:'Afstemningen lukker om', big:'3', unit:'Dage', note:'5. juli 2026' },
+      revealed:{ label:'Mødedato', big:'12', unit:'Juli', note:'Vinderen spilles til mødet' },
+    }[phase];
+
+    const pIdx = { suggesting:0, voting:1, revealed:2 }[phase];
+    const steps = [['Forslag','15. jun'],['Afstemning','25. jun'],['Vinder','5. jul'],['Klubaften','12. jul']];
+    const timeline = steps.map((s, i) => {
+      const st = i < pIdx ? 'done' : (i === pIdx ? 'current' : 'upcoming');
+      const lit = st !== 'upcoming';
+      return { label:s[0], date:s[1], marker: st === 'done' ? '✓' : String(i + 1),
+        markerBg: lit ? '#96C38D' : '#2B2436', markerInk: lit ? '#2B2436' : '#F7F4EE' };
+    });
+    const timelineFill = ['9%','39%','62%'][pIdx];
+
+    return {
+      t,
+      isSuggesting: phase === 'suggesting', isVoting: phase === 'voting', isRevealed: phase === 'revealed',
+      statusText: statusMap[phase], introText: introMap[phase], meetingNo: '12',
+      posterLabel: poster.label, posterBig: poster.big, posterUnit: poster.unit, posterNote: poster.note,
+      timeline, timelineFill,
+      games, ballot, ballotEmpty: ranking.length === 0,
+      participation: '18 medlemmer har afgivet deres rangering',
+      voted: this.state.voted,
+      voteBtnLabel: this.state.voted ? 'Opdater rangering' : 'Stem',
+      voteBtnStyle: 'width:100%;padding:14px;border-radius:11px;border:0;background:var(--cta-bg);color:var(--cta-ink);font-weight:800;font-size:1rem;cursor:' + (ranking.length ? 'pointer' : 'not-allowed') + ';opacity:' + (ranking.length ? '1' : '.5') + ';font-family:inherit;',
+      submitVote: () => { if (this.state.ranking.length) this.setState({ voted: true }); },
+      statGames: String(this.games.length), statPeople: '5',
+      irvRounds, winner,
+      ctaStyle: "padding:13px 22px;border-radius:10px;border:0;background:var(--cta-bg);color:var(--cta-ink);font-weight:700;font-size:.95rem;cursor:pointer;font-family:inherit;",
+      isSteamPath: this.state.path === 'steam', isManualPath: this.state.path === 'manual',
+      chooseSteam: () => this.setState({ path:'steam' }), chooseManual: () => this.setState({ path:'manual' }),
+      steamTabStyle: this.tabStyle(this.state.path === 'steam'), manualTabStyle: this.tabStyle(this.state.path === 'manual'),
+      // switcher
+      setVarA: () => this.setState({ variation:'a' }), setVarB: () => this.setState({ variation:'b' }),
+      setSuggesting: () => this.setState({ phase:'suggesting' }), setVotingPhase: () => this.setState({ phase:'voting' }), setRevealed: () => this.setState({ phase:'revealed' }),
+      varAStyle: this.pillStyle(this.state.variation === 'a'), varBStyle: this.pillStyle(this.state.variation === 'b'),
+      phaseSugStyle: this.pillStyle(phase === 'suggesting'), phaseVoteStyle: this.pillStyle(phase === 'voting'), phaseRevStyle: this.pillStyle(phase === 'revealed'),
+    };
+  }
+}
+</script>
+</body>
+</html>
