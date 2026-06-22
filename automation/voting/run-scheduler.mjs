@@ -402,7 +402,7 @@ export async function runScheduler({ env = process.env, today, deps = {} } = {})
     today: day,
     round,
     suggestions: payload.suggestions,
-    tallies: payload.tallies,
+    rcvResult: payload.rcvResult,
     automationEvents: payload.automationEvents,
   });
   logger.info(`Round ${decision.roundId}: decided "${decision.action}". ${decision.reason}`);

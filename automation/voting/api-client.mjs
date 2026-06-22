@@ -3,10 +3,9 @@
 // value as the Cloudflare Pages ADMIN_TOKEN) and talks only to the
 // authenticated Pages Functions under /api/admin.
 //
-// Both reads use the admin endpoints on purpose: the scheduler needs vote
-// tallies and recorded automation events, neither of which the public
-// /api/round/current response exposes (tallies only appear there once a round is
-// revealed, and automation events never do). Keeping all network access here
+// Both reads use the admin endpoints on purpose: the scheduler needs the
+// aggregate IRV result and recorded automation events. Automation events are
+// never public, and the public IRV result only appears after reveal. Keeping all network access here
 // lets scheduler.mjs stay pure and easy to test.
 
 function trimTrailingSlashes(value) {
@@ -53,7 +52,7 @@ export function createApiClient({ baseUrl, adminToken, fetch = globalThis.fetch 
   return {
     base,
     // GET /api/admin/round — full current round payload (round row, suggestions,
-    // tallies, automationEvents, meeting, publishReadiness).
+    // tallies, rcvResult, automationEvents, meeting, publishReadiness).
     getCurrentRound() {
       return request('GET', '/api/admin/round');
     },

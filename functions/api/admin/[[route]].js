@@ -1,7 +1,7 @@
 // Admin API — catch-all for /api/admin/*. Every request requires
 // Authorization: Bearer <ADMIN_TOKEN>. Used by vote-admin.html.
 //
-//   GET    /api/admin/round            full current round + all suggestions + tallies
+//   GET    /api/admin/round            full current round + suggestions + aggregate results
 //   POST   /api/admin/round            open a new round and matching public meeting
 //   PATCH  /api/admin/round            update current round and matching public meeting basics
 //   PATCH  /api/admin/suggestion/:id   edit/approve/reject a suggestion
@@ -18,6 +18,7 @@ import {
   ensureRoundScheduleColumns,
   ensureMeetingContentTables,
   ensureSuggestionDescriptionColumns,
+  ensureVoteRankColumn,
   getCurrentRound,
   getMeetingById,
   getRoundById,
@@ -37,6 +38,7 @@ import {
   getAutomationEvents,
   recordAutomationEvent,
 } from '../../_lib/db.js';
+import { runIrv } from '../../_lib/rcv.js';
 import {
   DEFAULT_MEETING_TIMEZONE,
   DEFAULT_SUGGESTIONS_OPEN_MONTHS_BEFORE,
@@ -73,6 +75,7 @@ export async function onRequest(context) {
   const db = env.DB;
   await ensureRoundScheduleColumns(db);
   await ensureMeetingContentTables(db);
+  await ensureVoteRankColumn(db);
   const segs = Array.isArray(params.route) ? params.route : params.route ? [params.route] : [];
   const [resource, id, action] = segs;
   const method = request.method.toUpperCase();
@@ -134,6 +137,24 @@ async function roundPayload(db, round) {
   const suggestions = await getSuggestions(db, round.id);
   const tallies = await getTallies(db, round.id);
   const ballots = await getBallots(db, round.id);
+  let rcvResult = null;
+  if (ballots.length === 0) {
+    rcvResult = runIrv({
+      ballots: [],
+      candidateIds: suggestions.filter((suggestion) => suggestion.status === 'approved').map((suggestion) => suggestion.id),
+    });
+  } else {
+    const rankedMarker = await db
+      .prepare('SELECT 1 AS has_ranked_ballots FROM votes WHERE round_id = ? AND rank IS NOT NULL LIMIT 1')
+      .bind(round.id)
+      .first();
+    if (rankedMarker) {
+      rcvResult = runIrv({
+        ballots: ballots.map((ballot) => ballot.rankings),
+        candidateIds: suggestions.filter((suggestion) => suggestion.status === 'approved').map((suggestion) => suggestion.id),
+      });
+    }
+  }
   const automationEvents = await getAutomationEvents(db, round.id);
   const meetingRow = await getMeetingById(db, round.id);
   const gameRow = meetingRow && meetingRow.selected_game_id != null ? await getGameById(db, meetingRow.selected_game_id) : null;
@@ -147,6 +168,7 @@ async function roundPayload(db, round) {
     announcementReadiness: winnerAnnouncementReadiness(meetingRow, gameRow, meetingCopy),
     suggestions,
     tallies,
+    rcvResult,
     ballots,
     automationEvents,
   };
@@ -164,6 +186,7 @@ async function adminGetRound(db) {
       announcementReadiness: null,
       suggestions: [],
       tallies: {},
+      rcvResult: null,
       ballots: [],
       automationEvents: [],
     });

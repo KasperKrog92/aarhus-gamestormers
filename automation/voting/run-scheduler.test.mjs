@@ -33,12 +33,27 @@ const READY_SUGGESTIONS = [
   ...SUGGESTIONS.slice(1),
 ];
 
+const CLEAR_RCV_RESULT = {
+  winnerId: 101,
+  blocked: null,
+  totalBallots: 12,
+  rounds: [{ counts: [{ id: 101, votes: 5 }, { id: 103, votes: 4 }, { id: 102, votes: 3 }] }],
+};
+
+const TIED_RCV_RESULT = {
+  winnerId: null,
+  blocked: { reason: 'tie', tied: [{ id: 101, votes: 4 }, { id: 102, votes: 4 }] },
+  totalBallots: 8,
+  rounds: [{ counts: [{ id: 101, votes: 4 }, { id: 102, votes: 4 }] }],
+};
+
 // A round mid-voting whose close date has passed, with a clear winner.
 function votingPayload(overrides = {}) {
   return {
     round: { id: 19, phase: 'voting', meeting_date: '2026-09-15', voting_opens_at: '2026-06-30', voting_closes_at: '2026-07-09' },
     suggestions: SUGGESTIONS,
     tallies: { 101: 5, 102: 3, 103: 4 },
+    rcvResult: CLEAR_RCV_RESULT,
     automationEvents: [],
     ...overrides,
   };
@@ -432,7 +447,7 @@ test('reveal_winner does not re-confirm a selected game missing HowLongToBeat da
 });
 
 test('blocked states alert the private channel once and record the alert', async () => {
-  const client = makeClient({ current: votingPayload({ tallies: { 101: 4, 102: 4 } }) });
+  const client = makeClient({ current: votingPayload({ rcvResult: TIED_RCV_RESULT }) });
   const discord = makeDiscord();
   const { logger, messages } = makeLogger();
 
@@ -456,7 +471,7 @@ test('blocked states alert the private channel once and record the alert', async
 test('blocked states stay quiet after blocked_alerted is recorded', async () => {
   const client = makeClient({
     current: votingPayload({
-      tallies: { 101: 4, 102: 4 },
+      rcvResult: TIED_RCV_RESULT,
       automationEvents: [{ eventType: 'blocked_alerted', payload: { blocker: 'tie' } }],
     }),
   });

@@ -258,7 +258,7 @@
     var suggestions = data.suggestions || [];
     var ballots = data.ballots || [];
     var pending = suggestions.filter(function (s) { return s.status === 'pending'; }).length;
-    var totalApprovals = ballots.reduce(function (n, b) { return n + b.suggestionIds.length; }, 0);
+    var totalApprovals = ballots.reduce(function (n, b) { return n + b.rankings.length; }, 0);
 
     $('round-section-count').textContent = data.round
       ? data.round.phase + (data.round.meeting_date ? ' · ' + data.round.meeting_date : '')
@@ -802,12 +802,12 @@
     var counts = {};
     suggestions.forEach(function (s) { counts[s.id] = 0; });
     ballots.forEach(function (b) {
-      b.suggestionIds.forEach(function (id) {
+      b.rankings.forEach(function (id) {
         counts[id] = (counts[id] || 0) + 1;
       });
     });
 
-    var totalApprovals = ballots.reduce(function (n, b) { return n + b.suggestionIds.length; }, 0);
+    var totalApprovals = ballots.reduce(function (n, b) { return n + b.rankings.length; }, 0);
     wrap.appendChild(h('p', { class: 'admin-meta', text: ballots.length + ' ballots · ' + totalApprovals + ' total approvals' }));
     wrap.appendChild(h('p', { class: 'admin-meta', text: 'Individual ballots are stored for vote integrity but are not shown in the default admin UI.' }));
 

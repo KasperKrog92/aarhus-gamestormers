@@ -33,12 +33,13 @@ test('createApiClient requires a baseUrl and an adminToken', () => {
 });
 
 test('getCurrentRound GETs the admin round with a bearer token and trims the base slash', async () => {
-  const fetch = fakeFetch({ body: { round: { id: 19 } } });
+  const rcvResult = { winnerId: 101, blocked: null, rounds: [] };
+  const fetch = fakeFetch({ body: { round: { id: 19 }, rcvResult } });
   const client = createApiClient({ ...OPTS, fetch });
 
   const data = await client.getCurrentRound();
 
-  assert.deepEqual(data, { round: { id: 19 } });
+  assert.deepEqual(data, { round: { id: 19 }, rcvResult });
   assert.equal(fetch.calls.length, 1);
   const { url, init } = fetch.calls[0];
   assert.equal(url, 'https://www.gamestormers.dk/api/admin/round');

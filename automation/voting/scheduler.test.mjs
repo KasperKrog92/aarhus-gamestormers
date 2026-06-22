@@ -25,6 +25,27 @@ const SUGGESTIONS = [
   { id: 103, title: 'Outer Wilds' },
 ];
 
+const CLEAR_RCV_RESULT = {
+  winnerId: 101,
+  blocked: null,
+  totalBallots: 12,
+  rounds: [{ counts: [{ id: 101, votes: 5 }, { id: 103, votes: 4 }, { id: 102, votes: 3 }] }],
+};
+
+const NO_BALLOTS_RCV_RESULT = {
+  winnerId: null,
+  blocked: { reason: 'no_ballots', tied: [] },
+  totalBallots: 0,
+  rounds: [],
+};
+
+const TIED_RCV_RESULT = {
+  winnerId: null,
+  blocked: { reason: 'tie', tied: [{ id: 101, votes: 4 }, { id: 102, votes: 4 }] },
+  totalBallots: 8,
+  rounds: [{ counts: [{ id: 101, votes: 4 }, { id: 102, votes: 4 }] }],
+};
+
 test('opens voting once the open date is reached', () => {
   const decision = decideRoundActions({
     today: '2026-06-30',
@@ -97,7 +118,7 @@ test('keeps voting open through the close date itself', () => {
     today: '2026-07-09',
     round: votingRound(),
     suggestions: SUGGESTIONS,
-    tallies: { 101: 5, 102: 2 },
+    rcvResult: CLEAR_RCV_RESULT,
   });
   assert.equal(decision.action, ACTIONS.NOOP);
 });
@@ -107,7 +128,7 @@ test('reveals the winner the day after voting closes', () => {
     today: '2026-07-10',
     round: votingRound(),
     suggestions: SUGGESTIONS,
-    tallies: { 101: 5, 102: 2, 103: 3 },
+    rcvResult: CLEAR_RCV_RESULT,
   });
   assert.equal(decision.action, ACTIONS.REVEAL_WINNER);
   assert.equal(decision.winnerSuggestionId, 101);
@@ -119,7 +140,7 @@ test('blocks with no_votes when voting closed without any votes', () => {
     today: '2026-07-10',
     round: votingRound(),
     suggestions: SUGGESTIONS,
-    tallies: {},
+    rcvResult: NO_BALLOTS_RCV_RESULT,
   });
   assert.equal(decision.action, ACTIONS.BLOCKED);
   assert.equal(decision.blocker, 'no_votes');
@@ -130,7 +151,7 @@ test('blocks with a tie and names the tied suggestions', () => {
     today: '2026-07-10',
     round: votingRound(),
     suggestions: SUGGESTIONS,
-    tallies: { 101: 4, 102: 4, 103: 1 },
+    rcvResult: TIED_RCV_RESULT,
   });
   assert.equal(decision.action, ACTIONS.BLOCKED);
   assert.equal(decision.blocker, 'tie');
@@ -147,7 +168,11 @@ test('falls back to #id in tie message when a suggestion title is unknown', () =
     today: '2026-07-10',
     round: votingRound(),
     suggestions: [{ id: 101, title: 'Hollow Knight' }],
-    tallies: { 101: 4, 999: 4 },
+    rcvResult: {
+      winnerId: null,
+      blocked: { reason: 'tie', tied: [{ id: 101, votes: 4 }, { id: 999, votes: 4 }] },
+      rounds: [{ counts: [{ id: 101, votes: 4 }, { id: 999, votes: 4 }] }],
+    },
   });
   assert.equal(decision.blocker, 'tie');
   assert.match(decision.reason, /#999/);
@@ -159,7 +184,7 @@ test('does not reveal a winner when no close date is set', () => {
     today: '2026-07-10',
     round: votingRound({ voting_closes_at: '' }),
     suggestions: SUGGESTIONS,
-    tallies: { 101: 5 },
+    rcvResult: CLEAR_RCV_RESULT,
   });
   assert.equal(decision.action, ACTIONS.NOOP);
   assert.match(decision.reason, /voting_closes_at/);
@@ -170,7 +195,7 @@ test('does not re-reveal when winner_revealed is already recorded', () => {
     today: '2026-07-10',
     round: votingRound(),
     suggestions: SUGGESTIONS,
-    tallies: { 101: 5 },
+    rcvResult: CLEAR_RCV_RESULT,
     automationEvents: [{ eventType: 'winner_revealed' }],
   });
   assert.equal(decision.action, ACTIONS.NOOP);
@@ -182,7 +207,7 @@ test('never closes a round automatically: revealed and closed phases are no-ops'
       today: '2026-08-01',
       round: votingRound({ phase }),
       suggestions: SUGGESTIONS,
-      tallies: { 101: 5 },
+      rcvResult: CLEAR_RCV_RESULT,
     });
     assert.equal(decision.action, ACTIONS.NOOP, `phase ${phase} should be a no-op`);
   }
@@ -194,14 +219,18 @@ test('returns a no-op when there is no round', () => {
   assert.equal(decision.roundId, null);
 });
 
-test('tolerates string tally keys and breaks ties by lowest id for ordering only', () => {
-  // String keys are what D1 tallies use ({ "101": 5 }); ensure they parse.
+test('uses the IRV winner id and reports round-one votes in winner metadata', () => {
   const decision = decideRoundActions({
     today: '2026-07-10',
     round: votingRound(),
     suggestions: SUGGESTIONS,
-    tallies: { '102': 3, '101': 7 },
+    rcvResult: {
+      winnerId: '101',
+      blocked: null,
+      rounds: [{ counts: [{ id: '102', votes: 3 }, { id: '101', votes: 7 }] }],
+    },
   });
   assert.equal(decision.action, ACTIONS.REVEAL_WINNER);
   assert.equal(decision.winnerSuggestionId, 101);
+  assert.equal(decision.winner.votes, 7);
 });

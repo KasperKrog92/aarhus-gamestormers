@@ -238,16 +238,20 @@ Ordered so the repo stays working and testable after each step. Each step ends g
    - *2026-06-22:* Added the pure aggregate `runIrv` counter with active-ballot majority recalculation, transfer/exhaustion reporting, deterministic elimination tiebreaks, final-tie blocking, and 12 focused tests. Included in the ranked-choice foundation commit with no divergence from the plan.
    - *Verify:* `npm test` green, including all RCV cases.
 
-3. `[ ]` **DB helpers.** Add `getRankedBallots(db, roundId)` and `getBallotCount(db, roundId)`; change `getBallots` to return rank-ordered `rankings` per ballot (group in JS). Keep `getTallies` for first-preference counts.
+3. `[x]` **DB helpers.** Add `getRankedBallots(db, roundId)` and `getBallotCount(db, roundId)`; change `getBallots` to return rank-ordered `rankings` per ballot (group in JS). Keep `getTallies` for first-preference counts.
+   - *2026-06-22:* Added rank-ordered ballot grouping, distinct-ballot turnout counting, and first-preference tallies with legacy NULL-rank fallback. Updated the existing admin summary reads to consume `rankings` so the intermediate step remains functional; no other divergence from the plan.
    - *Verify:* helper-level coverage or via the API tests in the next steps.
 
-4. `[ ]` **Vote API.** Update `POST /api/vote` to accept `{ rankings }`, validate (dedupe/order/approved-only/non-empty), and write rank rows under the replace-on-resubmit pattern. Add `GET /api/vote/mine`. Call `ensureVoteRankColumn` on these routes.
+4. `[x]` **Vote API.** Update `POST /api/vote` to accept `{ rankings }`, validate (dedupe/order/approved-only/non-empty), and write rank rows under the replace-on-resubmit pattern. Add `GET /api/vote/mine`. Call `ensureVoteRankColumn` on these routes.
+   - *2026-06-22:* Added ordered ranked-ballot validation and rank persistence, retained `suggestionIds` as a temporary frontend alias, added the member-only `/api/vote/mine` read route, and covered replacement, filtering, ordering, alias, and private-read behavior in API tests.
    - *Verify:* update `test/vote-ballot-replacement.test.mjs`; add the `rankings` validation + `/api/vote/mine` tests.
 
-5. `[ ]` **Public read.** In `functions/api/round/current.js`, add `round.ballotCount` (always) and `rcvResult` + per-card first-preference `votes` (revealed only). Keep tallies hidden pre-reveal.
+5. `[x]` **Public read.** In `functions/api/round/current.js`, add `round.ballotCount` (always) and `rcvResult` + per-card first-preference `votes` (revealed only). Keep tallies hidden pre-reveal.
+   - *2026-06-22:* Added distinct-ballot turnout to every current-round payload, revealed-only aggregate IRV results and first-preference card counts, and an all-NULL-rank fallback for historical approval rounds. Added route tests covering the pre-reveal privacy boundary, ranked reveal, distinct turnout, and legacy reveal.
    - *Verify:* add/extend a `round/current` test asserting `ballotCount` is present during voting while per-candidate counts are not, and `rcvResult` appears only when revealed.
 
-6. `[ ]` **Admin payload + scheduler.** Add `rcvResult` to `roundPayload`; switch `decideRoundActions` from `tallies` to `rcvResult` (reveal / tie-blocked / no-votes-blocked); confirm `api-client.mjs` passes it through. Update `automation/voting/scheduler.test.mjs`.
+6. `[x]` **Admin payload + scheduler.** Add `rcvResult` to `roundPayload`; switch `decideRoundActions` from `tallies` to `rcvResult` (reveal / tie-blocked / no-votes-blocked); confirm `api-client.mjs` passes it through. Update `automation/voting/scheduler.test.mjs`.
+   - *2026-06-22:* Added aggregate IRV results to admin round payloads, including explicit no-ballot results and legacy NULL-rank fallback. Switched the scheduler runner and pure decision logic to `rcvResult`, preserving existing blocker labels and using round-one votes in winner metadata.
    - *Verify:* scheduler tests cover reveal, final-tie block, no-ballots block.
 
 7. `[ ]` **Handoff + Discord copy.** Rewrite the handoff "Vote tally" section from `rcvResult`; update `votingOpenedMessage` to ranking copy. Update `handoff.test.mjs` and `discord.test.mjs`.

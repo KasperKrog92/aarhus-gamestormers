@@ -3,13 +3,17 @@
 import { json, fail } from '../../_lib/http.js';
 import {
   ensureRoundScheduleColumns,
+  ensureVoteRankColumn,
+  getBallotCount,
   getCurrentRound,
   getNextRound,
+  getRankedBallots,
   getSuggestions,
   getTallies,
   toCard,
   toNextRoundNotice,
 } from '../../_lib/db.js';
+import { runIrv } from '../../_lib/rcv.js';
 import {
   DEFAULT_SUGGESTIONS_OPEN_MONTHS_BEFORE,
   DEFAULT_VOTING_OPENS_MONTHS_BEFORE,
@@ -22,12 +26,37 @@ export async function onRequestGet({ env }) {
   if (!db) return fail('Database not configured', 500);
 
   await ensureRoundScheduleColumns(db);
+  await ensureVoteRankColumn(db);
   const round = await getCurrentRound(db);
   if (!round) return json({ round: null, suggestions: [] });
 
   const revealed = round.phase === 'revealed' || round.phase === 'closed';
   const suggestions = await getSuggestions(db, round.id, { approvedOnly: true });
-  const tallies = revealed ? await getTallies(db, round.id) : null;
+  const ballotCount = await getBallotCount(db, round.id);
+  let tallies = null;
+  let rcvResult = null;
+
+  if (revealed) {
+    const rankedMarker = await db
+      .prepare('SELECT 1 AS has_ranked_ballots FROM votes WHERE round_id = ? AND rank IS NOT NULL LIMIT 1')
+      .bind(round.id)
+      .first();
+
+    if (rankedMarker) {
+      const ballots = await getRankedBallots(db, round.id);
+      rcvResult = runIrv({
+        ballots: ballots.map((ballot) => ballot.rankings),
+        candidateIds: suggestions.map((suggestion) => suggestion.id),
+      });
+      tallies = Object.fromEntries(
+        (rcvResult.rounds[0]?.counts || []).map(({ id, votes }) => [id, votes])
+      );
+    } else {
+      // Historical approval ballots have NULL rank and keep their old aggregate
+      // reveal instead of being interpreted as an arbitrary ranking.
+      tallies = await getTallies(db, round.id);
+    }
+  }
   const schedule = roundScheduleState(round);
 
   const cards = suggestions.map((s) => toCard(s, revealed ? tallies[s.id] || 0 : null));
@@ -66,9 +95,11 @@ export async function onRequestGet({ env }) {
       votingHasStarted: schedule.votingHasStarted,
       votingIsOpen: schedule.votingIsOpen,
       winnerSuggestionId: round.winner_suggestion_id,
+      ballotCount,
     },
     suggestions: cards,
     stats,
     nextRound,
+    ...(rcvResult ? { rcvResult } : {}),
   });
 }

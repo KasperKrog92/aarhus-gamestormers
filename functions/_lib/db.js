@@ -462,10 +462,16 @@ export async function upsertMeetingCopy(db, meetingId, lang, copy) {
     .run();
 }
 
-// { [suggestionId]: voteCount } for a round.
+// { [suggestionId]: first-preference count } for a ranked round. NULL-ranked
+// legacy approval rows are retained so historical aggregate results still work.
 export async function getTallies(db, roundId) {
   const { results } = await db
-    .prepare('SELECT suggestion_id, COUNT(*) AS votes FROM votes WHERE round_id = ? GROUP BY suggestion_id')
+    .prepare(
+      `SELECT suggestion_id, COUNT(*) AS votes
+         FROM votes
+        WHERE round_id = ? AND (rank = 1 OR rank IS NULL)
+        GROUP BY suggestion_id`
+    )
     .bind(roundId)
     .all();
   const map = {};
@@ -473,21 +479,77 @@ export async function getTallies(db, roundId) {
   return map;
 }
 
-// One entry per ballot (admin-only): who voted for what and when.
-export async function getBallots(db, roundId) {
+function groupRankedVoteRows(rows, { includeAdminFields = false } = {}) {
+  const ballots = new Map();
+
+  for (const row of rows || []) {
+    let ballot = ballots.get(row.ballot_id);
+    if (!ballot) {
+      ballot = {
+        ballotId: row.ballot_id,
+        rankings: [],
+        ...(includeAdminFields
+          ? { voterName: row.voter_name || null, createdAt: row.created_at }
+          : {}),
+      };
+      ballots.set(row.ballot_id, ballot);
+    }
+
+    const suggestionId = Number(row.suggestion_id);
+    if (Number.isInteger(suggestionId)) ballot.rankings.push(suggestionId);
+
+    if (includeAdminFields && row.created_at < ballot.createdAt) {
+      ballot.createdAt = row.created_at;
+    }
+  }
+
+  return [...ballots.values()];
+}
+
+// Rank-ordered ballots without voter metadata, for aggregate IRV counting.
+export async function getRankedBallots(db, roundId) {
   const { results } = await db
     .prepare(
-      `SELECT ballot_id, voter_name, MIN(created_at) AS created_at, GROUP_CONCAT(suggestion_id) AS suggestion_ids
-         FROM votes WHERE round_id = ? GROUP BY ballot_id, voter_name ORDER BY created_at ASC`
+      `SELECT ballot_id, suggestion_id, rank, created_at
+         FROM votes
+        WHERE round_id = ?
+        ORDER BY ballot_id ASC,
+                 CASE WHEN rank IS NULL THEN 1 ELSE 0 END ASC,
+                 rank ASC,
+                 created_at ASC,
+                 suggestion_id ASC`
     )
     .bind(roundId)
     .all();
-  return (results || []).map((r) => ({
-    ballotId: r.ballot_id,
-    voterName: r.voter_name || null,
-    createdAt: r.created_at,
-    suggestionIds: (r.suggestion_ids || '').split(',').map(Number).filter(Number.isInteger),
-  }));
+  return groupRankedVoteRows(results);
+}
+
+export async function getBallotCount(db, roundId) {
+  const row = await db
+    .prepare('SELECT COUNT(DISTINCT ballot_id) AS count FROM votes WHERE round_id = ?')
+    .bind(roundId)
+    .first();
+  const count = Number(row && row.count);
+  return Number.isInteger(count) && count >= 0 ? count : 0;
+}
+
+// One rank-ordered entry per ballot (admin-only): who voted and when.
+export async function getBallots(db, roundId) {
+  const { results } = await db
+    .prepare(
+      `SELECT ballot_id, voter_name, created_at, suggestion_id, rank
+         FROM votes
+        WHERE round_id = ?
+        ORDER BY ballot_id ASC,
+                 CASE WHEN rank IS NULL THEN 1 ELSE 0 END ASC,
+                 rank ASC,
+                 created_at ASC,
+                 suggestion_id ASC`
+    )
+    .bind(roundId)
+    .all();
+  return groupRankedVoteRows(results, { includeAdminFields: true })
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.ballotId.localeCompare(b.ballotId));
 }
 
 // SQLite/D1 raise "UNIQUE constraint failed: ..." when a (round_id, event_type)

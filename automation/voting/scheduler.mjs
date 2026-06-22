@@ -1,5 +1,5 @@
 // Pure phase-decision logic for the voting scheduler. No network or D1 access:
-// callers pass the raw round row, its suggestions, vote tallies, and the
+// callers pass the raw round row, its suggestions, the aggregate IRV result, and the
 // already-recorded automation events, and get back a single decision describing
 // what (if anything) the scheduler should do this run. All side effects (API
 // calls, Discord posts, handoff files) live in the runner so these rules stay
@@ -16,7 +16,7 @@ import {
 //   open_voting    move the round suggesting -> voting
 //   reveal_winner  move the round voting -> revealed with a winnerSuggestionId
 //   blocked        a transition is due but cannot complete automatically
-//                  (no votes, or a tie for first place); needs the maintainer
+//                  (no ballots, or a final IRV tie); needs the maintainer
 //   noop           nothing to do this run
 export const ACTIONS = {
   ANNOUNCE_SUGGESTIONS: 'announce_suggestions',
@@ -35,15 +35,12 @@ function suggestionTitle(suggestions, id) {
   return match && match.title ? match.title : null;
 }
 
-// Tallies are { [suggestionId]: voteCount } and only contain suggestions that
-// received at least one vote. Return them as { id, votes } sorted by votes
-// descending, then id ascending for a stable order. Non-positive or malformed
-// entries are dropped so "no votes" is simply an empty result.
-function rankTallies(tallies) {
-  return Object.entries(tallies || {})
-    .map(([id, votes]) => ({ id: Number(id), votes: Number(votes) || 0 }))
-    .filter((entry) => Number.isInteger(entry.id) && entry.votes > 0)
-    .sort((a, b) => b.votes - a.votes || a.id - b.id);
+function firstPreferenceVotes(rcvResult, candidateId) {
+  const firstRound = rcvResult && Array.isArray(rcvResult.rounds) ? rcvResult.rounds[0] : null;
+  const count = firstRound && Array.isArray(firstRound.counts)
+    ? firstRound.counts.find((entry) => Number(entry.id) === Number(candidateId))
+    : null;
+  return count ? Number(count.votes) || 0 : 0;
 }
 
 // Decide the single action the scheduler should take for one round. `today` is a
@@ -55,7 +52,7 @@ export function decideRoundActions({
   today,
   round,
   suggestions = [],
-  tallies = {},
+  rcvResult = null,
   automationEvents = [],
 } = {}) {
   if (!round || round.id == null) {
@@ -110,8 +107,7 @@ export function decideRoundActions({
       return { action: ACTIONS.NOOP, roundId, reason: `Voting closes on ${closesAt}; today is ${day}.` };
     }
 
-    const ranked = rankTallies(tallies);
-    if (ranked.length === 0) {
+    if (!rcvResult || (rcvResult.blocked && rcvResult.blocked.reason === 'no_ballots')) {
       return {
         action: ACTIONS.BLOCKED,
         roundId,
@@ -120,13 +116,11 @@ export function decideRoundActions({
       };
     }
 
-    const topVotes = ranked[0].votes;
-    const leaders = ranked.filter((entry) => entry.votes === topVotes);
-    if (leaders.length > 1) {
-      const tied = leaders.map((entry) => ({
-        id: entry.id,
+    if (rcvResult.blocked && rcvResult.blocked.reason === 'tie') {
+      const tied = (rcvResult.blocked.tied || []).map((entry) => ({
+        id: Number(entry.id),
         title: suggestionTitle(suggestions, entry.id),
-        votes: entry.votes,
+        votes: Number(entry.votes) || 0,
       }));
       const names = tied.map((t) => t.title || `#${t.id}`).join(', ');
       return {
@@ -134,17 +128,26 @@ export function decideRoundActions({
         roundId,
         blocker: 'tie',
         tied,
-        reason: `Voting closed on ${closesAt} with a ${topVotes}-vote tie for first place (${names}); needs manual review.`,
+        reason: `Voting closed on ${closesAt} with a final ranked-choice tie (${names}); needs manual review.`,
       };
     }
 
-    const winner = ranked[0];
+    const winnerId = Number(rcvResult.winnerId);
+    if (!Number.isInteger(winnerId)) {
+      return {
+        action: ACTIONS.BLOCKED,
+        roundId,
+        blocker: 'no_votes',
+        reason: `Voting closed on ${closesAt} but the ranked result had no winner; a winner needs manual review.`,
+      };
+    }
+    const votes = firstPreferenceVotes(rcvResult, winnerId);
     return {
       action: ACTIONS.REVEAL_WINNER,
       roundId,
-      winnerSuggestionId: winner.id,
-      winner: { id: winner.id, title: suggestionTitle(suggestions, winner.id), votes: winner.votes },
-      reason: `Winner is suggestion ${winner.id} with ${winner.votes} vote(s).`,
+      winnerSuggestionId: winnerId,
+      winner: { id: winnerId, title: suggestionTitle(suggestions, winnerId), votes },
+      reason: `Winner is suggestion ${winnerId} with ${votes} first-preference vote(s).`,
     };
   }
 
