@@ -20,6 +20,7 @@ var STRINGS = {
     introVotingUpcoming: 'Afstemningen åbner på datoen herunder.',
     introVotingClosed: 'Afstemningen er lukket. Resultatet bliver delt, når det er klar.',
     introRevealed: 'Tak til alle der stemte. Her er resultatet, og vinderen er spillet til mødet.',
+    winnerReveal: 'Vinderen er',
     loginTitle: 'Log ind for at deltage',
     loginSuggest: 'Log ind med Discord for at foreslå spil.',
     loginVote: 'Log ind med Discord for at stemme.',
@@ -163,6 +164,7 @@ var STRINGS = {
     introVotingUpcoming: 'Voting opens on the date below.',
     introVotingClosed: 'Voting is closed. The result will be shared when it is ready.',
     introRevealed: 'Thanks to everyone who voted. Here is the result, and the winner is the game for the meeting.',
+    winnerReveal: 'The winner is',
     loginTitle: 'Log in to participate',
     loginSuggest: 'Log in with Discord to suggest games.',
     loginVote: 'Log in with Discord to vote.',
@@ -1538,12 +1540,12 @@ var STRINGS = {
     clearApp();
     app.appendChild(roundHero(data.round, T.statusRevealed));
     app.appendChild(el('p', { class: 'vote-intro', text: T.introRevealed }));
-    if (session && session.authenticated) {
-      app.appendChild(authPanel('vote'));
-      app.appendChild(ownerVisibilitySlot());
-    }
 
     if (!data.suggestions.length) {
+      if (session && session.authenticated) {
+        app.appendChild(authPanel('vote'));
+        app.appendChild(ownerVisibilitySlot());
+      }
       app.appendChild(el('p', { class: 'vote-empty', text: T.noGames }));
       var emptyNotice = nextRoundNotice(data.nextRound);
       if (emptyNotice) app.appendChild(emptyNotice);
@@ -1558,11 +1560,32 @@ var STRINGS = {
       winnerId = top ? top.id : null;
     }
 
-    var sorted = data.suggestions.slice().sort(function (a, b) { return (b.votes || 0) - (a.votes || 0); });
-    app.appendChild(grid(sorted.map(function (s) { return card(s, 'result', { maxVotes: maxVotes, winnerId: winnerId }); })));
+    // Lead with a "the winner is" reveal: only the winning game's card, not the
+    // full slate. The round-by-round breakdown below carries the per-game detail.
+    var winner = null;
+    for (var i = 0; i < data.suggestions.length; i++) {
+      if (data.suggestions[i].id === winnerId) { winner = data.suggestions[i]; break; }
+    }
+    if (winner) {
+      app.appendChild(el('div', { class: 'vote-winner-reveal' }, [
+        el('p', { class: 'vote-winner-reveal-label', text: T.winnerReveal }),
+        card(winner, 'result', { maxVotes: maxVotes, winnerId: winnerId }),
+      ]));
+    } else {
+      // No single winner (e.g. an unresolved tie): fall back to the full slate so
+      // the result still reads clearly.
+      var sorted = data.suggestions.slice().sort(function (a, b) { return (b.votes || 0) - (a.votes || 0); });
+      app.appendChild(grid(sorted.map(function (s) { return card(s, 'result', { maxVotes: maxVotes, winnerId: winnerId }); })));
+    }
 
     var breakdown = rcvBreakdown(data.rcvResult, data.suggestions);
     if (breakdown) app.appendChild(breakdown);
+
+    // Account controls sit below the result so the winner and breakdown lead.
+    if (session && session.authenticated) {
+      app.appendChild(authPanel('vote'));
+      app.appendChild(ownerVisibilitySlot());
+    }
 
     var notice = nextRoundNotice(data.nextRound);
     if (notice) app.appendChild(notice);

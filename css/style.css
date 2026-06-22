@@ -2184,6 +2184,26 @@ img { display: block; max-width: 100%; height: auto; }
   transition: width 0.5s ease;
 }
 
+/* ─── Reveal: "the winner is" headline card ────────────────────────────────── */
+.vote-winner-reveal {
+  margin-top: 8px;
+  text-align: center;
+}
+.vote-winner-reveal-label {
+  margin: 0 0 16px;
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 1.45rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--green);
+}
+.vote-winner-reveal .suggestion-card {
+  max-width: 540px;
+  margin-inline: auto;
+  text-align: left;
+}
+
 /* ─── Reveal: round-by-round IRV breakdown ─────────────────────────────────── */
 .vote-breakdown {
   margin-top: 40px;
