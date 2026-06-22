@@ -254,8 +254,9 @@ Ordered so the repo stays working and testable after each step. Each step ends g
    - *2026-06-22:* Added aggregate IRV results to admin round payloads, including explicit no-ballot results and legacy NULL-rank fallback. Switched the scheduler runner and pure decision logic to `rcvResult`, preserving existing blocker labels and using round-one votes in winner metadata.
    - *Verify:* scheduler tests cover reveal, final-tie block, no-ballots block.
 
-7. `[ ]` **Handoff + Discord copy.** Rewrite the handoff "Vote tally" section from `rcvResult`; update `votingOpenedMessage` to ranking copy. Update `handoff.test.mjs` and `discord.test.mjs`.
-   - *Verify:* `npm test` green.
+7. `[x]` **Handoff + Discord copy.** Rewrite the handoff "Vote tally" section from `rcvResult`; update `votingOpenedMessage` to ranking copy. Update `handoff.test.mjs` and `discord.test.mjs`.
+   - *2026-06-22:* Replaced the flat tally with a `## Vote results` section rendered from `rcvResult` (final standing + round-by-round counts, eliminations, exhausted/majority lines), keeping a legacy approval-tally fallback when `rcvResult` is null and a no-ballots line. Surfaced the final-tie blocked state in the handoff. Updated `votingOpenedMessage` to ranking copy ("Rank the games in your order of preference. You don't have to rank them all.") and the vote-block intro to "Cast your ranking here:". Extended `handoff.test.mjs` (ranked standing, round-by-round, legacy fallback, tie) and `discord.test.mjs`. No divergence from the plan.
+   - *Verify:* `npm test` green (174 tests).
 
 8. `[ ]` **Vote-page UI (`js/vote.js`).** Replace the checkbox grid with the click-to-rank + reorder interface; pre-fill from `/api/vote/mine`; submit `{ rankings }`; render `ballotCount` during voting; add/repurpose `STRINGS` (da + en). Update the meeting-flow "Vote" copy.
    - *Verify:* on `npm run dev`, rank/edit a ballot from two accounts, see the participation count increment on submit, both languages.

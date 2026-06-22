@@ -171,11 +171,11 @@ export function votingOpenedMessage({ round, baseUrl, games = [] }) {
     : `The suggestion phase is over, and voting is now open${onDate} 🎮`;
 
   const voteBlock = [
-    'Cast your votes here:',
+    'Cast your ranking here:',
     `🔗 ${link('the vote page', voteUrl(baseUrl))}`,
   ].join('\n');
 
-  const codeLine = 'You can vote for as many games as you like. Log in with Discord on the page to confirm club membership.';
+  const codeLine = "Rank the games in your order of preference. You don't have to rank them all. Log in with Discord on the page to confirm club membership.";
 
   const closing = closesAt
     ? `Voting closes on **${closesAt}**. After that the winner will be revealed 🥁`

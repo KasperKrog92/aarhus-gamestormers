@@ -7,8 +7,20 @@ import {
   winnerPublicationPlan,
   writeHandoff,
 } from './handoff.mjs';
+import { runIrv } from '../../functions/_lib/rcv.js';
 
 const BASE = 'https://www.gamestormers.dk';
+
+// A ranked-choice result matching the approval tallies used in the fixtures:
+// first preferences 101=5, 103=4, 102=3 (12 ballots). Celeste (102) is eliminated
+// in round 1; two of its ballots transfer to Hollow Knight (101), one exhausts, so
+// Hollow Knight reaches the majority in round 2.
+const RCV_BALLOTS = [
+  [101], [101], [101], [101], [101],
+  [103], [103], [103], [103],
+  [102, 101], [102, 101], [102],
+];
+const RCV_RESULT = runIrv({ ballots: RCV_BALLOTS, candidateIds: [101, 102, 103] });
 
 const WINNER_SUGGESTION = {
   id: 101,
@@ -55,6 +67,7 @@ function revealPayload(overrides = {}) {
     publishReadiness: { ready: false, missing: ['selected game'] },
     suggestions: SUGGESTIONS,
     tallies: { 101: 5, 102: 3, 103: 4 },
+    rcvResult: RCV_RESULT,
     ...overrides,
   };
 }
@@ -85,6 +98,7 @@ function promotedPayload(overrides = {}) {
     publishReadiness: { ready: true, missing: [] },
     suggestions: SUGGESTIONS,
     tallies: { 101: 5, 102: 3, 103: 4 },
+    rcvResult: RCV_RESULT,
     ...overrides,
   };
 }
@@ -218,11 +232,17 @@ test('markdown: includes meeting, winner, tally, missing fields, reminders, and 
   assert.match(md, /Suggested by: Kasper/);
   assert.match(md, /Pitch: A gorgeous hand-drawn adventure\./);
 
-  // Tally sorted high to low with a winner marker
-  assert.match(md, /- Hollow Knight: 5 votes \(winner\)/);
+  // Ranked-choice final standing: winner shows its final-round total, eliminated
+  // games are tagged with the round they dropped out.
+  assert.match(md, /Ranked-choice \(instant-runoff\) count of 12 ballots\./);
+  assert.match(md, /- Hollow Knight: 7 votes \(winner\)/);
   assert.match(md, /- Outer Wilds: 4 votes/);
-  assert.match(md, /- Celeste: 3 votes/);
+  assert.match(md, /- Celeste: 3 votes \(eliminated round 1\)/);
   assert.ok(md.indexOf('Outer Wilds: 4 votes') < md.indexOf('Celeste: 3 votes'));
+
+  // Round-by-round breakdown
+  assert.match(md, /- Round 1 \(majority 7 of 12 active ballots\): Hollow Knight 5, Outer Wilds 4, Celeste 3\. Eliminated Celeste\./);
+  assert.match(md, /- Round 2 \(majority 6 of 11 active ballots, 1 exhausted\): Hollow Knight 7, Outer Wilds 4\. Hollow Knight reached a majority and wins\./);
 
   // Missing fields + reminders + checklist
   assert.match(md, /Still needed before publishing/);
@@ -261,8 +281,35 @@ test('markdown: prefers the curated selected game and drops reminders once ready
 });
 
 test('markdown: reports when no votes were recorded', () => {
-  const md = buildHandoffMarkdown({ roundPayload: revealPayload({ tallies: {} }), winnerSuggestionId: 101, baseUrl: BASE });
+  const md = buildHandoffMarkdown({
+    roundPayload: revealPayload({ tallies: {}, rcvResult: runIrv({ ballots: [], candidateIds: [101, 102, 103] }) }),
+    winnerSuggestionId: 101,
+    baseUrl: BASE,
+  });
   assert.match(md, /- No votes were recorded\./);
+});
+
+test('markdown: falls back to approval tallies for a legacy round without a ranked result', () => {
+  const md = buildHandoffMarkdown({
+    roundPayload: revealPayload({ rcvResult: null }),
+    winnerSuggestionId: 101,
+    baseUrl: BASE,
+  });
+  // Legacy approval counts: each tally shown once, winner marked, no IRV rounds.
+  assert.match(md, /- Hollow Knight: 5 votes \(winner\)/);
+  assert.match(md, /- Outer Wilds: 4 votes/);
+  assert.match(md, /- Celeste: 3 votes/);
+  assert.doesNotMatch(md, /Round-by-round:/);
+});
+
+test('markdown: surfaces a final ranked-choice tie for manual resolution', () => {
+  const tieResult = runIrv({ ballots: [[101], [101], [102], [102]], candidateIds: [101, 102] });
+  const md = buildHandoffMarkdown({
+    roundPayload: revealPayload({ rcvResult: tieResult }),
+    winnerSuggestionId: null,
+    baseUrl: BASE,
+  });
+  assert.match(md, /Final tie between Hollow Knight, Celeste; pick the winner manually in vote-admin\./);
 });
 
 test('handoffArtifactPath uses the stable automation-output path', () => {

@@ -149,7 +149,8 @@ function formatMeetingDate(isoDate) {
   }).format(date);
 }
 
-// Rank tallies ({ [suggestionId]: votes }) high to low for the handoff summary.
+// Rank approval tallies ({ [suggestionId]: votes }) high to low. Kept for the
+// legacy fallback when a historical round has no ranked-choice result.
 function rankTallies(tallies, suggestions) {
   return Object.entries(tallies || {})
     .map(([id, votes]) => {
@@ -159,6 +160,83 @@ function rankTallies(tallies, suggestions) {
     })
     .filter((entry) => entry.id != null)
     .sort((a, b) => b.votes - a.votes || a.id - b.id);
+}
+
+function titleFor(suggestions, id) {
+  const match = findSuggestion(suggestions, numberOrNull(id));
+  return (match && match.title) || `#${id}`;
+}
+
+function plural(n) {
+  return n === 1 ? '' : 's';
+}
+
+// Votes a candidate held in a given IRV round (0 if not standing that round).
+function votesInRound(round, id) {
+  const entry = (round.counts || []).find((c) => c.id === id);
+  return entry ? entry.votes : 0;
+}
+
+// Render the ranked-choice result as Markdown lines: a final standing (winner,
+// runners-up, then eliminated games newest-first) followed by a round-by-round
+// breakdown. Computed entirely from the aggregate rcvResult; never recounts.
+function rcvResultLines(rcvResult, suggestions, winnerId) {
+  const rounds = Array.isArray(rcvResult.rounds) ? rcvResult.rounds : [];
+  if (rounds.length === 0) return ['- No votes were recorded.'];
+
+  const lines = [];
+  const totalBallots = Number(rcvResult.totalBallots) || 0;
+  lines.push(`Ranked-choice (instant-runoff) count of ${totalBallots} ballot${plural(totalBallots)}.`);
+  lines.push('');
+
+  // Final standing: survivors of the last round (high to low), then eliminated
+  // candidates in reverse order of elimination so the last eliminated ranks
+  // highest among the eliminated.
+  const finalRound = rounds[rounds.length - 1];
+  const standing = finalRound.counts.map((entry) => ({
+    id: entry.id,
+    votes: entry.votes,
+    eliminatedRound: null,
+  }));
+  for (let i = rounds.length - 1; i >= 0; i -= 1) {
+    const r = rounds[i];
+    if (r.eliminatedId != null) {
+      standing.push({ id: r.eliminatedId, votes: votesInRound(r, r.eliminatedId), eliminatedRound: r.round });
+    }
+  }
+
+  lines.push('Final standing:');
+  for (const entry of standing) {
+    const marker = entry.id === winnerId
+      ? ' (winner)'
+      : entry.eliminatedRound != null
+        ? ` (eliminated round ${entry.eliminatedRound})`
+        : '';
+    lines.push(`- ${titleFor(suggestions, entry.id)}: ${entry.votes} vote${plural(entry.votes)}${marker}`);
+  }
+  lines.push('');
+
+  lines.push('Round-by-round:');
+  for (const r of rounds) {
+    const counts = r.counts.map((c) => `${titleFor(suggestions, c.id)} ${c.votes}`).join(', ');
+    const meta = [`majority ${r.majority} of ${r.activeBallots} active ballot${plural(r.activeBallots)}`];
+    if (r.exhausted) meta.push(`${r.exhausted} exhausted`);
+    const parts = [`- Round ${r.round} (${meta.join(', ')}): ${counts}.`];
+    if (r.winnerId != null) {
+      parts.push(`${titleFor(suggestions, r.winnerId)} reached a majority and wins.`);
+    } else if (r.eliminatedId != null) {
+      parts.push(`Eliminated ${titleFor(suggestions, r.eliminatedId)}.`);
+    }
+    lines.push(parts.join(' '));
+  }
+
+  if (rcvResult.blocked && rcvResult.blocked.reason === 'tie') {
+    const names = (rcvResult.blocked.tied || []).map((t) => titleFor(suggestions, t.id)).join(', ');
+    lines.push('');
+    lines.push(`Final tie between ${names}; pick the winner manually in vote-admin.`);
+  }
+
+  return lines;
 }
 
 function line(label, value) {
@@ -212,7 +290,9 @@ export function buildHandoffMarkdown({ roundPayload, winnerSuggestionId, plan, b
     (winner && winner.description_en) ||
     '';
 
-  const ranked = rankTallies(payload.tallies, suggestions);
+  const rcvResult = payload.rcvResult || null;
+  const hasRcvRounds = Boolean(rcvResult && Array.isArray(rcvResult.rounds) && rcvResult.rounds.length > 0);
+  const rcvNoBallots = Boolean(rcvResult && rcvResult.blocked && rcvResult.blocked.reason === 'no_ballots');
 
   const lines = [];
   lines.push(`# Winner handoff: meeting #${meetingNumber ?? '?'}`);
@@ -243,13 +323,21 @@ export function buildHandoffMarkdown({ roundPayload, winnerSuggestionId, plan, b
   lines.push(line('Pitch', pitch));
   lines.push('');
 
-  lines.push('## Vote tally');
-  if (ranked.length === 0) {
+  lines.push('## Vote results');
+  if (hasRcvRounds) {
+    for (const resultLine of rcvResultLines(rcvResult, suggestions, winnerId)) lines.push(resultLine);
+  } else if (rcvNoBallots) {
     lines.push('- No votes were recorded.');
   } else {
-    for (const entry of ranked) {
-      const marker = entry.id === winnerId ? ' (winner)' : '';
-      lines.push(`- ${entry.title}: ${entry.votes} vote${entry.votes === 1 ? '' : 's'}${marker}`);
+    // Legacy approval-count fallback for historical rounds without ranked ballots.
+    const ranked = rankTallies(payload.tallies, suggestions);
+    if (ranked.length === 0) {
+      lines.push('- No votes were recorded.');
+    } else {
+      for (const entry of ranked) {
+        const marker = entry.id === winnerId ? ' (winner)' : '';
+        lines.push(`- ${entry.title}: ${entry.votes} vote${plural(entry.votes)}${marker}`);
+      }
     }
   }
   lines.push('');

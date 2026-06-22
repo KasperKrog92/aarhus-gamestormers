@@ -60,7 +60,7 @@ test('voting opened message: header, lineup, Discord login note, and close date'
 test('voting opened message tolerates no lineup', () => {
   const content = votingOpenedMessage({ round: { id: 20, meeting_date: '2026-10-05' }, baseUrl: BASE });
   assert.doesNotMatch(content, /lineup/);
-  assert.match(content, /You can vote for as many games as you like\. Log in with Discord on the page to confirm club membership\./);
+  assert.match(content, /Rank the games in your order of preference\. You don't have to rank them all\. Log in with Discord on the page to confirm club membership\./);
 });
 
 test('voting opened message keeps the vote link and trims an oversized lineup', () => {
