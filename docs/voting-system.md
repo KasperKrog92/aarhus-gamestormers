@@ -42,7 +42,7 @@ Member-submitted store links are additionally scheme-checked (`isHttpUrl` in `fu
 
 | Route | Method | Purpose |
 | --- | --- | --- |
-| `/api/round/current` | GET | Current round and approved cards. Tallies are only exposed when revealed. Also returns `nextRound` (public metadata for the next round, if one exists) for the vote page's next-round notice. |
+| `/api/round/current` | GET | Current round and approved cards. Tallies are only exposed when revealed. Also returns `stats` (`{ games, people }`: count of approved suggestions and distinct suggesters, by Discord user id, with no ids exposed) for the suggestions-phase social-proof card, and `nextRound` (public metadata for the next round, if one exists) for the vote page's next-round notice. |
 | `/api/meetings/public` | GET | Public-safe meeting data for the homepage: `upcoming`, `history`, and `planned` groups with their selected games and localized copy. Drives `js/meetings.js`. Ballots, Discord ids, and pending/rejected suggestions are never exposed. |
 | `/api/auth/discord/start` | GET | Starts Discord OAuth with `identify guilds`, stores a short-lived state nonce, and redirects to Discord. |
 | `/api/auth/discord/callback` | GET | Validates OAuth state, exchanges the code, reads `/users/@me` and `/users/@me/guilds`, stores only the user id/display data/membership flag, creates a hashed-session cookie, and discards the OAuth token and guild list. |

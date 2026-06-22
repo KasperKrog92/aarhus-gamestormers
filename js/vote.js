@@ -101,6 +101,11 @@ var STRINGS = {
     suggestionPending: 'Afventer godkendelse',
     suggestionApproved: 'Godkendt',
     suggestionRejected: 'Afvist',
+    statsSummary: '{games} foreslået af {people}',
+    statsGamesOne: 'spil',
+    statsGamesOther: 'spil',
+    statsPeopleOne: 'medlem',
+    statsPeopleOther: 'medlemmer',
     btnSuggest: 'Send forslag',
     suggestThanks: 'Tak! “{title}” er tilføjet til forslagene.',
     manualThanks: 'Tak! “{title}” bliver vist, når en admin har godkendt det.',
@@ -221,6 +226,11 @@ var STRINGS = {
     suggestionPending: 'Pending approval',
     suggestionApproved: 'Approved',
     suggestionRejected: 'Rejected',
+    statsSummary: '{games} suggested by {people}',
+    statsGamesOne: 'game',
+    statsGamesOther: 'games',
+    statsPeopleOne: 'member',
+    statsPeopleOther: 'members',
     btnSuggest: 'Submit suggestion',
     suggestThanks: 'Thanks! “{title}” has been added to the suggestions.',
     manualThanks: 'Thanks! “{title}” will appear once an admin has approved it.',
@@ -390,6 +400,20 @@ var STRINGS = {
       ]),
       discordLoginButton(),
     ]);
+  }
+
+  // Compact social-proof line for the suggestions heading: how many games are on
+  // the board and how many members suggested them. Returns null when nothing has
+  // been suggested yet so the heading stays clean. Counts and nouns are static,
+  // so the bolded numbers are safe to inject as HTML.
+  function suggestionStatsSummary(stats) {
+    if (!stats || !stats.games) return null;
+    var games = '<b>' + stats.games + '</b> ' + (stats.games === 1 ? T.statsGamesOne : T.statsGamesOther);
+    var people = '<b>' + stats.people + '</b> ' + (stats.people === 1 ? T.statsPeopleOne : T.statsPeopleOther);
+    return el('span', {
+      class: 'vote-stats-summary',
+      html: T.statsSummary.replace('{games}', games).replace('{people}', people),
+    });
   }
 
   function findMySuggestion(id) {
@@ -999,7 +1023,10 @@ var STRINGS = {
       return;
     }
     var suggestionItems = data.suggestions.slice();
-    var suggestionHeading = el('h2', { class: 'vote-list-title', text: T.approvedSoFar });
+    var suggestionHeading = el('div', { class: 'vote-list-header' }, [
+      el('h2', { class: 'vote-list-title', text: T.approvedSoFar }),
+      suggestionStatsSummary(data.stats),
+    ]);
     var suggestionGrid = grid([]);
     var suggestionListMounted = false;
 

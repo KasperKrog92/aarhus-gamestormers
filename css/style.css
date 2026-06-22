@@ -1668,6 +1668,27 @@ img { display: block; max-width: 100%; height: auto; }
   border-color: rgba(150,195,141,0.62);
 }
 
+/* Suggestions heading row: section title on the left, suggestion count on the right */
+.vote-list-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 18px;
+  flex-wrap: wrap;
+  margin: 44px 0 12px;
+}
+.vote-list-header .vote-list-title {
+  margin: 0;
+}
+.vote-stats-summary {
+  color: rgba(247,244,238,0.6);
+  font-size: 0.92rem;
+}
+.vote-stats-summary b {
+  color: var(--green-light);
+  font-weight: 700;
+}
+
 /* Form panel */
 .vote-panel {
   background: rgba(247,244,238,0.05);
@@ -2615,6 +2636,7 @@ details[open] > .admin-section-summary::before { transform: rotate(90deg); }
   }
   .vote-choice-btns > * { width: 100%; justify-content: center; }
   .vote-list-title { margin-top: 36px; }
+  .vote-list-header { margin-top: 36px; }
   .suggestion-grid { grid-template-columns: 1fr; }
   .admin-hero {
     align-items: flex-start;

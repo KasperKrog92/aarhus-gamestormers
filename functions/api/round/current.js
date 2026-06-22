@@ -32,6 +32,20 @@ export async function onRequestGet({ env }) {
 
   const cards = suggestions.map((s) => toCard(s, revealed ? tallies[s.id] || 0 : null));
 
+  // Lightweight social-proof counts for the suggestions phase: how many games
+  // are on the board and how many distinct members suggested them. Distinct
+  // people are counted by Discord user id; legacy pre-auth rows without an id
+  // fall back to the display name, then to a per-row key. No ids are exposed,
+  // only the two totals.
+  const stats = {
+    games: suggestions.length,
+    people: new Set(
+      suggestions.map((s) =>
+        s.discord_user_id ? `u-${s.discord_user_id}` : s.suggested_by ? `n-${s.suggested_by}` : `row-${s.id}`
+      )
+    ).size,
+  };
+
   // Surface the next round so the vote page can point people there once this
   // round is decided.
   const nextRound = toNextRoundNotice(await getNextRound(db, round.id));
@@ -54,6 +68,7 @@ export async function onRequestGet({ env }) {
       winnerSuggestionId: round.winner_suggestion_id,
     },
     suggestions: cards,
+    stats,
     nextRound,
   });
 }
