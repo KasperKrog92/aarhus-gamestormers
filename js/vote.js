@@ -16,7 +16,7 @@ var STRINGS = {
     introSuggesting:
       'Foreslå et spil til mødet. Steam-spil får titel, billede, genrer og beskrivelse automatisk.',
     introVoting:
-      'Sæt flueben ved <b>alle</b> de spil, du gerne vil spille. Spillet med flest stemmer vælges til mødet.',
+      'Rangér spillene i den rækkefølge, du helst vil spille dem. Du behøver ikke rangere dem alle.',
     introVotingUpcoming: 'Afstemningen åbner på datoen herunder.',
     introVotingClosed: 'Afstemningen er lukket. Resultatet bliver delt, når det er klar.',
     introRevealed: 'Tak til alle der stemte. Her er resultatet, og vinderen er spillet til mødet.',
@@ -55,7 +55,7 @@ var STRINGS = {
     flowSuggestTitle: 'Foreslå',
     flowSuggestText: 'Medlemmer foreslår spil, der passer til fælles spil og diskussion.',
     flowVoteTitle: 'Stem',
-    flowVoteText: 'Når afstemningen åbner, stemmer du på alle de spil, du gerne vil spille.',
+    flowVoteText: 'Når afstemningen åbner, rangerer du spillene i din foretrukne rækkefølge.',
     flowWinnerTitle: 'Vinderen findes',
     flowWinnerText: 'Spillet med flest stemmer bliver valgt til mødet.',
     flowMeetingTitle: 'Spil og diskutér',
@@ -112,20 +112,26 @@ var STRINGS = {
     approvedSoFar: 'Spilforslag',
     castBallot: 'Din stemme',
     btnVote: 'Stem',
-    btnUpdateVote: 'Opdater stemme',
-    btnVoted: 'Stemme afgivet ✓',
-    alreadyVoted: 'Hvis du stemmer igen i denne runde, erstatter den nye stemme din tidligere stemme.',
+    btnUpdateVote: 'Opdater rangering',
     voteThanks: 'Tak for din stemme!',
+    rankingTitle: 'Din rangering',
+    rankingHint: 'Tilføj spil i din foretrukne rækkefølge. Spil, du ikke tilføjer, er ikke på din stemmeseddel. En lavere placering tæller kun, hvis dine højere valg bliver elimineret undervejs.',
+    rankingEmpty: 'Du har ikke tilføjet nogen spil endnu. Vælg de spil, du gerne vil rangere.',
+    addToRanking: 'Tilføj til min rangering',
+    removeFromRanking: 'Fjern',
+    moveUp: 'Flyt op',
+    moveDown: 'Flyt ned',
+    participationOne: '{n} medlem har afgivet sin rangering',
+    participationOther: '{n} medlemmer har afgivet deres rangering',
     noGames: 'Der er ingen spil på stemmesedlen endnu.',
     by: 'Foreslået af',
-    approve: 'Jeg vil gerne spille det her',
     votes: 'stemmer',
     winnerTag: 'Vinder',
     playtime: '⏱ ~{h} t.',
     platformPrefix: 'Tilgængelig på ',
     platformAnd: ' og ',
     errGeneric: 'Noget gik galt. Prøv igen.',
-    errPickOne: 'Vælg mindst ét spil.',
+    errPickOne: 'Tilføj mindst ét spil til din rangering.',
     errSteamUrl: 'Indsæt et gyldigt Steam-link (store.steampowered.com/app/…).',
     errTitleRequired: 'Skriv spillets titel.',
     errStoreUrl: 'Butikslinket skal være en gyldig http(s)-adresse.',
@@ -144,7 +150,7 @@ var STRINGS = {
     introSuggesting:
       "Suggest a game for the meeting. Steam games get title, image, genres and description filled in automatically.",
     introVoting:
-      'Tick <b>every</b> game you’d be happy to play. The game with the most ticks is chosen for the meeting.',
+      "Rank the games in your order of preference. You don't have to rank them all.",
     introVotingUpcoming: 'Voting opens on the date below.',
     introVotingClosed: 'Voting is closed. The result will be shared when it is ready.',
     introRevealed: 'Thanks to everyone who voted. Here is the result, and the winner is the game for the meeting.',
@@ -183,7 +189,7 @@ var STRINGS = {
     flowSuggestTitle: 'Suggest',
     flowSuggestText: 'Members suggest games that fit shared play and discussion.',
     flowVoteTitle: 'Vote',
-    flowVoteText: 'When voting opens, tick every game you would be happy to play.',
+    flowVoteText: 'When voting opens, rank the games in your order of preference.',
     flowWinnerTitle: 'Winner picked',
     flowWinnerText: 'The game with the most votes is chosen for the meeting.',
     flowMeetingTitle: 'Play and discuss',
@@ -240,20 +246,26 @@ var STRINGS = {
     approvedSoFar: 'Game suggestions',
     castBallot: 'Your vote',
     btnVote: 'Vote',
-    btnUpdateVote: 'Update vote',
-    btnVoted: 'Vote cast ✓',
-    alreadyVoted: 'If you vote again in this round, your new ballot replaces your previous one.',
+    btnUpdateVote: 'Update ranking',
     voteThanks: 'Thanks for voting!',
+    rankingTitle: 'Your ranking',
+    rankingHint: "Add games in your order of preference. Games you don't add are not on your ballot. A lower rank only matters if your higher choices are eliminated along the way.",
+    rankingEmpty: "You haven't added any games yet. Pick the games you want to rank.",
+    addToRanking: 'Add to my ranking',
+    removeFromRanking: 'Remove',
+    moveUp: 'Move up',
+    moveDown: 'Move down',
+    participationOne: '{n} member has submitted their ranking',
+    participationOther: '{n} members have submitted their ranking',
     noGames: 'There are no games on the ballot yet.',
     by: 'Suggested by',
-    approve: 'I’d play this',
     votes: 'votes',
     winnerTag: 'Winner',
     playtime: '⏱ ~{h} hrs.',
     platformPrefix: 'Available on ',
     platformAnd: ' and ',
     errGeneric: 'Something went wrong. Please try again.',
-    errPickOne: 'Pick at least one game.',
+    errPickOne: 'Add at least one game to your ranking.',
     errSteamUrl: 'Please paste a valid Steam store link (store.steampowered.com/app/…).',
     errTitleRequired: 'Please enter the game title.',
     errStoreUrl: 'Store link must be a valid http(s) URL.',
@@ -902,11 +914,14 @@ var STRINGS = {
 
     if (mode === 'vote') {
       classes += ' is-selectable';
-      var checkbox = el('input', { type: 'checkbox', value: s.id, 'aria-label': T.approve });
-      // Plain div (not a <label>) so the card-level click handler is the single
-      // source of truth for toggling, avoiding a native+manual double toggle.
-      var toggle = el('div', { class: 'vote-toggle' }, [checkbox, el('span', { class: 'vote-toggle-label', text: T.approve })]);
-      body.push(toggle);
+      // Ranking control: a position badge (shown once the game is on the ballot)
+      // and a single add/remove toggle button. renderVoting owns the click
+      // wiring and keeps the badge/label in sync with the ranking order.
+      var rankBadge = el('span', { class: 'vote-rank-position', hidden: 'hidden', 'aria-hidden': 'true' });
+      var rankBtn = el('button', { class: 'vote-rank-toggle', type: 'button', 'aria-pressed': 'false' }, [
+        el('span', { class: 'vote-rank-toggle-label', text: T.addToRanking }),
+      ]);
+      body.push(el('div', { class: 'vote-rank-row' }, [rankBadge, rankBtn]));
     }
 
     if (mode === 'result') {
@@ -929,14 +944,6 @@ var STRINGS = {
       el('img', { class: 'suggestion-cover', src: s.image, alt: s.title, loading: 'lazy', decoding: 'async' }),
       el('div', { class: 'suggestion-body' }, body),
     ]);
-
-    if (mode === 'vote') {
-      var cb = node.querySelector('input[type=checkbox]');
-      node.addEventListener('click', function (e) {
-        if (e.target !== cb) cb.checked = !cb.checked;
-        node.classList.toggle('selected', cb.checked);
-      });
-    }
     return node;
   }
 
@@ -1227,12 +1234,37 @@ var STRINGS = {
     renderSuggestionList();
   }
 
+  // Turnout line ("12 members have submitted their ranking"). This is the only
+  // vote-derived number shown during voting: a single count, never per-game, so
+  // it reveals participation without hinting at which game is ahead.
+  function participationText(count) {
+    var n = Math.max(0, Number(count) || 0);
+    return (n === 1 ? T.participationOne : T.participationOther).replace('{n}', n);
+  }
+
   function renderVoting(data) {
     var votingOpen = data.round.votingIsOpen !== false;
     var votingHasStarted = data.round.votingHasStarted !== false;
     clearApp();
     app.appendChild(roundHero(data.round, votingOpen ? T.statusVoting : (votingHasStarted ? T.statusVotingClosed : T.statusVotingUpcoming)));
     app.appendChild(el('p', { class: 'vote-intro', html: votingOpen ? T.introVoting : (votingHasStarted ? T.introVotingClosed : T.introVotingUpcoming) }));
+
+    var participationNode = null;
+    if (votingOpen) {
+      participationNode = el('p', { class: 'vote-participation', text: participationText(data.round.ballotCount) });
+      app.appendChild(participationNode);
+    }
+    function refreshParticipation() {
+      if (!participationNode) return;
+      api('/round/current')
+        .then(function (fresh) {
+          if (fresh.round && typeof fresh.round.ballotCount === 'number') {
+            participationNode.textContent = participationText(fresh.round.ballotCount);
+          }
+        })
+        .catch(function () {});
+    }
+
     var authMounted = false;
     if (session && session.authenticated) {
       app.appendChild(authPanel('vote'));
@@ -1258,45 +1290,158 @@ var STRINGS = {
     }
 
     if (!authMounted) app.appendChild(authPanel('vote'));
+
+    // ── ranking state ────────────────────────────────────────────────────────
+    var suggestionsById = {};
+    data.suggestions.forEach(function (s) { suggestionsById[Number(s.id)] = s; });
+    var ranking = []; // ordered suggestion ids, first = top preference
+    var hadBallot = false;
+
     var cards = data.suggestions.map(function (s) { return card(s, 'vote'); });
+    var cardsById = {};
+    cards.forEach(function (node) {
+      cardsById[Number(node.getAttribute('data-suggestion-card-id'))] = node;
+    });
     app.appendChild(grid(cards));
 
+    function toggleRank(id) {
+      var i = ranking.indexOf(id);
+      if (i === -1) ranking.push(id);
+      else ranking.splice(i, 1);
+      syncAll();
+    }
+
+    function moveRank(id, delta) {
+      var i = ranking.indexOf(id);
+      var j = i + delta;
+      if (i === -1 || j < 0 || j >= ranking.length) return;
+      var moved = ranking[i];
+      ranking[i] = ranking[j];
+      ranking[j] = moved;
+      syncAll();
+    }
+
+    // Wire each card: clicking the card or its toggle button adds/removes the
+    // game. Clicks on the store links are ignored so they keep opening normally.
+    cards.forEach(function (node) {
+      var id = Number(node.getAttribute('data-suggestion-card-id'));
+      var btn = node.querySelector('.vote-rank-toggle');
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        toggleRank(id);
+      });
+      node.addEventListener('click', function (e) {
+        if (e.target.closest('a') || e.target.closest('.vote-rank-toggle')) return;
+        toggleRank(id);
+      });
+    });
+
+    // ── ranking panel ────────────────────────────────────────────────────────
+    var rankingList = el('ol', { class: 'vote-ranking-list' });
+    var emptyHint = el('p', { class: 'vote-ranking-empty vote-hint', text: T.rankingEmpty });
     var box = msgBox();
     var btn = el('button', { class: 'btn-green', type: 'submit', text: T.btnVote });
 
+    function renderRankingList() {
+      clear(rankingList);
+      var has = ranking.length > 0;
+      rankingList.hidden = !has;
+      emptyHint.hidden = has;
+      ranking.forEach(function (id, index) {
+        var s = suggestionsById[id];
+        var title = s ? s.title : ('#' + id);
+        var up = el('button', {
+          class: 'vote-ranking-move', type: 'button', text: '↑',
+          'aria-label': T.moveUp + ': ' + title,
+          disabled: index === 0 ? 'disabled' : null,
+        });
+        var down = el('button', {
+          class: 'vote-ranking-move', type: 'button', text: '↓',
+          'aria-label': T.moveDown + ': ' + title,
+          disabled: index === ranking.length - 1 ? 'disabled' : null,
+        });
+        var remove = el('button', {
+          class: 'vote-ranking-remove', type: 'button', text: '✕',
+          'aria-label': T.removeFromRanking + ': ' + title,
+        });
+        up.addEventListener('click', function () { moveRank(id, -1); });
+        down.addEventListener('click', function () { moveRank(id, 1); });
+        remove.addEventListener('click', function () { toggleRank(id); });
+        rankingList.appendChild(el('li', { class: 'vote-ranking-item' }, [
+          el('span', { class: 'vote-ranking-num', text: String(index + 1) }),
+          el('span', { class: 'vote-ranking-name', text: title }),
+          el('div', { class: 'vote-ranking-controls' }, [up, down, remove]),
+        ]));
+      });
+    }
+
+    function syncAll() {
+      Object.keys(cardsById).forEach(function (key) {
+        var id = Number(key);
+        var node = cardsById[id];
+        var pos = ranking.indexOf(id);
+        var ranked = pos !== -1;
+        node.classList.toggle('selected', ranked);
+        var badge = node.querySelector('.vote-rank-position');
+        var toggle = node.querySelector('.vote-rank-toggle');
+        var label = toggle.querySelector('.vote-rank-toggle-label');
+        badge.hidden = !ranked;
+        badge.textContent = ranked ? String(pos + 1) : '';
+        toggle.classList.toggle('is-ranked', ranked);
+        toggle.setAttribute('aria-pressed', ranked ? 'true' : 'false');
+        label.textContent = ranked ? T.removeFromRanking : T.addToRanking;
+      });
+      renderRankingList();
+    }
+
     var form = el('form', { class: 'vote-panel' }, [
-      el('h2', { class: 'vote-panel-title', text: T.castBallot }),
-      el('p', { class: 'vote-hint', text: T.alreadyVoted }),
+      el('h2', { class: 'vote-panel-title', text: T.rankingTitle }),
+      el('p', { class: 'vote-hint', text: T.rankingHint }),
+      emptyHint,
+      rankingList,
       el('div', { class: 'vote-actions' }, [btn]),
       box,
     ]);
 
     form.addEventListener('submit', function (e) {
       e.preventDefault();
-      var ids = cards
-        .filter(function (c) { return c.querySelector('input[type=checkbox]').checked; })
-        .map(function (c) { return Number(c.querySelector('input[type=checkbox]').value); });
-      if (!ids.length) return showMsg(box, T.errPickOne, false);
+      if (!ranking.length) return showMsg(box, T.errPickOne, false);
 
       btn.disabled = true;
       api('/vote', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          suggestionIds: ids,
-        }),
+        body: JSON.stringify({ rankings: ranking.slice() }),
       })
         .then(function () {
+          hadBallot = true;
+          btn.textContent = T.btnUpdateVote;
           showMsg(box, T.voteThanks, true);
-          btn.textContent = T.btnVoted;
+          refreshParticipation();
         })
         .catch(function (err) {
           showMsg(box, err.message, false);
-          btn.disabled = false;
-        });
+        })
+        .finally(function () { btn.disabled = false; });
     });
 
     app.appendChild(form);
+
+    // Pre-fill from the member's existing ballot so it shows and stays editable.
+    syncAll();
+    api('/vote/mine')
+      .then(function (res) {
+        var prefilled = (res.rankings || [])
+          .map(Number)
+          .filter(function (id) { return suggestionsById[id]; });
+        if (prefilled.length) {
+          ranking = prefilled;
+          hadBallot = true;
+          btn.textContent = T.btnUpdateVote;
+          syncAll();
+        }
+      })
+      .catch(function () {});
   }
 
   function renderRevealed(data) {

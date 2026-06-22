@@ -2010,8 +2010,8 @@ img { display: block; max-width: 100%; height: auto; }
 }
 .suggestion-store-links a:hover { background: rgba(150,195,141,0.22); }
 
-/* Approval checkbox row (voting phase) */
-.vote-toggle {
+/* Ranking control row on each card (voting phase) */
+.vote-rank-row {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -2019,17 +2019,127 @@ img { display: block; max-width: 100%; height: auto; }
   padding-top: 14px;
   border-top: 1px solid rgba(150,195,141,0.12);
 }
-.vote-toggle input {
-  width: 18px;
-  height: 18px;
-  accent-color: var(--green);
+.vote-rank-position {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: var(--green);
+  color: var(--purple);
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 800;
+  font-size: 1rem;
+  line-height: 1;
+}
+.vote-rank-position[hidden] { display: none; }
+.vote-rank-toggle {
+  flex: 1;
+  min-height: 38px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(150,195,141,0.4);
+  background: rgba(150,195,141,0.12);
+  color: var(--cream);
+  font-weight: 700;
+  font-size: 0.9rem;
   cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.vote-rank-toggle:hover { background: rgba(150,195,141,0.22); }
+.vote-rank-toggle.is-ranked {
+  background: transparent;
+  border-color: rgba(214,96,96,0.4);
+  color: #f1c7c7;
+}
+.vote-rank-toggle.is-ranked:hover { background: rgba(214,96,96,0.14); }
+
+/* "Your ranking" list inside the ballot panel */
+.vote-ranking-empty { margin-bottom: 16px; }
+.vote-ranking-empty[hidden] { display: none; }
+.vote-ranking-list {
+  list-style: none;
+  margin: 0 0 18px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.vote-ranking-list[hidden] { display: none; }
+.vote-ranking-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px 8px 8px;
+  border-radius: 10px;
+  background: rgba(247,244,238,0.055);
+  border: 1px solid rgba(150,195,141,0.2);
+}
+.vote-ranking-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: var(--green);
+  color: var(--purple);
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 800;
+  font-size: 1rem;
+  line-height: 1;
+}
+.vote-ranking-name {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  font-size: 0.92rem;
+  color: var(--cream);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.vote-ranking-controls {
+  display: flex;
+  gap: 6px;
   flex-shrink: 0;
 }
-.vote-toggle-label {
-  font-weight: 600;
-  font-size: 0.9rem;
-  color: rgba(247,244,238,0.85);
+.vote-ranking-move,
+.vote-ranking-remove {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  border: 1px solid rgba(150,195,141,0.3);
+  background: rgba(150,195,141,0.1);
+  color: var(--cream);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s, opacity 0.15s;
+}
+.vote-ranking-move:hover,
+.vote-ranking-remove:hover { background: rgba(150,195,141,0.22); }
+.vote-ranking-move:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.vote-ranking-remove {
+  border-color: rgba(214,96,96,0.35);
+  color: #f1c7c7;
+}
+.vote-ranking-remove:hover { background: rgba(214,96,96,0.16); }
+
+/* Turnout line during voting (participation count, not a tally) */
+.vote-participation {
+  margin: 0 0 20px;
+  font-size: 0.92rem;
+  color: rgba(247,244,238,0.7);
 }
 
 /* Results phase (vote bars) */
