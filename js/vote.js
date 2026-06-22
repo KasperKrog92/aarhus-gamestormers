@@ -127,6 +127,15 @@ var STRINGS = {
     by: 'Foreslået af',
     votes: 'stemmer',
     winnerTag: 'Vinder',
+    breakdownTitle: 'Sådan blev vinderen fundet',
+    breakdownIntro: 'Stemmerne blev talt med ranglisteafstemning (instant-runoff). I hver runde elimineres spillet med færrest stemmer, og dets stemmer flyttes til næste valg på sedlen, indtil ét spil har et flertal.',
+    rcvRound: 'Runde {n}',
+    rcvMajority: 'Flertal: {n} af {active}',
+    rcvExhaustedOne: '{n} udtømt stemmeseddel',
+    rcvExhaustedOther: '{n} udtømte stemmesedler',
+    rcvEliminated: 'Elimineret',
+    rcvWinnerRound: 'Nåede et flertal og vinder.',
+    rcvTransferred: '+{n} overført',
     playtime: '⏱ ~{h} t.',
     platformPrefix: 'Tilgængelig på ',
     platformAnd: ' og ',
@@ -261,6 +270,15 @@ var STRINGS = {
     by: 'Suggested by',
     votes: 'votes',
     winnerTag: 'Winner',
+    breakdownTitle: 'How the winner was decided',
+    breakdownIntro: "Votes were counted with ranked-choice (instant-runoff). Each round, the game with the fewest votes is eliminated and its votes move to each ballot's next choice, until one game holds a majority.",
+    rcvRound: 'Round {n}',
+    rcvMajority: 'Majority: {n} of {active}',
+    rcvExhaustedOne: '{n} exhausted ballot',
+    rcvExhaustedOther: '{n} exhausted ballots',
+    rcvEliminated: 'Eliminated',
+    rcvWinnerRound: 'Reached a majority and wins.',
+    rcvTransferred: '+{n} transferred',
     playtime: '⏱ ~{h} hrs.',
     platformPrefix: 'Available on ',
     platformAnd: ' and ',
@@ -1444,6 +1462,78 @@ var STRINGS = {
       .catch(function () {});
   }
 
+  // Round-by-round explanation of the instant-runoff count, rendered under the
+  // headline winner cards. Aggregate only (per-round counts, transfers, exhausted
+  // and majority numbers); never individual ballots. Returns null when there is
+  // no rcvResult (historical approval rounds and ballot-less rounds), so the
+  // legacy headline-card fallback in renderRevealed stands on its own.
+  function rcvBreakdown(rcvResult, suggestions) {
+    var rounds = (rcvResult && rcvResult.rounds) || [];
+    if (!rounds.length) return null;
+
+    var titleById = {};
+    suggestions.forEach(function (s) { titleById[Number(s.id)] = s.title; });
+    function titleFor(id) { return titleById[Number(id)] || ('#' + id); }
+
+    var roundEls = rounds.map(function (r) {
+      var active = r.activeBallots || 0;
+      var denom = active > 0 ? active : 1;
+      var transfers = r.transfersInto || {};
+
+      var meta = [T.rcvMajority.replace('{n}', r.majority).replace('{active}', active)];
+      if (r.exhausted) {
+        meta.push((r.exhausted === 1 ? T.rcvExhaustedOne : T.rcvExhaustedOther).replace('{n}', r.exhausted));
+      }
+
+      var candidateEls = r.counts.map(function (c) {
+        var isWinner = r.winnerId === c.id;
+        var isEliminated = r.eliminatedId === c.id;
+        var cls = 'vote-breakdown-candidate';
+        if (isWinner) cls += ' is-winner';
+        if (isEliminated) cls += ' is-eliminated';
+
+        var tags = [];
+        var transferred = transfers[c.id];
+        if (transferred) tags.push(el('span', { class: 'vote-breakdown-transfer', text: T.rcvTransferred.replace('{n}', transferred) }));
+        if (isWinner) tags.push(el('span', { class: 'vote-winner-tag', text: T.winnerTag }));
+        else if (isEliminated) tags.push(el('span', { class: 'vote-breakdown-elim-tag', text: T.rcvEliminated }));
+
+        // Bar fill and the majority marker share the active-ballot denominator so
+        // the marker sits at the line a candidate must cross to win that round.
+        var fill = el('div', { class: 'vote-bar-fill' });
+        var track = el('div', { class: 'vote-bar-track' }, [
+          el('div', { class: 'vote-breakdown-majority', style: 'left:' + (r.majority / denom * 100) + '%', 'aria-hidden': 'true' }),
+          fill,
+        ]);
+        setTimeout(function () { fill.style.width = (c.votes / denom * 100) + '%'; }, 30);
+
+        return el('li', { class: cls }, [
+          el('div', { class: 'vote-breakdown-candidate-head' }, [
+            el('span', { class: 'vote-breakdown-name', text: titleFor(c.id) }),
+            tags.length ? el('span', { class: 'vote-breakdown-tags' }, tags) : null,
+            el('span', { class: 'vote-count', text: c.votes + ' ' + T.votes }),
+          ]),
+          track,
+        ]);
+      });
+
+      return el('li', { class: 'vote-breakdown-round' + (r.winnerId != null ? ' is-final' : '') }, [
+        el('div', { class: 'vote-breakdown-round-head' }, [
+          el('span', { class: 'vote-breakdown-round-num', text: T.rcvRound.replace('{n}', r.round) }),
+          el('span', { class: 'vote-breakdown-meta', text: meta.join(' · ') }),
+        ]),
+        el('ul', { class: 'vote-breakdown-candidates' }, candidateEls),
+        r.winnerId != null ? el('p', { class: 'vote-breakdown-winner-note', text: T.rcvWinnerRound }) : null,
+      ]);
+    });
+
+    return el('section', { class: 'vote-breakdown' }, [
+      el('h2', { class: 'vote-breakdown-title', text: T.breakdownTitle }),
+      el('p', { class: 'vote-hint vote-breakdown-intro', text: T.breakdownIntro }),
+      el('ol', { class: 'vote-breakdown-rounds' }, roundEls),
+    ]);
+  }
+
   function renderRevealed(data) {
     clearApp();
     app.appendChild(roundHero(data.round, T.statusRevealed));
@@ -1470,6 +1560,9 @@ var STRINGS = {
 
     var sorted = data.suggestions.slice().sort(function (a, b) { return (b.votes || 0) - (a.votes || 0); });
     app.appendChild(grid(sorted.map(function (s) { return card(s, 'result', { maxVotes: maxVotes, winnerId: winnerId }); })));
+
+    var breakdown = rcvBreakdown(data.rcvResult, data.suggestions);
+    if (breakdown) app.appendChild(breakdown);
 
     var notice = nextRoundNotice(data.nextRound);
     if (notice) app.appendChild(notice);

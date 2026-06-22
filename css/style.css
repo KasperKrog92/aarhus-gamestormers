@@ -2184,6 +2184,132 @@ img { display: block; max-width: 100%; height: auto; }
   transition: width 0.5s ease;
 }
 
+/* ─── Reveal: round-by-round IRV breakdown ─────────────────────────────────── */
+.vote-breakdown {
+  margin-top: 40px;
+}
+.vote-breakdown-title {
+  margin: 0 0 8px;
+  color: var(--cream);
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 1.65rem;
+  font-weight: 800;
+  line-height: 1.1;
+}
+.vote-breakdown-intro {
+  margin: 0 0 20px;
+  max-width: 56ch;
+}
+.vote-breakdown-rounds {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.vote-breakdown-round {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(150,195,141,0.14);
+  border-radius: 14px;
+  padding: 16px 18px;
+}
+.vote-breakdown-round.is-final {
+  border-color: rgba(150,195,141,0.45);
+  background: rgba(150,195,141,0.08);
+}
+.vote-breakdown-round-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.vote-breakdown-round-num {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 800;
+  font-size: 1.15rem;
+  letter-spacing: 0.03em;
+  color: var(--cream);
+}
+.vote-breakdown-meta {
+  font-size: 0.85rem;
+  color: rgba(247,244,238,0.62);
+}
+.vote-breakdown-candidates {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.vote-breakdown-candidate.is-eliminated {
+  opacity: 0.62;
+}
+.vote-breakdown-candidate-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.vote-breakdown-name {
+  font-weight: 600;
+  color: var(--cream);
+}
+.vote-breakdown-candidate.is-winner .vote-breakdown-name {
+  color: var(--green);
+}
+.vote-breakdown-tags {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.vote-breakdown-candidate-head .vote-count {
+  margin-left: auto;
+}
+.vote-breakdown-transfer {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  color: var(--green);
+  background: rgba(150,195,141,0.16);
+  padding: 1px 7px;
+  border-radius: 999px;
+}
+.vote-breakdown-elim-tag {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(247,244,238,0.75);
+  background: rgba(255,255,255,0.1);
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+.vote-breakdown-candidate .vote-bar-track {
+  position: relative;
+}
+.vote-breakdown-majority {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 2px;
+  background: rgba(247,244,238,0.55);
+  transform: translateX(-1px);
+}
+.vote-breakdown-candidate.is-winner .vote-bar-fill {
+  background: var(--green);
+}
+.vote-breakdown-winner-note {
+  margin: 14px 0 0;
+  font-weight: 600;
+  color: var(--green);
+}
+
 /* ─── Admin curation page (vote-admin.html) ────────────────────────────────── */
 .gs-admin {
   background:
