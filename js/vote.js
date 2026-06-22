@@ -3,6 +3,9 @@
    Bilingual via STRINGS[lang]. */
 var STRINGS = {
   da: {
+    heroEyebrow: 'Videospilklub · Aarhus',
+    heroTitle: 'Stem på næste spil',
+    heroLead: 'Fællesskabet foreslår spil, vi stemmer sammen, og mødes derefter for at diskutere månedens valg.',
     loading: 'Indlæser…',
     statusNone: 'Ingen aktiv afstemning',
     statusUpcoming: 'Forslag åbner snart',
@@ -43,7 +46,11 @@ var STRINGS = {
     nextRoundMeeting: 'Næste møde',
     nextRoundSuggestionsOpen: 'Forslag åbner',
     countdownPrefix: 'Tid til',
+    posterSuggestionsOpen: 'Forslag åbner om',
+    posterVotingOpens: 'Afstemning åbner om',
+    posterVotingCloses: 'Afstemningen lukker om',
     countdownNow: 'I dag',
+    countdownDay: 'Dag',
     countdownDays: 'Dage',
     countdownHours: 'Timer',
     countdownMinutes: 'Minutter',
@@ -147,6 +154,9 @@ var STRINGS = {
     errStoreUrl: 'Butikslinket skal være en gyldig http(s)-adresse.',
   },
   en: {
+    heroEyebrow: 'Video game club · Aarhus',
+    heroTitle: 'Vote for the next game',
+    heroLead: 'The community suggests games, we vote together, then meet to discuss this month’s choice.',
     loading: 'Loading…',
     statusNone: 'No active vote',
     statusUpcoming: 'Suggestions open soon',
@@ -187,7 +197,11 @@ var STRINGS = {
     nextRoundMeeting: 'Next meeting',
     nextRoundSuggestionsOpen: 'Suggestions open',
     countdownPrefix: 'Time until',
+    posterSuggestionsOpen: 'Suggestions open in',
+    posterVotingOpens: 'Voting opens in',
+    posterVotingCloses: 'Voting closes in',
     countdownNow: 'Today',
+    countdownDay: 'Day',
     countdownDays: 'Days',
     countdownHours: 'Hours',
     countdownMinutes: 'Minutes',
@@ -295,7 +309,6 @@ var STRINGS = {
 (function () {
   var app = document.getElementById('vote-app');
   if (!app) return;
-  var flowSlot = document.getElementById('vote-flow-slot');
 
   var lang = document.documentElement.lang === 'en' ? 'en' : 'da';
   var T = STRINGS[lang];
@@ -788,16 +801,17 @@ var STRINGS = {
     var target = parseDateOnly(dateString);
     if (!target) return null;
     var valueNodes = {
-      days: el('strong', { text: '0' }),
+      days: el('strong', { class: 'vote-countdown-days', text: '0' }),
       hours: el('strong', { text: '0' }),
       minutes: el('strong', { text: '0' }),
       seconds: el('strong', { text: '0' }),
     };
+    var dayLabel = el('small', { text: T.countdownDays });
     var note = el('span', { class: 'vote-countdown-note', text: formatDate(dateString) });
     var node = el('div', { class: 'vote-countdown' }, [
       el('span', { class: 'vote-countdown-label', text: T.countdownPrefix + ' ' + label.toLowerCase() }),
       el('div', { class: 'vote-countdown-grid' }, [
-        el('span', null, [valueNodes.days, el('small', { text: T.countdownDays })]),
+        el('span', null, [valueNodes.days, dayLabel]),
         el('span', null, [valueNodes.hours, el('small', { text: T.countdownHours })]),
         el('span', null, [valueNodes.minutes, el('small', { text: T.countdownMinutes })]),
         el('span', null, [valueNodes.seconds, el('small', { text: T.countdownSeconds })]),
@@ -812,7 +826,8 @@ var STRINGS = {
       var hours = Math.floor((totalSeconds % 86400) / 3600);
       var minutes = Math.floor((totalSeconds % 3600) / 60);
       var seconds = totalSeconds % 60;
-      valueNodes.days.textContent = String(days).padStart(2, '0');
+      valueNodes.days.textContent = String(days);
+      dayLabel.textContent = days === 1 ? T.countdownDay : T.countdownDays;
       valueNodes.hours.textContent = String(hours).padStart(2, '0');
       valueNodes.minutes.textContent = String(minutes).padStart(2, '0');
       valueNodes.seconds.textContent = String(seconds).padStart(2, '0');
@@ -846,21 +861,61 @@ var STRINGS = {
     ]);
   }
 
-  function roundHero(round, statusText) {
+  function posterCountdownLabel(round) {
+    if (round.phase === 'suggesting') {
+      return round.suggestionsAreOpen === false ? T.posterSuggestionsOpen : T.posterVotingOpens;
+    }
+    if (round.phase === 'voting' && round.votingHasStarted === false) return T.posterVotingOpens;
+    if (round.phase === 'voting') return T.posterVotingCloses;
+    return '';
+  }
+
+  function roundHero(round) {
     var nextDate = nextDateDetail(round);
-    return el('div', { class: 'vote-round-hero' }, [
-      el('div', { class: 'vote-round-kicker' }, [
-        status(statusText),
+    return el('aside', { class: 'vote-round-hero' }, [
+      el('span', { class: 'vote-poster-meeting-number', text: roundNumberText(round) }),
+      el('div', { class: 'vote-poster-countdown' }, [
+        nextDate ? el('span', { class: 'vote-poster-countdown-label', text: posterCountdownLabel(round) }) : null,
+        nextDate || dateCard(T.scheduleMeetingDate, round.meetingDate),
       ]),
-      el('div', { class: 'vote-round-main' }, [
-        meetingBadge(round),
-        el('div', { class: 'vote-round-dates' }, [
-          dateCard(T.scheduleMeetingDate, round.meetingDate),
-          nextDate,
+    ]);
+  }
+
+  // The page is deliberately split into a gathering header, a shared timeline,
+  // and a dark proposal board. Phase renderers only supply the content for the
+  // board, so the voting data and interaction logic remain unchanged.
+  function roundLayout(round, statusText, intro) {
+    clearApp();
+    var heroActions = el('div', { class: 'vote-hero-actions' });
+    var participation = el('div', { class: 'vote-hero-participation' });
+    var root = el('div', { class: 'vote-page-shell' }, [
+      el('section', { class: 'vote-ritual-hero' }, [
+        el('div', { class: 'wrap vote-ritual-inner' }, [
+          el('div', { class: 'vote-hero-copy' }, [
+            el('p', { class: 'vote-eyebrow', text: T.heroEyebrow }),
+            el('h1', { class: 'vote-page-title', text: T.heroTitle }),
+            el('p', { class: 'vote-hero-lead', text: T.heroLead }),
+            heroActions,
+            participation,
+          ]),
+          roundHero(round),
         ]),
       ]),
-      phaseTimeline(round),
+      el('section', { class: 'vote-timeline-section' }, [
+        el('div', { class: 'wrap' }, [phaseTimeline(round)]),
+      ]),
+      el('section', { class: 'vote-content-section' }, [
+        el('div', { class: 'wrap vote-content-wrap' }, [
+          el('p', { class: 'vote-intro vote-content-intro', text: intro }),
+        ]),
+      ]),
     ]);
+    app.appendChild(root);
+    return {
+      heroActions: heroActions,
+      participation: participation,
+      content: root.querySelector('.vote-content-wrap'),
+    };
   }
 
   // A small box pointing to the next round once this one is decided. Reuses the
@@ -1011,12 +1066,6 @@ var STRINGS = {
     ]);
   }
 
-  function mountMeetingFlow() {
-    if (!flowSlot) return;
-    clear(flowSlot);
-    flowSlot.appendChild(meetingFlow());
-  }
-
   function suggestionGuidelines() {
     var eventsHref = lang === 'en' ? '/en/#events' : '/#events';
     var historyHref = lang === 'en' ? '/en/#history' : '/#history';
@@ -1049,20 +1098,25 @@ var STRINGS = {
   // ── phase renderers ─────────────────────────────────────────────────────────
   function renderNone() {
     clearApp();
-    app.appendChild(el('div', { class: 'vote-round-hero vote-round-hero-empty' }, [
-      status(T.statusNone),
+    app.appendChild(el('section', { class: 'vote-empty-state' }, [
+      el('div', { class: 'wrap' }, [
+        el('p', { class: 'vote-eyebrow', text: T.heroEyebrow }),
+        el('h1', { class: 'vote-page-title', text: T.heroTitle }),
+        el('p', { class: 'vote-empty-copy', text: T.introNone }),
+      ]),
     ]));
-    app.appendChild(el('p', { class: 'vote-intro', text: T.introNone }));
   }
 
   function renderSuggesting(data) {
     var suggestionsOpen = data.round.suggestionsAreOpen !== false;
-    clearApp();
-    app.appendChild(roundHero(data.round, suggestionsOpen ? T.statusSuggesting : T.statusUpcoming));
+    var layout = roundLayout(data.round, suggestionsOpen ? T.statusSuggesting : T.statusUpcoming, suggestionsOpen ? T.introSuggesting : T.introUpcoming);
+    var content = layout.content;
     if (!suggestionsOpen) {
       if (session && session.authenticated) {
-        app.appendChild(authPanel('suggest'));
-        app.appendChild(ownerVisibilitySlot());
+        layout.heroActions.appendChild(authPanel('suggest'));
+        content.appendChild(ownerVisibilitySlot());
+      } else {
+        layout.heroActions.appendChild(authPanel('suggest'));
       }
       return;
     }
@@ -1081,8 +1135,8 @@ var STRINGS = {
       });
 
       if (!suggestionListMounted && suggestionItems.length) {
-        app.appendChild(suggestionHeading);
-        app.appendChild(suggestionGrid);
+        content.appendChild(suggestionHeading);
+        content.appendChild(suggestionGrid);
         suggestionListMounted = true;
       }
     }
@@ -1094,8 +1148,8 @@ var STRINGS = {
       renderSuggestionList();
     }
 
-    app.appendChild(authPanel('suggest'));
-    if (session && session.authenticated) app.appendChild(ownerVisibilitySlot());
+    layout.heroActions.appendChild(authPanel('suggest'));
+    if (session && session.authenticated) content.appendChild(ownerVisibilitySlot());
     if (!canParticipate()) {
       renderSuggestionList();
       return;
@@ -1248,7 +1302,7 @@ var STRINGS = {
       panel.appendChild(form);
     }
 
-    app.appendChild(el('div', { class: 'vote-disclosure-wrap' }, [disclosureBtn, panel]));
+    content.appendChild(el('div', { class: 'vote-disclosure-wrap' }, [disclosureBtn, panel]));
 
     // Already-approved suggestions appear below the form (read-only).
     renderSuggestionList();
@@ -1265,14 +1319,15 @@ var STRINGS = {
   function renderVoting(data) {
     var votingOpen = data.round.votingIsOpen !== false;
     var votingHasStarted = data.round.votingHasStarted !== false;
-    clearApp();
-    app.appendChild(roundHero(data.round, votingOpen ? T.statusVoting : (votingHasStarted ? T.statusVotingClosed : T.statusVotingUpcoming)));
-    app.appendChild(el('p', { class: 'vote-intro', html: votingOpen ? T.introVoting : (votingHasStarted ? T.introVotingClosed : T.introVotingUpcoming) }));
+    var stateText = votingOpen ? T.statusVoting : (votingHasStarted ? T.statusVotingClosed : T.statusVotingUpcoming);
+    var introText = votingOpen ? T.introVoting : (votingHasStarted ? T.introVotingClosed : T.introVotingUpcoming);
+    var layout = roundLayout(data.round, stateText, introText);
+    var content = layout.content;
 
     var participationNode = null;
     if (votingOpen) {
       participationNode = el('p', { class: 'vote-participation', text: participationText(data.round.ballotCount) });
-      app.appendChild(participationNode);
+      layout.participation.appendChild(participationNode);
     }
     function refreshParticipation() {
       if (!participationNode) return;
@@ -1287,29 +1342,29 @@ var STRINGS = {
 
     var authMounted = false;
     if (session && session.authenticated) {
-      app.appendChild(authPanel('vote'));
-      app.appendChild(ownerVisibilitySlot());
+      layout.heroActions.appendChild(authPanel('vote'));
+      content.appendChild(ownerVisibilitySlot());
       authMounted = true;
     }
     if (!votingHasStarted) return;
     if (!votingOpen) {
       var closedNotice = nextRoundNotice(data.nextRound);
-      if (closedNotice) app.appendChild(closedNotice);
+      if (closedNotice) content.appendChild(closedNotice);
       return;
     }
 
     if (!data.suggestions.length) {
-      app.appendChild(el('p', { class: 'vote-empty', text: T.noGames }));
+      content.appendChild(el('p', { class: 'vote-empty', text: T.noGames }));
       return;
     }
 
     if (!canParticipate()) {
-      if (!authMounted) app.appendChild(authPanel('vote'));
-      app.appendChild(grid(data.suggestions.map(function (s) { return card(s, 'list'); })));
+      if (!authMounted) layout.heroActions.appendChild(authPanel('vote'));
+      content.appendChild(grid(data.suggestions.map(function (s) { return card(s, 'list'); })));
       return;
     }
 
-    if (!authMounted) app.appendChild(authPanel('vote'));
+    if (!authMounted) layout.heroActions.appendChild(authPanel('vote'));
 
     // ── ranking state ────────────────────────────────────────────────────────
     var suggestionsById = {};
@@ -1322,7 +1377,7 @@ var STRINGS = {
     cards.forEach(function (node) {
       cardsById[Number(node.getAttribute('data-suggestion-card-id'))] = node;
     });
-    app.appendChild(grid(cards));
+    content.appendChild(grid(cards));
 
     function toggleRank(id) {
       var i = ranking.indexOf(id);
@@ -1445,7 +1500,7 @@ var STRINGS = {
         .finally(function () { btn.disabled = false; });
     });
 
-    app.appendChild(form);
+    content.appendChild(form);
 
     // Pre-fill from the member's existing ballot so it shows and stays editable.
     syncAll();
@@ -1537,18 +1592,17 @@ var STRINGS = {
   }
 
   function renderRevealed(data) {
-    clearApp();
-    app.appendChild(roundHero(data.round, T.statusRevealed));
-    app.appendChild(el('p', { class: 'vote-intro', text: T.introRevealed }));
+    var layout = roundLayout(data.round, T.statusRevealed, T.introRevealed);
+    var content = layout.content;
 
     if (!data.suggestions.length) {
       if (session && session.authenticated) {
-        app.appendChild(authPanel('vote'));
-        app.appendChild(ownerVisibilitySlot());
+        layout.heroActions.appendChild(authPanel('vote'));
+        content.appendChild(ownerVisibilitySlot());
       }
-      app.appendChild(el('p', { class: 'vote-empty', text: T.noGames }));
+      content.appendChild(el('p', { class: 'vote-empty', text: T.noGames }));
       var emptyNotice = nextRoundNotice(data.nextRound);
-      if (emptyNotice) app.appendChild(emptyNotice);
+      if (emptyNotice) content.appendChild(emptyNotice);
       return;
     }
 
@@ -1567,7 +1621,7 @@ var STRINGS = {
       if (data.suggestions[i].id === winnerId) { winner = data.suggestions[i]; break; }
     }
     if (winner) {
-      app.appendChild(el('div', { class: 'vote-winner-reveal' }, [
+      content.appendChild(el('div', { class: 'vote-winner-reveal' }, [
         el('p', { class: 'vote-winner-reveal-label', text: T.winnerReveal }),
         card(winner, 'result', { maxVotes: maxVotes, winnerId: winnerId }),
       ]));
@@ -1575,20 +1629,20 @@ var STRINGS = {
       // No single winner (e.g. an unresolved tie): fall back to the full slate so
       // the result still reads clearly.
       var sorted = data.suggestions.slice().sort(function (a, b) { return (b.votes || 0) - (a.votes || 0); });
-      app.appendChild(grid(sorted.map(function (s) { return card(s, 'result', { maxVotes: maxVotes, winnerId: winnerId }); })));
+      content.appendChild(grid(sorted.map(function (s) { return card(s, 'result', { maxVotes: maxVotes, winnerId: winnerId }); })));
     }
 
     var breakdown = rcvBreakdown(data.rcvResult, data.suggestions);
-    if (breakdown) app.appendChild(breakdown);
+    if (breakdown) content.appendChild(breakdown);
 
     // Account controls sit below the result so the winner and breakdown lead.
     if (session && session.authenticated) {
-      app.appendChild(authPanel('vote'));
-      app.appendChild(ownerVisibilitySlot());
+      layout.heroActions.appendChild(authPanel('vote'));
+      content.appendChild(ownerVisibilitySlot());
     }
 
     var notice = nextRoundNotice(data.nextRound);
-    if (notice) app.appendChild(notice);
+    if (notice) content.appendChild(notice);
   }
 
   function field(label, control, hint) {
@@ -1631,7 +1685,6 @@ var STRINGS = {
   }
 
   function load() {
-    mountMeetingFlow();
     app.appendChild(el('p', { class: 'vote-intro', text: T.loading }));
     fetchState().catch(function (err) {
       clearApp();

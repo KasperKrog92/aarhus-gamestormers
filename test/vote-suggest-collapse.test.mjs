@@ -16,7 +16,8 @@ test('suggestion form is a closed disclosure tied to the current meeting', async
   assert.match(source, /function nextDateDetail/);
   assert.match(source, /vote-meeting/);
   assert.match(source, /vote-meeting-number/);
-  assert.match(source, /vote-round-dates/);
+  assert.match(source, /vote-ritual-hero/);
+  assert.match(source, /vote-timeline-section/);
   assert.match(source, /vote-disclosure/);
   assert.match(source, /'aria-expanded': 'false'/);
   assert.match(source, /panel\.hidden = true/);
@@ -31,18 +32,18 @@ test('suggestion form is a closed disclosure tied to the current meeting', async
   assert.match(source, /added to the suggestions/);
   assert.match(source, /meetingBadge[\s\S]*vote-meeting-number/);
   assert.doesNotMatch(source, /meetingFor/);
-  assert.match(source, /roundHero[\s\S]*meetingBadge\(round\)/);
-  assert.match(source, /renderVoting[\s\S]*roundHero\(data\.round/);
+  assert.match(source, /roundLayout[\s\S]*roundHero\(round\)/);
+  assert.match(source, /renderVoting[\s\S]*roundLayout\(data\.round/);
   assert.match(source, /api\('\/auth\/session'\)/);
   assert.match(source, /renderVoting[\s\S]*authPanel\('vote'\)/);
   assert.doesNotMatch(source, /turnstile/i);
   assert.doesNotMatch(source, /stormCode/);
   assert.doesNotMatch(source, /ballotId: storedVote/);
-  assert.match(source, /renderRevealed[\s\S]*roundHero\(data\.round/);
+  assert.match(source, /renderRevealed[\s\S]*roundLayout\(data\.round/);
 
   assert.match(css, /\.vote-round-hero/);
-  assert.match(css, /\.vote-round-main/);
-  assert.match(css, /\.vote-round-dates/);
+  assert.match(css, /\.vote-ritual-hero/);
+  assert.match(css, /\.vote-timeline-section/);
   assert.match(css, /\.vote-date-card/);
   assert.match(css, /\.vote-meeting/);
   assert.match(css, /\.vote-meeting-number/);
