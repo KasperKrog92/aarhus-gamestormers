@@ -258,7 +258,6 @@
     var suggestions = data.suggestions || [];
     var ballots = data.ballots || [];
     var pending = suggestions.filter(function (s) { return s.status === 'pending'; }).length;
-    var totalApprovals = ballots.reduce(function (n, b) { return n + b.rankings.length; }, 0);
 
     $('round-section-count').textContent = data.round
       ? data.round.phase + (data.round.meeting_date ? ' · ' + data.round.meeting_date : '')
@@ -267,7 +266,7 @@
       ? data.selectedGame.title
       : 'Not selected';
     $('suggestions-section-count').textContent = plural(suggestions.length, 'suggestion') + (pending ? ' · ' + pending + ' pending' : '');
-    $('votes-section-count').textContent = plural(ballots.length, 'ballot') + ' · ' + plural(totalApprovals, 'approval');
+    $('votes-section-count').textContent = plural(ballots.length, 'ballot');
   }
 
   function connect() {
@@ -328,7 +327,7 @@
     renderRound(data.round, data.tallies || {}, data.meeting || null);
     renderSelectedGame(data);
     renderSuggestions(data.suggestions || [], data.tallies || {});
-    renderBallots(data.ballots || [], data.suggestions || []);
+    renderBallots(data.ballots || [], data.suggestions || [], data.rcvResult || null);
   }
 
   function loadRound(id) {
@@ -795,34 +794,97 @@
     ]);
   }
 
-  // ── votes / ballots (who voted for what; remove a ballot) ──────────────────
-  function renderBallots(ballots, suggestions) {
+  // ── votes / ballots (aggregate ranked-choice results; remove a ballot) ─────
+  // Aggregate only: first-preference counts plus a round-by-round instant-runoff
+  // summary computed server-side (rcvResult). Individual ranked ballots are never
+  // surfaced here; only the count and the ballot_id deletion key come from
+  // `ballots`. Mirrors the public reveal in js/vote.js so the two agree.
+  function titleFor(suggestions, id) {
+    var match = suggestions.filter(function (s) { return Number(s.id) === Number(id); })[0];
+    return match ? match.title : '#' + id;
+  }
+
+  function renderBallots(ballots, suggestions, rcvResult) {
     var wrap = $('ballots');
     wrap.innerHTML = '';
-    var counts = {};
-    suggestions.forEach(function (s) { counts[s.id] = 0; });
-    ballots.forEach(function (b) {
-      b.rankings.forEach(function (id) {
-        counts[id] = (counts[id] || 0) + 1;
-      });
-    });
 
-    var totalApprovals = ballots.reduce(function (n, b) { return n + b.rankings.length; }, 0);
-    wrap.appendChild(h('p', { class: 'admin-meta', text: ballots.length + ' ballots · ' + totalApprovals + ' total approvals' }));
-    wrap.appendChild(h('p', { class: 'admin-meta', text: 'Individual ballots are stored for vote integrity but are not shown in the default admin UI.' }));
+    wrap.appendChild(h('p', { class: 'admin-meta', text: plural(ballots.length, 'ballot') + ' submitted.' }));
+    wrap.appendChild(h('p', { class: 'admin-meta', text: 'Individual ballots are stored for vote integrity but are not shown in the default admin UI. Ranked-choice results are aggregate only.' }));
 
     if (!ballots.length) {
       wrap.appendChild(h('div', { class: 'admin-card' }, [h('p', { class: 'admin-meta', text: 'No votes yet.' })]));
       return;
     }
 
-    suggestions.slice().sort(function (a, b) {
-      return (counts[b.id] || 0) - (counts[a.id] || 0) || a.title.localeCompare(b.title);
-    }).forEach(function (s) {
-      wrap.appendChild(h('div', { class: 'admin-card' }, [
-        h('p', { class: 'admin-meta', style: 'margin:0', text: s.title + ': ' + (counts[s.id] || 0) + ' approvals' }),
+    // Final-tie blocked state: the count cannot pick a winner on its own. Prompt
+    // the maintainer to break it in the Selected game section (existing flow).
+    if (rcvResult && rcvResult.blocked && rcvResult.blocked.reason === 'tie') {
+      var tied = (rcvResult.blocked.tied || []).map(function (t) {
+        return titleFor(suggestions, t.id) + ' (' + plural(t.votes, 'vote') + ')';
+      }).join(', ');
+      wrap.appendChild(h('div', { class: 'admin-msg err' }, [
+        h('strong', { text: 'Tie: no automatic winner. ' }),
+        'These games are tied on the final round: ' + tied + '. Break it by choosing the winner in the Selected game section.',
       ]));
+    }
+
+    // First-preference counts (each ballot's top choice). These are the round-1
+    // totals; renderSuggestions shows the same per-suggestion number inline. Only
+    // approved suggestions are candidates, so the list matches the IRV count below.
+    var candidates = suggestions.filter(function (s) { return s.status === 'approved'; });
+    var firstPref = {};
+    candidates.forEach(function (s) { firstPref[s.id] = 0; });
+    ballots.forEach(function (b) {
+      var top = b.rankings && b.rankings.length ? b.rankings[0] : null;
+      if (top != null && firstPref[top] != null) firstPref[top] += 1;
     });
+
+    var fpCard = h('div', { class: 'admin-card' }, [
+      h('h3', { style: 'margin:0 0 0.5rem', text: 'First-preference counts' }),
+    ]);
+    candidates.slice().sort(function (a, b) {
+      return (firstPref[b.id] || 0) - (firstPref[a.id] || 0) || a.title.localeCompare(b.title);
+    }).forEach(function (s) {
+      fpCard.appendChild(h('p', { class: 'admin-meta', style: 'margin:0', text: s.title + ': ' + plural(firstPref[s.id] || 0, 'first-choice vote') }));
+    });
+    wrap.appendChild(fpCard);
+
+    // Round-by-round IRV summary from rcvResult. Falls back to nothing extra for
+    // historical approval rounds (rcvResult null), where the first-preference
+    // list above already reflects the single-row-per-vote legacy data.
+    if (!rcvResult || !rcvResult.rounds || !rcvResult.rounds.length) return;
+
+    var irv = h('div', { class: 'admin-card' }, [
+      h('h3', { style: 'margin:0 0 0.25rem', text: 'Ranked-choice count' }),
+      h('p', { class: 'admin-meta', style: 'margin:0 0 0.75rem', text: 'Instant-runoff, round by round. Each round eliminates the lowest game and transfers its ballots to the next still-standing choice; a game wins once it passes the majority line.' }),
+    ]);
+
+    if (rcvResult.winnerId != null) {
+      irv.appendChild(h('p', { class: 'admin-meta', style: 'margin:0 0 0.75rem' }, [
+        h('strong', { text: 'Winner: ' + titleFor(suggestions, rcvResult.winnerId) }),
+      ]));
+    }
+
+    rcvResult.rounds.forEach(function (r) {
+      var metaParts = ['Majority ' + r.majority + ' of ' + r.activeBallots + ' active'];
+      if (r.exhausted) metaParts.push(plural(r.exhausted, 'exhausted ballot'));
+      var roundBox = h('div', { style: 'margin:0 0 0.75rem' }, [
+        h('p', { class: 'admin-meta', style: 'margin:0;font-weight:600', text: 'Round ' + r.round + ' · ' + metaParts.join(' · ') }),
+      ]);
+      var transfers = r.transfersInto || {};
+      (r.counts || []).forEach(function (c) {
+        var line = titleFor(suggestions, c.id) + ': ' + plural(c.votes, 'vote');
+        var tags = [];
+        if (transfers[c.id]) tags.push('+' + transfers[c.id] + ' transferred');
+        if (r.winnerId === c.id) tags.push('winner, reached majority');
+        else if (r.eliminatedId === c.id) tags.push('eliminated');
+        if (tags.length) line += ' (' + tags.join(', ') + ')';
+        roundBox.appendChild(h('p', { class: 'admin-meta', style: 'margin:0', text: line }));
+      });
+      irv.appendChild(roundBox);
+    });
+
+    wrap.appendChild(irv);
   }
 
   // open new round

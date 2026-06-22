@@ -1,5 +1,5 @@
 -- ============================================================================
--- Aarhus Gamestormers — game suggestion & approval-voting system
+-- Aarhus Gamestormers — game suggestion & ranked-choice voting system
 -- Cloudflare D1 (SQLite) schema. Apply with:
 --   wrangler d1 execute gamestormers --file=./schema.sql            (local)
 --   wrangler d1 execute gamestormers --remote --file=./schema.sql   (production)
