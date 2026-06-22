@@ -18,9 +18,11 @@ test('suggestion form is a closed disclosure tied to the current meeting', async
   assert.match(source, /vote-meeting-number/);
   assert.match(source, /vote-ritual-hero/);
   assert.match(source, /vote-timeline-section/);
-  assert.match(source, /vote-disclosure/);
-  assert.match(source, /'aria-expanded': 'false'/);
-  assert.match(source, /panel\.hidden = true/);
+  assert.match(source, /el\('details', \{ class: 'vote-board-disclosure' \}/);
+  assert.match(source, /vote-board-disclosure-chevron/);
+  assert.match(source, /'data-path': 'steam'/);
+  assert.match(source, /'aria-pressed': 'true'/);
+  assert.doesNotMatch(source, /class: 'vote-board-disclosure', open:/);
   assert.match(source, /function renderSuggestionList/);
   assert.match(source, /function addApprovedSuggestion/);
   assert.match(source, /if \(!res\.pending\) addApprovedSuggestion\(res\.game\)/);
@@ -47,7 +49,7 @@ test('suggestion form is a closed disclosure tied to the current meeting', async
   assert.match(css, /\.vote-date-card/);
   assert.match(css, /\.vote-meeting/);
   assert.match(css, /\.vote-meeting-number/);
-  assert.match(css, /\.vote-disclosure/);
-  assert.match(css, /\.vote-disclosure-chevron/);
+  assert.match(css, /\.vote-board-disclosure/);
+  assert.match(css, /\.vote-board-disclosure-chevron/);
   assert.match(css, /\.vote-auth/);
 });

@@ -69,6 +69,10 @@ var STRINGS = {
     flowMeetingTitle: 'Spil og diskutér',
     flowMeetingText: 'Vi spiller hjemmefra og mødes til en fælles samtale i klubben.',
     formTitle: 'Foreslå et spil',
+    pathSteam: 'På Steam',
+    pathManual: 'Ikke på Steam',
+    chipPc: 'Spilbart på PC',
+    chipLength: '~10t eller mindre',
     suggestToggle: 'Foreslå nyt spil',
     hideSuggest: 'Skjul formular',
     guidelinesTitle: 'Hvilke spil passer godt?',
@@ -125,6 +129,7 @@ var STRINGS = {
     rankingTitle: 'Din rangering',
     rankingHint: 'Tilføj spil i din foretrukne rækkefølge. Spil, du ikke tilføjer, er ikke på din stemmeseddel. En lavere placering tæller kun, hvis dine højere valg bliver elimineret undervejs.',
     rankingEmpty: 'Du har ikke tilføjet nogen spil endnu. Vælg de spil, du gerne vil rangere.',
+    ballotIrvNote: 'Vinderen findes med ranglisteafstemning (instant-runoff).',
     addToRanking: 'Tilføj til min rangering',
     removeFromRanking: 'Fjern',
     moveUp: 'Flyt op',
@@ -135,6 +140,7 @@ var STRINGS = {
     by: 'Foreslået af',
     votes: 'stemmer',
     winnerTag: 'Vinder',
+    winnerTallySuffix: 'stemmer i sidste runde',
     breakdownTitle: 'Sådan blev vinderen fundet',
     breakdownIntro: 'Stemmerne blev talt med ranglisteafstemning (instant-runoff). I hver runde elimineres spillet med færrest stemmer, og dets stemmer flyttes til næste valg på sedlen, indtil ét spil har et flertal.',
     rcvRound: 'Runde {n}',
@@ -220,6 +226,10 @@ var STRINGS = {
     flowMeetingTitle: 'Play and discuss',
     flowMeetingText: 'We play at home and meet for a shared club conversation.',
     formTitle: 'Suggest a game',
+    pathSteam: 'On Steam',
+    pathManual: 'Not on Steam',
+    chipPc: 'Playable on PC',
+    chipLength: '~10 hrs or less',
     suggestToggle: 'Suggest new game',
     hideSuggest: 'Hide form',
     guidelinesTitle: 'What kind of game works well?',
@@ -276,6 +286,7 @@ var STRINGS = {
     rankingTitle: 'Your ranking',
     rankingHint: "Add games in your order of preference. Games you don't add are not on your ballot. A lower rank only matters if your higher choices are eliminated along the way.",
     rankingEmpty: "You haven't added any games yet. Pick the games you want to rank.",
+    ballotIrvNote: 'The winner is decided by ranked-choice voting (instant-runoff).',
     addToRanking: 'Add to my ranking',
     removeFromRanking: 'Remove',
     moveUp: 'Move up',
@@ -286,6 +297,7 @@ var STRINGS = {
     by: 'Suggested by',
     votes: 'votes',
     winnerTag: 'Winner',
+    winnerTallySuffix: 'votes in the final round',
     breakdownTitle: 'How the winner was decided',
     breakdownIntro: "Votes were counted with ranked-choice (instant-runoff). Each round, the game with the fewest votes is eliminated and its votes move to each ballot's next choice, until one game holds a majority.",
     rcvRound: 'Round {n}',
@@ -562,11 +574,33 @@ var STRINGS = {
   }
 
   function renderOwnerPanelInto(slot) {
-    clear(slot);
+    var shell = slot.querySelector('.vote-board-disclosure');
+    if (!shell) {
+      var count = el('span', { class: 'vote-board-disclosure-count' });
+      var title = el('span', { class: 'vote-board-disclosure-heading' }, [
+        document.createTextNode(pitchEditable ? T.managePitchTitle : T.manageNamesTitle),
+        count,
+      ]);
+      var listHost = el('div', { class: 'vote-owner-list' });
+      shell = el('details', { class: 'vote-board-disclosure vote-owner-panel' }, [
+        el('summary', null, [
+          title,
+          el('span', { class: 'vote-board-disclosure-chevron', html: CHEVRON_GLYPH }),
+        ]),
+        el('div', { class: 'vote-board-disclosure-body' }, [
+          el('p', { class: 'vote-hint vote-board-disclosure-lead', text: pitchEditable ? T.managePitchHint : T.manageNamesHint }),
+          listHost,
+        ]),
+      ]);
+      slot.appendChild(shell);
+    }
     slot.hidden = !mySuggestions.length;
+    shell.hidden = !mySuggestions.length;
     if (!mySuggestions.length) return;
 
-    var list = el('div', { class: 'vote-owner-list' });
+    var list = shell.querySelector('.vote-owner-list');
+    clear(list);
+    shell.querySelector('.vote-board-disclosure-count').textContent = String(mySuggestions.length);
     mySuggestions.forEach(function (suggestion) {
       var checkbox = el('input', { type: 'checkbox' });
       checkbox.checked = !!suggestion.showName;
@@ -609,11 +643,6 @@ var STRINGS = {
       ]));
     });
 
-    slot.appendChild(el('aside', { class: 'vote-panel vote-owner-panel' }, [
-      el('h2', { class: 'vote-panel-title', text: pitchEditable ? T.managePitchTitle : T.manageNamesTitle }),
-      el('p', { class: 'vote-hint', text: pitchEditable ? T.managePitchHint : T.manageNamesHint }),
-      list,
-    ]));
   }
 
   function ownerVisibilitySlot() {
@@ -923,23 +952,22 @@ var STRINGS = {
   // is no next round or it has no usable dates yet.
   function nextRoundNotice(nextRound) {
     if (!nextRound) return null;
-    var countdown = countdownDetail(nextRound.suggestionsOpenAt, T.nextRoundSuggestionsOpen);
-    var rows = [
-      [T.nextRoundMeeting, roundLabel(nextRound)],
-      [T.scheduleMeetingDate, formatDate(nextRound.meetingDate)],
-      [T.nextRoundSuggestionsOpen, formatDate(nextRound.suggestionsOpenAt)],
-    ].filter(function (row) { return row[1]; });
-    if (rows.length < 2) return null; // need more than just the meeting label
-    return el('aside', { class: 'vote-guidelines vote-next-round' }, [
-      el('h2', { class: 'vote-guidelines-title', text: T.nextRoundHeading }),
-      el('p', { class: 'vote-intro', text: T.nextRoundIntro }),
-      countdown,
-      el('dl', { class: 'vote-schedule' }, rows.map(function (row) {
-        return el('div', { class: 'vote-schedule-item' }, [
-          el('dt', { text: row[0] }),
-          el('dd', { text: row[1] }),
-        ]);
-      })),
+    var meetingDate = formatDate(nextRound.meetingDate);
+    var openDate = formatDate(nextRound.suggestionsOpenAt);
+    if (!meetingDate && !openDate) return null;
+    var target = parseDateOnly(nextRound.suggestionsOpenAt);
+    var days = target ? Math.max(0, Math.ceil((target.getTime() - Date.now()) / 86400000)) : null;
+    var detail = [meetingDate, openDate ? T.nextRoundSuggestionsOpen + ': ' + openDate : ''].filter(Boolean).join(' · ');
+    return el('aside', { class: 'vote-next-round' }, [
+      el('div', null, [
+        el('span', { class: 'vote-next-round-eyebrow', text: T.nextRoundHeading }),
+        el('h3', { text: roundLabel(nextRound) }),
+        el('p', { text: detail || T.nextRoundIntro }),
+      ]),
+      days == null ? null : el('div', { class: 'vote-next-round-countdown' }, [
+        el('strong', { text: String(days) }),
+        el('span', { text: days === 1 ? T.countdownDay : T.countdownDays }),
+      ]),
     ]);
   }
 
@@ -949,33 +977,29 @@ var STRINGS = {
     var mine = findMySuggestion(s.id);
     var bylineName = s.suggestedBy || (mine && mine.suggestedBy) || '';
     var description = lang === 'en' ? (s.descriptionEn || s.descriptionDa) : (s.descriptionDa || s.descriptionEn);
-    var tags = [];
-    (s.genres || []).slice(0, 3).forEach(function (g) {
-      tags.push(el('span', { class: 'history-genre', text: g }));
-    });
-    if (s.playtimeHours) tags.push(el('span', { class: 'history-genre', text: playtimeText(s.playtimeHours) }));
-
-    // Title row: game title on the left, platform icons and store links on the
-    // right, sharing one line (the cards have no left-side badge like the event
-    // cards do, so the title fills that space).
-    var storeLinks = [];
+    var meta = (s.genres || []).slice(0, 3);
+    if (s.playtimeHours) meta.push(playtimeText(s.playtimeHours));
     var platforms = platformIcons(s.platforms);
-    if (platforms) storeLinks.push(platforms);
-    if (s.storeUrl) storeLinks.push(el('a', { href: s.storeUrl, target: '_blank', rel: 'noopener noreferrer', text: 'Steam' }));
-    if (s.gogUrl) storeLinks.push(el('a', { href: s.gogUrl, target: '_blank', rel: 'noopener noreferrer', text: 'GOG' }));
+
+    var coverStore = null;
+    if (s.storeUrl) coverStore = el('a', { class: 'suggestion-cover-store', href: s.storeUrl, target: '_blank', rel: 'noopener noreferrer', text: 'Steam' });
+    else if (s.gogUrl) coverStore = el('a', { class: 'suggestion-cover-store', href: s.gogUrl, target: '_blank', rel: 'noopener noreferrer', text: 'GOG' });
+    var cover = el('div', { class: 'suggestion-cover-art' + (s.image ? '' : ' is-placeholder'), role: 'img', 'aria-label': s.title }, [
+      el('h3', { text: s.title }),
+      coverStore,
+    ]);
+    if (s.image) cover.style.backgroundImage = 'url("' + String(s.image).replace(/["\\]/g, '\\$&') + '")';
 
     var body = [
-      el('div', { class: 'suggestion-head' }, [
-        el('h3', { class: 'suggestion-title', text: s.title }),
-        storeLinks.length ? el('div', { class: 'suggestion-store-links' }, storeLinks) : null,
-      ]),
-      tags.length ? el('div', { class: 'suggestion-tags' }, tags) : null,
+      meta.length || platforms ? el('div', { class: 'suggestion-meta' }, [
+        meta.length ? el('span', { text: meta.join(' · ') }) : null,
+        platforms,
+      ]) : null,
       description ? el('div', { class: 'suggestion-copy suggestion-copy-description' }, [
-        el('span', { class: 'suggestion-copy-label', text: T.gameDescription }),
         el('p', { class: 'suggestion-description', text: description }),
       ]) : null,
-      s.pitch ? el('div', { class: 'suggestion-copy suggestion-copy-pitch' }, [
-        el('span', { class: 'suggestion-copy-label', text: T.suggestedPitch }),
+      s.pitch ? el('div', { class: 'suggestion-pitch-block' }, [
+        el('span', { class: 'suggestion-pitch-label', text: T.suggestedPitch }),
         el('p', { class: 'suggestion-pitch', text: s.pitch }),
       ]) : null,
       bylineName ? el('p', {
@@ -1016,7 +1040,7 @@ var STRINGS = {
     }
 
     var node = el('article', { class: classes, 'data-suggestion-card-id': s.id }, [
-      el('img', { class: 'suggestion-cover', src: s.image, alt: s.title, loading: 'lazy', decoding: 'async' }),
+      cover,
       el('div', { class: 'suggestion-body' }, body),
     ]);
     return node;
@@ -1111,15 +1135,12 @@ var STRINGS = {
     var suggestionsOpen = data.round.suggestionsAreOpen !== false;
     var layout = roundLayout(data.round, suggestionsOpen ? T.statusSuggesting : T.statusUpcoming, suggestionsOpen ? T.introSuggesting : T.introUpcoming);
     var content = layout.content;
+    layout.heroActions.appendChild(authPanel('suggest'));
     if (!suggestionsOpen) {
-      if (session && session.authenticated) {
-        layout.heroActions.appendChild(authPanel('suggest'));
-        content.appendChild(ownerVisibilitySlot());
-      } else {
-        layout.heroActions.appendChild(authPanel('suggest'));
-      }
+      if (session && session.authenticated) content.appendChild(ownerVisibilitySlot());
       return;
     }
+
     var suggestionItems = data.suggestions.slice();
     var suggestionHeading = el('div', { class: 'vote-list-header' }, [
       el('h2', { class: 'vote-list-title', text: T.approvedSoFar }),
@@ -1127,78 +1148,31 @@ var STRINGS = {
     ]);
     var suggestionGrid = grid([]);
     var suggestionListMounted = false;
-
     function renderSuggestionList() {
       clear(suggestionGrid);
-      suggestionItems.forEach(function (s) {
-        suggestionGrid.appendChild(card(s, 'list'));
-      });
-
+      suggestionItems.forEach(function (s) { suggestionGrid.appendChild(card(s, 'list')); });
       if (!suggestionListMounted && suggestionItems.length) {
         content.appendChild(suggestionHeading);
         content.appendChild(suggestionGrid);
         suggestionListMounted = true;
       }
     }
-
     function addApprovedSuggestion(suggestion) {
       if (!suggestion || suggestion.id == null) return;
-      var exists = suggestionItems.some(function (s) { return s.id === suggestion.id; });
-      if (!exists) suggestionItems.push(suggestion);
+      if (!suggestionItems.some(function (s) { return s.id === suggestion.id; })) suggestionItems.push(suggestion);
       renderSuggestionList();
     }
-
-    layout.heroActions.appendChild(authPanel('suggest'));
-    if (session && session.authenticated) content.appendChild(ownerVisibilitySlot());
     if (!canParticipate()) {
+      if (session && session.authenticated) content.appendChild(ownerVisibilitySlot());
       renderSuggestionList();
       return;
     }
 
-    // The disclosure reveals a container that walks through: a Steam yes/no
-    // question → the matching form. Switching forms simply re-renders `panel`.
-    var panel = el('div');
-    panel.hidden = true;
-
-    var disclosureText = el('span', { text: T.suggestToggle });
-    var disclosureChevron = el('span', { class: 'vote-disclosure-chevron', text: 'v', 'aria-hidden': 'true' });
-    var disclosureBtn = el('button', { class: 'vote-disclosure', type: 'button', 'aria-expanded': 'false' }, [
-      disclosureText,
-      disclosureChevron,
-    ]);
-
-    disclosureBtn.addEventListener('click', function () {
-      var opening = panel.hidden;
-      panel.hidden = !opening;
-      disclosureBtn.setAttribute('aria-expanded', opening ? 'true' : 'false');
-      disclosureText.textContent = opening ? T.hideSuggest : T.suggestToggle;
-      if (opening) showChoice();
-      else clear(panel);
-    });
-
-    function backLink() {
-      return el('button', { class: 'vote-back', type: 'button', text: T.changeChoice, onclick: showChoice });
-    }
-
-    function showChoice() {
-      clear(panel);
-      var yesBtn = el('button', { class: 'btn-green', type: 'button', text: T.steamYes, onclick: showSteamForm });
-      var noBtn = el('button', { class: 'vote-choice-alt', type: 'button', text: T.steamNo, onclick: showManualForm });
-      panel.appendChild(suggestionGuidelines());
-      panel.appendChild(el('div', { class: 'vote-panel vote-choice' }, [
-        el('h2', { class: 'vote-panel-title', text: T.steamQuestion }),
-        el('div', { class: 'vote-choice-btns' }, [yesBtn, noBtn]),
-      ]));
-    }
-
-    // Shared submit: posts the payload, shows the right thanks message, resets.
     function wireSubmit(form, btn, box, buildBody, clearInputs, thanks, validate) {
       form.addEventListener('submit', function (e) {
         e.preventDefault();
-        if (validate) {
-          var problem = validate();
-          if (problem) return showMsg(box, problem, false);
-        }
+        var problem = validate && validate();
+        if (problem) return showMsg(box, problem, false);
         btn.disabled = true;
         api('/suggest', {
           method: 'POST',
@@ -1216,95 +1190,92 @@ var STRINGS = {
       });
     }
 
-    function showSteamForm() {
-      clear(panel);
-      var steam = el('input', { class: 'vote-input', type: 'url', inputmode: 'url', placeholder: 'https://store.steampowered.com/app/…' });
+    function steamForm() {
+      var steam = el('input', { class: 'vote-input', type: 'url', inputmode: 'url', placeholder: 'https://store.steampowered.com/app/...' });
       var pitch = el('textarea', { class: 'vote-textarea', placeholder: T.pitchPlaceholder, maxlength: '500' });
       var showName = el('input', { type: 'checkbox' });
       var box = msgBox();
-      var btn = el('button', { class: 'btn-green', type: 'submit', text: T.btnSuggest });
-
-      var form = el('form', { class: 'vote-panel', novalidate: '' }, [
-        el('div', { class: 'vote-panel-head' }, [el('h2', { class: 'vote-panel-title', text: T.formTitle }), backLink()]),
+      var btn = el('button', { class: 'btn-board-cta', type: 'submit', text: T.btnSuggest });
+      var form = el('form', { class: 'vote-suggest-form-body vote-form-steam', novalidate: '' }, [
         field(T.labelSteam, steam, T.hintSteam),
         field(T.labelPitch, pitch),
         nameVisibilityChoice(showName),
         el('div', { class: 'vote-actions' }, [btn]),
         box,
       ]);
-
-      wireSubmit(
-        form, btn, box,
-        function () {
-          return {
-            onSteam: true,
-            steamUrl: steam.value,
-            pitch: pitch.value,
-            showName: showName.checked,
-          };
-        },
-        function () { steam.value = pitch.value = ''; },
-        T.suggestThanks,
-        function () {
-          var url = steam.value.trim();
-          if (!url || !isHttpUrl(url)) return T.errSteamUrl;
-          return null;
-        }
-      );
-
-      panel.appendChild(form);
+      wireSubmit(form, btn, box, function () {
+        return { onSteam: true, steamUrl: steam.value, pitch: pitch.value, showName: showName.checked };
+      }, function () { steam.value = pitch.value = ''; }, T.suggestThanks, function () {
+        var url = steam.value.trim();
+        return (!url || !isHttpUrl(url)) ? T.errSteamUrl : null;
+      });
+      return form;
     }
 
-    function showManualForm() {
-      clear(panel);
+    function manualForm() {
       var title = el('input', { class: 'vote-input', type: 'text', placeholder: T.titlePlaceholder, maxlength: '200' });
       var store = el('input', { class: 'vote-input', type: 'url', inputmode: 'url', placeholder: T.storePlaceholder, maxlength: '400' });
       var genres = el('input', { class: 'vote-input', type: 'text', placeholder: T.genresPlaceholder, maxlength: '200' });
       var pitch = el('textarea', { class: 'vote-textarea', placeholder: T.pitchPlaceholder, maxlength: '500' });
       var showName = el('input', { type: 'checkbox' });
       var box = msgBox();
-      var btn = el('button', { class: 'btn-green', type: 'submit', text: T.btnSuggest });
-
-      var form = el('form', { class: 'vote-panel', novalidate: '' }, [
-        el('div', { class: 'vote-panel-head' }, [el('h2', { class: 'vote-panel-title', text: T.formTitle }), backLink()]),
+      var btn = el('button', { class: 'btn-board-cta', type: 'submit', text: T.btnSuggest });
+      var form = el('form', { class: 'vote-suggest-form-body vote-form-manual', novalidate: '' }, [
         el('p', { class: 'vote-hint', text: T.manualNote }),
         field(T.labelTitle, title),
-        field(T.labelStore, store),
-        field(T.labelGenres, genres),
+        el('div', { class: 'vote-manual-field-grid' }, [field(T.labelStore, store), field(T.labelGenres, genres)]),
         field(T.labelPitch, pitch),
         nameVisibilityChoice(showName),
         el('div', { class: 'vote-actions' }, [btn]),
         box,
       ]);
-
-      wireSubmit(
-        form, btn, box,
-        function () {
-          return {
-            onSteam: false,
-            title: title.value,
-            storeUrl: store.value,
-            genres: genres.value,
-            pitch: pitch.value,
-            showName: showName.checked,
-          };
-        },
-        function () { title.value = store.value = genres.value = pitch.value = ''; },
-        T.manualThanks,
-        function () {
-          if (!title.value.trim()) return T.errTitleRequired;
-          var url = store.value.trim();
-          if (url && !isHttpUrl(url)) return T.errStoreUrl;
-          return null;
-        }
-      );
-
-      panel.appendChild(form);
+      wireSubmit(form, btn, box, function () {
+        return { onSteam: false, title: title.value, storeUrl: store.value, genres: genres.value, pitch: pitch.value, showName: showName.checked };
+      }, function () { title.value = store.value = genres.value = pitch.value = ''; }, T.manualThanks, function () {
+        if (!title.value.trim()) return T.errTitleRequired;
+        var url = store.value.trim();
+        return url && !isHttpUrl(url) ? T.errStoreUrl : null;
+      });
+      return form;
     }
 
-    content.appendChild(el('div', { class: 'vote-disclosure-wrap' }, [disclosureBtn, panel]));
+    var pathContainer = el('div', { class: 'vote-path-content', 'data-path': 'steam' }, [steamForm(), manualForm()]);
+    var steamTab = el('button', { class: 'vote-path-tab active', type: 'button', 'aria-pressed': 'true', text: T.pathSteam });
+    var manualTab = el('button', { class: 'vote-path-tab', type: 'button', 'aria-pressed': 'false', text: T.pathManual });
+    function setPath(path) {
+      pathContainer.setAttribute('data-path', path);
+      steamTab.classList.toggle('active', path === 'steam');
+      manualTab.classList.toggle('active', path === 'manual');
+      steamTab.setAttribute('aria-pressed', path === 'steam' ? 'true' : 'false');
+      manualTab.setAttribute('aria-pressed', path === 'manual' ? 'true' : 'false');
+    }
+    steamTab.addEventListener('click', function () { setPath('steam'); });
+    manualTab.addEventListener('click', function () { setPath('manual'); });
 
-    // Already-approved suggestions appear below the form (read-only).
+    var eventsHref = lang === 'en' ? '/en/#events' : '/#events';
+    var historyHref = lang === 'en' ? '/en/#history' : '/#history';
+    content.appendChild(el('details', { class: 'vote-board-disclosure' }, [
+      el('summary', null, [
+        el('span', { class: 'vote-board-disclosure-heading', text: T.formTitle }),
+        el('span', { class: 'vote-board-disclosure-chevron', html: CHEVRON_GLYPH }),
+      ]),
+      el('div', { class: 'vote-board-disclosure-body' }, [
+        el('p', { class: 'vote-board-disclosure-lead', text: T.introSuggesting }),
+        el('div', { class: 'vote-suggest-chips' }, [
+          el('span', { class: 'vote-suggest-chip' }, [el('b', { text: 'PC' }), document.createTextNode(T.chipPc)]),
+          el('span', { class: 'vote-suggest-chip' }, [el('b', { text: '~10' }), document.createTextNode(T.chipLength)]),
+          el('span', { class: 'vote-suggest-chip' }, [
+            document.createTextNode(T.guidelinesCheckPrefix),
+            el('a', { href: eventsHref, text: T.guidelinesUpcoming }),
+            document.createTextNode(T.guidelinesCheckMiddle),
+            el('a', { href: historyHref, text: T.guidelinesHistory }),
+          ]),
+        ]),
+        el('div', { class: 'vote-path-tabs' }, [steamTab, manualTab]),
+        pathContainer,
+      ]),
+    ]));
+    content.appendChild(ownerVisibilitySlot());
     renderSuggestionList();
   }
 
@@ -1326,8 +1297,8 @@ var STRINGS = {
 
     var participationNode = null;
     if (votingOpen) {
-      participationNode = el('p', { class: 'vote-participation', text: participationText(data.round.ballotCount) });
-      layout.participation.appendChild(participationNode);
+      participationNode = el('p', { class: 'vote-participation-line', text: participationText(data.round.ballotCount) });
+      content.appendChild(participationNode);
     }
     function refreshParticipation() {
       if (!participationNode) return;
@@ -1343,11 +1314,14 @@ var STRINGS = {
     var authMounted = false;
     if (session && session.authenticated) {
       layout.heroActions.appendChild(authPanel('vote'));
-      content.appendChild(ownerVisibilitySlot());
       authMounted = true;
     }
-    if (!votingHasStarted) return;
+    if (!votingHasStarted) {
+      if (session && session.authenticated) content.appendChild(ownerVisibilitySlot());
+      return;
+    }
     if (!votingOpen) {
+      if (session && session.authenticated) content.appendChild(ownerVisibilitySlot());
       var closedNotice = nextRoundNotice(data.nextRound);
       if (closedNotice) content.appendChild(closedNotice);
       return;
@@ -1360,7 +1334,8 @@ var STRINGS = {
 
     if (!canParticipate()) {
       if (!authMounted) layout.heroActions.appendChild(authPanel('vote'));
-      content.appendChild(grid(data.suggestions.map(function (s) { return card(s, 'list'); })));
+      content.appendChild(el('div', { class: 'vote-slate-grid' }, data.suggestions.map(function (s) { return card(s, 'list'); })));
+      if (session && session.authenticated) content.appendChild(ownerVisibilitySlot());
       return;
     }
 
@@ -1377,7 +1352,7 @@ var STRINGS = {
     cards.forEach(function (node) {
       cardsById[Number(node.getAttribute('data-suggestion-card-id'))] = node;
     });
-    content.appendChild(grid(cards));
+    var slate = el('div', { class: 'vote-slate-grid' }, cards);
 
     function toggleRank(id) {
       var i = ranking.indexOf(id);
@@ -1413,9 +1388,9 @@ var STRINGS = {
 
     // ── ranking panel ────────────────────────────────────────────────────────
     var rankingList = el('ol', { class: 'vote-ranking-list' });
-    var emptyHint = el('p', { class: 'vote-ranking-empty vote-hint', text: T.rankingEmpty });
+    var emptyHint = el('p', { class: 'vote-ranking-empty vote-ballot-empty', text: T.rankingEmpty });
     var box = msgBox();
-    var btn = el('button', { class: 'btn-green', type: 'submit', text: T.btnVote });
+    var btn = el('button', { class: 'vote-submit-btn', type: 'submit', text: T.btnVote });
 
     function renderRankingList() {
       clear(rankingList);
@@ -1469,13 +1444,14 @@ var STRINGS = {
       renderRankingList();
     }
 
-    var form = el('form', { class: 'vote-panel' }, [
-      el('h2', { class: 'vote-panel-title', text: T.rankingTitle }),
+    var form = el('form', { class: 'vote-ballot-panel' }, [
+      el('h2', { class: 'vote-ballot-title', text: T.rankingTitle }),
       el('p', { class: 'vote-hint', text: T.rankingHint }),
       emptyHint,
       rankingList,
-      el('div', { class: 'vote-actions' }, [btn]),
+      btn,
       box,
+      el('p', { class: 'vote-ballot-irv-note', text: '⚖︎ ' + T.ballotIrvNote }),
     ]);
 
     form.addEventListener('submit', function (e) {
@@ -1500,7 +1476,8 @@ var STRINGS = {
         .finally(function () { btn.disabled = false; });
     });
 
-    content.appendChild(form);
+    content.appendChild(el('div', { class: 'vote-voting-layout' }, [slate, form]));
+    if (session && session.authenticated) content.appendChild(ownerVisibilitySlot());
 
     // Pre-fill from the member's existing ballot so it shows and stays editable.
     syncAll();
@@ -1591,6 +1568,45 @@ var STRINGS = {
     ]);
   }
 
+  function winnerBlock(winner, winnerId, rcvResult) {
+    var finalVotes = null;
+    var tallySuffix = T.votes;
+    if (rcvResult && rcvResult.rounds && rcvResult.rounds.length) {
+      var finalRound = rcvResult.rounds[rcvResult.rounds.length - 1];
+      var finalCount = (finalRound.counts || []).filter(function (count) { return Number(count.id) === Number(winnerId); })[0];
+      if (finalCount) {
+        finalVotes = finalCount.votes;
+        tallySuffix = T.winnerTallySuffix;
+      }
+    } else if (typeof winner.votes === 'number') {
+      finalVotes = winner.votes;
+    }
+
+    var cover = el('div', { class: 'vote-winner-cover' + (winner.image ? '' : ' is-placeholder') }, [
+      el('span', { class: 'vote-winner-badge', text: '★ ' + T.winnerTag }),
+      el('h2', { text: winner.title }),
+    ]);
+    if (winner.image) cover.style.backgroundImage = 'url("' + String(winner.image).replace(/["\\]/g, '\\$&') + '")';
+    var meta = (winner.genres || []).slice(0, 3);
+    if (winner.playtimeHours) meta.push(playtimeText(winner.playtimeHours));
+    var action = winner.storeUrl
+      ? el('a', { class: 'btn-board-secondary', href: winner.storeUrl, target: '_blank', rel: 'noopener noreferrer', text: 'Steam' })
+      : (winner.gogUrl ? el('a', { class: 'btn-board-secondary', href: winner.gogUrl, target: '_blank', rel: 'noopener noreferrer', text: 'GOG' }) : null);
+    return el('div', { class: 'vote-winner-block' }, [
+      cover,
+      el('div', { class: 'vote-winner-copy' }, [
+        el('p', { class: 'vote-winner-eyebrow', text: T.winnerReveal }),
+        finalVotes == null ? null : el('div', { class: 'vote-winner-tally' }, [
+          el('strong', { text: String(finalVotes) }),
+          el('span', { text: tallySuffix }),
+        ]),
+        meta.length ? el('p', { class: 'vote-winner-meta', text: meta.join(' · ') }) : null,
+        winner.pitch ? el('p', { class: 'vote-winner-pitch', text: winner.pitch }) : null,
+        action ? el('div', { class: 'vote-winner-actions' }, [action]) : null,
+      ]),
+    ]);
+  }
+
   function renderRevealed(data) {
     var layout = roundLayout(data.round, T.statusRevealed, T.introRevealed);
     var content = layout.content;
@@ -1621,10 +1637,7 @@ var STRINGS = {
       if (data.suggestions[i].id === winnerId) { winner = data.suggestions[i]; break; }
     }
     if (winner) {
-      content.appendChild(el('div', { class: 'vote-winner-reveal' }, [
-        el('p', { class: 'vote-winner-reveal-label', text: T.winnerReveal }),
-        card(winner, 'result', { maxVotes: maxVotes, winnerId: winnerId }),
-      ]));
+      content.appendChild(winnerBlock(winner, winnerId, data.rcvResult));
     } else {
       // No single winner (e.g. an unresolved tie): fall back to the full slate so
       // the result still reads clearly.

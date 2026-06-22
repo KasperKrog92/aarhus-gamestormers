@@ -21,6 +21,8 @@ The three focus areas are:
 
 3. **Not every game has cover art.** Manually-added (non-Steam) games have no `s.image`. The cover-art treatment needs a defined no-image fallback and a legibility scrim. See *Suggestion cards → Cover*.
 
+4. **A manually-added game can also be the winner.** The winner cover must use the same placeholder and legibility treatment when `winner.image` is absent. Do not assume that a revealed winner always has Steam artwork. See *Phase: Revealed → Winner reveal block*.
+
 Two more cross-cutting notes:
 
 - **Reuse the existing class names**, don't introduce parallel ones. The prototype's `.vote-rank-badge` is the existing `.vote-rank-position`; its add/remove button is the existing `.vote-rank-toggle` (not `.vote-card-toggle`). Keep the existing names so we don't ship duplicate CSS.
@@ -216,6 +218,9 @@ p   font: DM Sans 400, 0.95rem, --board-ink-soft, max-width 560px, margin: 0 0 0
 ```
 
 **Steam/manual path segmented control:**
+
+Use two ordinary `<button type="button">` elements. The active button has `aria-pressed="true"`; the inactive button has `aria-pressed="false"`. Do not add `role="tab"`: that would also require tabpanel relationships, roving focus, and arrow-key behavior that this two-choice form switch does not need. Both buttons remain in the normal tab order.
+
 ```css
 .vote-path-tabs {
   display: inline-flex;
@@ -307,8 +312,8 @@ Manual form: genres + store link in a 2-column grid (`grid-template-columns: 1fr
 
 **JS change in `vote.js`**: the existing `showChoice()` → `showSteamForm()` / `showManualForm()` flow is replaced by:
 - The panel lives in a `.vote-board-disclosure`, **collapsed by default** (do not set `open`).
-- The old yes/no `showChoice()` step is removed; both form bodies are rendered once and switched by a `data-path="steam"|"manual"` attribute on the form container, shown via CSS (`[data-path="steam"] .vote-form-manual { display:none }`). No re-render on tab switch.
-- The tabs (`role="tab"` / `aria-selected`, or a `radiogroup`) sit above the form bodies; clicking a tab only flips `data-path`.
+- The old yes/no `showChoice()` step is removed; both form bodies are rendered once inside a shared container and switched by a `data-path="steam"|"manual"` attribute, shown via CSS (`[data-path="steam"] .vote-form-manual { display:none }`). Keep the Steam and manual paths as separate `<form>` elements so each retains its existing submit handler, validation, message box, reset behavior, and payload builder. No re-render on path switch.
+- The two path buttons sit above the forms. Clicking one flips `data-path` and updates both buttons' `aria-pressed` values. Do not use tab roles for this control.
 - Guidelines move into the chip row at the top of the body (no separate `aside.vote-guidelines` in the suggesting phase). Because the panel is collapsed by default, the chips are only visible once a member expands it — that is acceptable; the page leads with the suggestion grid.
 
 ### 1b. Your-suggestions (owner/management) panel
@@ -317,7 +322,7 @@ This is the existing `ownerVisibilitySlot()` / `renderOwnerPanelInto()` feature,
 - `<summary>`: heading `T.managePitchTitle` ("Dine forslag" / "Your suggestions") + a `.vote-board-disclosure-count` showing the count + chevron.
 - `.vote-board-disclosure-body`: the existing hint `T.managePitchHint` followed by the existing `.vote-owner-list` markup (`.vote-owner-item` rows with the name-visibility checkbox and, while suggesting is open, the pitch editor). **No new card CSS is needed** — `.vote-owner-list` / `.vote-owner-item` already exist in `style.css`; only the outer shell changes to the disclosure.
 
-**Re-render rule (important):** `renderOwnerPanelInto()` currently clears and rebuilds the whole slot, which would collapse an open `<details>` whenever a member toggles a name. Refactor so the `<details>` element is created once and stays mounted; on refresh, only the inner `.vote-owner-list` is rebuilt and the whole `<details>` is hidden (or removed) when the member has no suggestions. This preserves the open/closed state across the in-place updates triggered by `refreshOwnerPanels()`.
+**Re-render rule (important):** `renderOwnerPanelInto()` currently clears and rebuilds the whole slot, which would collapse an open `<details>` whenever a member toggles a name. Refactor so the `<details>` element is created once and stays mounted; on refresh, only the inner `.vote-owner-list` is rebuilt. Set the persistent shell's `hidden` property when the member has no suggestions, and unhide that same shell if suggestions appear again. Do not remove or replace the `<details>` element. This preserves its open/closed state across the in-place updates triggered by `refreshOwnerPanels()`.
 
 The same `.vote-board-disclosure` owner panel is reused in the **voting** and **revealed** phases (see those sections), where the pitch editor is omitted (`pitchEditable` is false) and only the name-visibility toggles remain.
 
@@ -711,10 +716,21 @@ font-size: .78rem   color: --board-ink-faint   margin-top: 14px   line-height: 1
 .vote-winner-cover {
   position: relative;
   min-height: 300px;
-  /* background: Steam capsule image (s.image) */
+  background-size: cover;
+  background-position: center;
   display: flex;
   align-items: flex-end;
   padding: 26px;
+}
+.vote-winner-cover.is-placeholder {
+  background: linear-gradient(150deg, var(--purple) 0%, #3a3147 100%);
+}
+.vote-winner-cover::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0,0,0,.65) 0%, rgba(0,0,0,.08) 62%, rgba(0,0,0,0) 100%);
+  pointer-events: none;
 }
 .vote-winner-badge {   /* ★ Vinder pill */
   position: absolute;
@@ -731,6 +747,8 @@ font-size: .78rem   color: --board-ink-faint   margin-top: 14px   line-height: 1
   letter-spacing: .04em;
   text-transform: uppercase;
 }
+.vote-winner-badge,
+.vote-winner-cover h2 { z-index: 1; }
 .vote-winner-cover h2 {
   margin: 0;
   font-family: 'Barlow Condensed', sans-serif;
@@ -742,6 +760,8 @@ font-size: .78rem   color: --board-ink-faint   margin-top: 14px   line-height: 1
   text-shadow: 0 3px 18px rgba(0,0,0,.5);
 }
 ```
+
+Set `background-image: url(winner.image)` when the winning suggestion has artwork. Otherwise add `.is-placeholder`; a manually-added game can win and must not render as a broken or empty cover. Keep the scrim in both cases so the title remains readable over arbitrary artwork.
 
 **Right: copy panel**
 ```css
@@ -790,6 +810,8 @@ font-size: .78rem   color: --board-ink-faint   margin-top: 14px   line-height: 1
   margin: 0;
 }
 ```
+
+**Tally source (important):** for ranked-choice results, do not use `winner.votes`. The public API intentionally puts first-round counts on each suggestion card. Read the winner's count from the final entry in `data.rcvResult.rounds` instead: find the final round, then find the count whose `id` matches `winnerId`. Only render `winnerTallySuffix` when that final-round count exists. Historical approval rounds have no `rcvResult`; for those, use the existing generic `{n} votes` copy with `winner.votes`, or omit the tally if no meaningful aggregate exists. Never label a first-round or approval total as "votes in the final round."
 
 Winner copy panel CTA row:
 ```css
@@ -1057,8 +1079,9 @@ Set `fill.style.width = '0'` on insert, then after one frame: `fill.style.width 
 
 | Breakpoint | Change |
 |---|---|
-| `≤ 860px` | Voting: single-column (ballot below slate, sticky drops). Suggesting: 2-col card grid → 1-col. Winner block: single column. |
-| `≤ 560px` | Vote cards: 1-col. Ballot panel: no sticky. Manual form: 2-col fields stack 1-col. |
+| `≤ 860px` | Voting: single-column (ballot below slate, sticky drops). Suggestion grid: 3 columns → 2 columns. |
+| `≤ 700px` | Winner block: two columns → one column. |
+| `≤ 560px` | Suggestion grid and vote slate: 1 column. Ballot panel remains non-sticky. Manual form: 2-column field groups stack to 1 column. |
 
 ---
 
@@ -1082,10 +1105,11 @@ Set `fill.style.width = '0'` on insert, then after one frame: `fill.style.width 
 6. Non-members / logged-out: keep the existing read-only path — render `card(s, 'list')` cards, no ballot panel.
 
 ### Revealed phase (`renderRevealed`)
-1. Replace existing winner card (`card(winner, 'result', ...)`) with `.vote-winner-block` markup.
+1. Replace existing winner card (`card(winner, 'result', ...)`) with `.vote-winner-block` markup. Apply the winner-cover placeholder and scrim when `winner.image` is absent.
 2. Keep `rcvBreakdown()` function; update its returned DOM to use the new CSS classes.
-3. Replace `.vote-next-round` existing aside with the redesigned 2-column chip layout.
-4. The owner panel renders as a `.vote-board-disclosure` (closed by default) below the breakdown and above the next-round notice, matching the current order.
+3. For ranked-choice results, derive the displayed winner tally from the final `data.rcvResult.rounds` entry, not from `winner.votes`. Keep the generic aggregate treatment for historical approval rounds.
+4. Replace `.vote-next-round` existing aside with the redesigned 2-column chip layout.
+5. The owner panel renders as a `.vote-board-disclosure` (closed by default) below the breakdown and above the next-round notice, matching the current order.
 
 ---
 
@@ -1123,7 +1147,7 @@ Reuse existing keys where possible: `formTitle` (suggest panel heading), `manage
 |---|---|---|
 | `img/logo.webp` | Existing project | Green wordmark; no change |
 | `img/logo.png` | Existing project | PNG fallback |
-| Game cover images | `s.image` field from `/api/round/current` response | Steam capsule art, 460×215. Used as `background-image` on `.suggestion-cover-art`. The prototype uses CSS gradient placeholders. |
+| Game cover images | `s.image` field from `/api/round/current` response | Steam capsule art, 460×215. Used as `background-image` on `.suggestion-cover-art` and `.vote-winner-cover`. Both need the documented gradient fallback when the field is absent. The prototype uses CSS gradient placeholders. |
 
 ---
 
@@ -1133,6 +1157,7 @@ Reuse existing keys where possible: `formTitle` (suggest panel heading), `manage
 |---|---|
 | `README.md` | This document |
 | `Vote Board.dc.html` | High-fidelity interactive prototype. Open in a browser. Use the bottom pill (Stil A · Mørk / Fase: Foreslå, Stem, Resultat) to explore all 6 states. |
+| `support.js` | Runtime used by the `.dc.html` prototype. It is preview-only and does not ship with the production site. |
 
 ---
 
@@ -1147,4 +1172,4 @@ Suggested order to minimise risk of breaking the live page:
 5. Update `renderVoting()` — two-column layout + ballot panel, owner disclosure below the grid.
 6. Update `renderRevealed()` — winner block + IRV breakdown classes, owner disclosure.
 7. Bump the `css/style.css?v=N` query string on `vote.html` and `en/vote.html`.
-8. QA all three phases in both languages (DA/EN), as a member, non-member, and logged-out, with both Steam and manual (no-image) suggestions present.
+8. QA all three phases in both languages (DA/EN), as a member, non-member, and logged-out, with both Steam and manual (no-image) suggestions present. Include a manual/no-image winner, a ranked-choice reveal whose final count differs from its first-round count, and a historical approval reveal without `rcvResult`.
