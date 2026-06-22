@@ -102,17 +102,17 @@ CREATE TABLE IF NOT EXISTS suggestions (
   created_at     TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
--- Approval voting: one row per game a ballot ticks. A logged-in Discord member
--- can have one ballot per round; submitting again replaces that user's previous
--- rows. ballot_id remains an internal deletion key and is not exposed publicly.
--- voter_name is derived from the logged-in Discord profile for maintainer
--- diagnostics only.
--- Tally for a round = COUNT(*) GROUP BY suggestion_id.
+-- Ranked-choice voting: one row per ranked game on a ballot. rank is 1..N,
+-- where 1 is the member's first preference. Legacy approval-voting rows may
+-- leave rank NULL. A logged-in Discord member can have one replaceable ballot
+-- per round. ballot_id remains an internal deletion key and is not exposed
+-- publicly; voter_name is kept only for maintainer diagnostics.
 CREATE TABLE IF NOT EXISTS votes (
   id            INTEGER PRIMARY KEY AUTOINCREMENT,
   round_id      INTEGER NOT NULL REFERENCES rounds(id) ON DELETE CASCADE,
   suggestion_id INTEGER NOT NULL REFERENCES suggestions(id) ON DELETE CASCADE,
   ballot_id     TEXT NOT NULL,
+  rank          INTEGER,
   voter_name    TEXT,
   discord_user_id TEXT REFERENCES discord_users(discord_id) ON DELETE SET NULL,
   created_at    TEXT NOT NULL DEFAULT (datetime('now'))
@@ -165,6 +165,7 @@ CREATE TABLE IF NOT EXISTS automation_events (
 CREATE INDEX IF NOT EXISTS idx_suggestions_round ON suggestions(round_id, status);
 CREATE INDEX IF NOT EXISTS idx_votes_round       ON votes(round_id, suggestion_id);
 CREATE INDEX IF NOT EXISTS idx_votes_ballot      ON votes(round_id, ballot_id);
+CREATE INDEX IF NOT EXISTS idx_votes_ballot_rank ON votes(round_id, ballot_id, rank);
 CREATE INDEX IF NOT EXISTS idx_suggestions_discord_user ON suggestions(round_id, discord_user_id);
 CREATE INDEX IF NOT EXISTS idx_votes_discord_user ON votes(round_id, discord_user_id);
 CREATE INDEX IF NOT EXISTS idx_auth_sessions_user ON auth_sessions(discord_user_id, expires_at);

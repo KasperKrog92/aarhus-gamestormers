@@ -2,7 +2,7 @@
 
 Date: 2026-06-22
 
-Status: plan only, not implemented. Progress is tracked per step in the [Implementation Steps](#implementation-steps) section (`[ ]` todo, `[~]` in progress/blocked, `[x]` done) and must be updated there as work lands. Target: in place before the first real voting phase opens on **2026-06-29** (no votes have been cast yet, so this is a clean cutover, not a live migration).
+Status: implementation in progress. Progress is tracked per step in the [Implementation Steps](#implementation-steps) section (`[ ]` todo, `[~]` in progress/blocked, `[x]` done) and must be updated there as work lands. Target: in place before the first real voting phase opens on **2026-06-29** (no votes have been cast yet, so this is a clean cutover, not a live migration).
 
 ## Goal
 
@@ -230,10 +230,12 @@ Ordered so the repo stays working and testable after each step. Each step ends g
 
 **Keep this plan updated as you go.** After completing each step, edit this file before moving on: flip the step's `Status` from `[ ]` (todo) to `[x]` (done) — or `[~]` if partially done/blocked — and append a dated one-line note under that step recording what landed, the commit/PR if any, and anything that diverged from the plan. Add new steps here if the work uncovers them rather than doing undocumented work. The plan is the source of truth for progress, so a reader can tell at a glance what is done and what remains.
 
-1. `[ ]` **Schema + lazy migration.** Add `rank INTEGER` and `idx_votes_ballot_rank` to `schema.sql`; update the `votes` comment block. Add `ensureVoteRankColumn(db)` to `functions/_lib/db.js`. Apply locally (`wrangler d1 execute gamestormers --local --file=./schema.sql`). No behavior change yet.
+1. `[x]` **Schema + lazy migration.** Add `rank INTEGER` and `idx_votes_ballot_rank` to `schema.sql`; update the `votes` comment block. Add `ensureVoteRankColumn(db)` to `functions/_lib/db.js`. Apply locally (`wrangler d1 execute gamestormers --local --file=./schema.sql`). No behavior change yet.
+   - *2026-06-22:* Added the nullable rank column, ballot-rank index, and lazy migration helper; upgraded the existing local D1 database additively and reapplied the full schema successfully. Included in the ranked-choice foundation commit with no divergence from the plan.
    - *Verify:* column and index exist locally; existing tests still pass.
 
-2. `[ ]` **Pure counter `functions/_lib/rcv.js` + tests.** Implement `runIrv({ ballots, candidateIds })` with the algorithm and tie rules from this plan. Write `functions/_lib/rcv.test.mjs` covering every case listed under Testing Strategy. This is self-contained and unblocks both API and scheduler.
+2. `[x]` **Pure counter `functions/_lib/rcv.js` + tests.** Implement `runIrv({ ballots, candidateIds })` with the algorithm and tie rules from this plan. Write `functions/_lib/rcv.test.mjs` covering every case listed under Testing Strategy. This is self-contained and unblocks both API and scheduler.
+   - *2026-06-22:* Added the pure aggregate `runIrv` counter with active-ballot majority recalculation, transfer/exhaustion reporting, deterministic elimination tiebreaks, final-tie blocking, and 12 focused tests. Included in the ranked-choice foundation commit with no divergence from the plan.
    - *Verify:* `npm test` green, including all RCV cases.
 
 3. `[ ]` **DB helpers.** Add `getRankedBallots(db, roundId)` and `getBallotCount(db, roundId)`; change `getBallots` to return rank-ordered `rankings` per ballot (group in JS). Keep `getTallies` for first-preference counts.

@@ -3,6 +3,7 @@ import { isBeforeDateOnly, midpointDateOnly, todayDateOnly } from './schedule.js
 
 let descriptionColumnsChecked = false;
 let suggestionVisibilityColumnChecked = false;
+let voteRankColumnChecked = false;
 let roundScheduleColumnsChecked = false;
 let meetingContentTablesChecked = false;
 let automationEventTableChecked = false;
@@ -35,6 +36,15 @@ export async function ensureSuggestionVisibilityColumn(db) {
   // suggestions always write an explicit public-name preference.
   await addColumnIfMissing(db, 'suggestions', 'show_suggester_name', 'INTEGER CHECK (show_suggester_name IN (0, 1))');
   suggestionVisibilityColumnChecked = true;
+}
+
+export async function ensureVoteRankColumn(db) {
+  if (voteRankColumnChecked) return;
+  await addColumnIfMissing(db, 'votes', 'rank', 'INTEGER');
+  await db
+    .prepare('CREATE INDEX IF NOT EXISTS idx_votes_ballot_rank ON votes(round_id, ballot_id, rank)')
+    .run();
+  voteRankColumnChecked = true;
 }
 
 export async function ensureRoundScheduleColumns(db) {
