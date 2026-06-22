@@ -47,6 +47,8 @@ Use the dev server instead of a raw-file preview. Raw-file preview breaks absolu
 
 For `vote-admin.html`, use the `ADMIN_TOKEN` from `.dev.vars`; the local value is expected to be `test`.
 
+To exercise the member-gated suggest/vote flow without real Discord OAuth, visit `http://127.0.0.1:8788/api/auth/dev-login`. It mints a fake member session and redirects to `/vote`. Add `?member=0` to test the non-member path, or `?returnTo=/en/vote` to land on the English page. This endpoint only works locally: it is gated behind `DEV_LOGIN=true` in `.dev.vars` (absent in production) and a localhost host check. Log out again with the normal "Log out" button. Requires `SESSION_SECRET` in `.dev.vars`.
+
 If `/api/*` reports missing D1 tables, run:
 
 ```powershell

@@ -126,6 +126,9 @@ var STRINGS = {
     platformAnd: ' og ',
     errGeneric: 'Noget gik galt. Prøv igen.',
     errPickOne: 'Vælg mindst ét spil.',
+    errSteamUrl: 'Indsæt et gyldigt Steam-link (store.steampowered.com/app/…).',
+    errTitleRequired: 'Skriv spillets titel.',
+    errStoreUrl: 'Butikslinket skal være en gyldig http(s)-adresse.',
   },
   en: {
     loading: 'Loading…',
@@ -251,6 +254,9 @@ var STRINGS = {
     platformAnd: ' and ',
     errGeneric: 'Something went wrong. Please try again.',
     errPickOne: 'Pick at least one game.',
+    errSteamUrl: 'Please paste a valid Steam store link (store.steampowered.com/app/…).',
+    errTitleRequired: 'Please enter the game title.',
+    errStoreUrl: 'Store link must be a valid http(s) URL.',
   },
 };
 
@@ -288,6 +294,17 @@ var STRINGS = {
   }
 
   function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); }
+
+  // Mirror the server's link check so we can show a translated message in-page
+  // instead of leaving validation to the browser's locale-specific native bubble.
+  function isHttpUrl(value) {
+    try {
+      var u = new URL(value);
+      return u.protocol === 'http:' || u.protocol === 'https:';
+    } catch {
+      return false;
+    }
+  }
 
   function clearCountdowns() {
     countdownTimerIds.forEach(function (id) { clearInterval(id); });
@@ -1094,9 +1111,13 @@ var STRINGS = {
     }
 
     // Shared submit: posts the payload, shows the right thanks message, resets.
-    function wireSubmit(form, btn, box, buildBody, clearInputs, thanks) {
+    function wireSubmit(form, btn, box, buildBody, clearInputs, thanks, validate) {
       form.addEventListener('submit', function (e) {
         e.preventDefault();
+        if (validate) {
+          var problem = validate();
+          if (problem) return showMsg(box, problem, false);
+        }
         btn.disabled = true;
         api('/suggest', {
           method: 'POST',
@@ -1116,13 +1137,13 @@ var STRINGS = {
 
     function showSteamForm() {
       clear(panel);
-      var steam = el('input', { class: 'vote-input', type: 'url', placeholder: 'https://store.steampowered.com/app/…' });
+      var steam = el('input', { class: 'vote-input', type: 'url', inputmode: 'url', placeholder: 'https://store.steampowered.com/app/…' });
       var pitch = el('textarea', { class: 'vote-textarea', placeholder: T.pitchPlaceholder, maxlength: '500' });
       var showName = el('input', { type: 'checkbox' });
       var box = msgBox();
       var btn = el('button', { class: 'btn-green', type: 'submit', text: T.btnSuggest });
 
-      var form = el('form', { class: 'vote-panel' }, [
+      var form = el('form', { class: 'vote-panel', novalidate: '' }, [
         el('div', { class: 'vote-panel-head' }, [el('h2', { class: 'vote-panel-title', text: T.formTitle }), backLink()]),
         field(T.labelSteam, steam, T.hintSteam),
         field(T.labelPitch, pitch),
@@ -1142,7 +1163,12 @@ var STRINGS = {
           };
         },
         function () { steam.value = pitch.value = ''; },
-        T.suggestThanks
+        T.suggestThanks,
+        function () {
+          var url = steam.value.trim();
+          if (!url || !isHttpUrl(url)) return T.errSteamUrl;
+          return null;
+        }
       );
 
       panel.appendChild(form);
@@ -1151,14 +1177,14 @@ var STRINGS = {
     function showManualForm() {
       clear(panel);
       var title = el('input', { class: 'vote-input', type: 'text', placeholder: T.titlePlaceholder, maxlength: '200' });
-      var store = el('input', { class: 'vote-input', type: 'url', placeholder: T.storePlaceholder, maxlength: '400' });
+      var store = el('input', { class: 'vote-input', type: 'url', inputmode: 'url', placeholder: T.storePlaceholder, maxlength: '400' });
       var genres = el('input', { class: 'vote-input', type: 'text', placeholder: T.genresPlaceholder, maxlength: '200' });
       var pitch = el('textarea', { class: 'vote-textarea', placeholder: T.pitchPlaceholder, maxlength: '500' });
       var showName = el('input', { type: 'checkbox' });
       var box = msgBox();
       var btn = el('button', { class: 'btn-green', type: 'submit', text: T.btnSuggest });
 
-      var form = el('form', { class: 'vote-panel' }, [
+      var form = el('form', { class: 'vote-panel', novalidate: '' }, [
         el('div', { class: 'vote-panel-head' }, [el('h2', { class: 'vote-panel-title', text: T.formTitle }), backLink()]),
         el('p', { class: 'vote-hint', text: T.manualNote }),
         field(T.labelTitle, title),
@@ -1183,7 +1209,13 @@ var STRINGS = {
           };
         },
         function () { title.value = store.value = genres.value = pitch.value = ''; },
-        T.manualThanks
+        T.manualThanks,
+        function () {
+          if (!title.value.trim()) return T.errTitleRequired;
+          var url = store.value.trim();
+          if (url && !isHttpUrl(url)) return T.errStoreUrl;
+          return null;
+        }
       );
 
       panel.appendChild(form);
