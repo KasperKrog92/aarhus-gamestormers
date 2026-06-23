@@ -99,6 +99,8 @@ var STRINGS = {
     genresPlaceholder: 'Kommasepareret, fx Puzzle, Horror',
     manualNote: 'Spil uden Steam-side bliver gennemset af en admin, før de vises på listen.',
     gameDescription: 'Spilbeskrivelse',
+    showMore: 'Vis mere',
+    showLess: 'Vis mindre',
     suggestedPitch: 'Pitch fra forslagsstiller',
     labelPitch: 'Din pitch (valgfri)',
     pitchPlaceholder: 'Hvorfor skulle vi spille det? Skriv et par linjer på engelsk.',
@@ -257,6 +259,8 @@ var STRINGS = {
     genresPlaceholder: 'Comma-separated, e.g. Puzzle, Horror',
     manualNote: 'Games without a Steam page are reviewed by an admin before they appear on the list.',
     gameDescription: 'Game description',
+    showMore: 'Show more',
+    showLess: 'Show less',
     suggestedPitch: 'Suggested pitch',
     labelPitch: 'Your pitch (optional)',
     pitchPlaceholder: 'Why should we play it? Please write a couple of lines in English.',
@@ -1012,15 +1016,38 @@ var STRINGS = {
 
     var metaRight = platforms || storeLink ? el('span', { class: 'suggestion-meta-right' }, [platforms, storeLink]) : null;
 
+    var descriptionNode = null;
+    var descriptionToggle = null;
+    var descriptionBlock = null;
+    if (description) {
+      var descriptionId = 'suggestion-description-' + mode + '-' + s.id;
+      descriptionNode = el('p', { class: 'suggestion-description', id: descriptionId, text: description });
+      descriptionToggle = el('button', {
+        class: 'suggestion-description-toggle',
+        type: 'button',
+        hidden: 'hidden',
+        'aria-controls': descriptionId,
+        'aria-expanded': 'false',
+        text: T.showMore,
+        onclick: function () {
+          var expanded = descriptionNode.classList.toggle('is-expanded');
+          descriptionToggle.setAttribute('aria-expanded', String(expanded));
+          descriptionToggle.textContent = expanded ? T.showLess : T.showMore;
+        },
+      });
+      descriptionBlock = el('div', { class: 'suggestion-copy suggestion-copy-description' }, [
+        descriptionNode,
+        descriptionToggle,
+      ]);
+    }
+
     var body = [
       el('h3', { class: 'suggestion-title', text: s.title }),
       meta.length || metaRight ? el('div', { class: 'suggestion-meta' }, [
         el('span', { text: meta.join(' · ') }),
         metaRight,
       ]) : null,
-      description ? el('div', { class: 'suggestion-copy suggestion-copy-description' }, [
-        el('p', { class: 'suggestion-description', text: description }),
-      ]) : null,
+      descriptionBlock,
       s.pitch ? el('div', { class: 'suggestion-pitch-block' }, [
         el('span', { class: 'suggestion-pitch-label', text: T.suggestedPitch }),
         el('p', { class: 'suggestion-pitch', text: s.pitch }),
@@ -1066,6 +1093,12 @@ var STRINGS = {
       cover,
       el('div', { class: 'suggestion-body' }, body),
     ]);
+    if (descriptionNode) {
+      requestAnimationFrame(function () {
+        if (!descriptionNode.isConnected) return;
+        if (descriptionNode.scrollHeight > descriptionNode.clientHeight + 1) descriptionToggle.hidden = false;
+      });
+    }
     return node;
   }
 

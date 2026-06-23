@@ -122,7 +122,7 @@ The base reset includes `[hidden] { display: none !important; }`. Keep that rule
 - `.vote-title-row` and `#vote-flow-slot`: vote-page heading row. Keep the "Sådan foregår et møde" / "How a meeting works" closed details pill aligned with the page title and mounted in this slot, not in the content stack.
 - `.vote-round-hero`, `.vote-countdown`, `.vote-phase-timeline`: public vote-page round overview. It shows the meeting number, meeting date, a phase-aware countdown, and a timeline driven by `suggestionsOpenAt`, `votingOpensAt`, `votingClosesAt`, and `meetingDate`.
 - `.vote-guidelines`: member-facing suggestion criteria on the vote page. Keep it compact and link to frontpage upcoming events plus history.
-- `.suggestion-description`: localized Steam-imported description on voting suggestion cards. It is wrapped in `.suggestion-copy` with a `.suggestion-copy-label` so it stays visually distinct from the suggester's pitch.
+- `.suggestion-description`: localized Steam-imported description on voting suggestion cards. It is initially clamped to three lines; when text is hidden, its adjacent `.suggestion-description-toggle` reveals the full description and can collapse it again.
 - `.suggestion-pitch`: optional member pitch on voting suggestion cards. It is wrapped and labelled separately from the game description.
 
 When editing `css/style.css`, bump the `?v=N` query string on affected pages so local preview and browsers do not serve stale CSS.

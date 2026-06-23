@@ -3577,6 +3577,10 @@ details[open] > .admin-section-summary::before { transform: rotate(90deg); }
 .gs-vote-page .suggestion-store-link { display: inline-flex; align-items: center; min-height: 22px; padding: 0 8px; border-radius: 6px; background: rgba(150,195,141,.12); color: var(--green); font-size: .68rem; font-weight: 700; letter-spacing: .04em; transition: background .15s; }
 .gs-vote-page .suggestion-store-link:hover { background: rgba(150,195,141,.22); }
 .gs-vote-page .suggestion-description { margin: 0; color: var(--board-ink-soft); font-size: .9rem; line-height: 1.5; }
+.gs-vote-page .suggestion-description.is-expanded { display: block; overflow: visible; -webkit-line-clamp: unset; }
+.gs-vote-page .suggestion-description-toggle { min-height: 0; margin-top: 6px; padding: 0; border: 0; background: transparent; color: var(--green); font-size: .78rem; font-weight: 800; }
+.gs-vote-page .suggestion-description-toggle:hover { color: var(--green-light); }
+.gs-vote-page .suggestion-description-toggle:focus-visible { outline: 2px solid var(--green); outline-offset: 3px; }
 .gs-vote-page .suggestion-pitch-block { padding-top: 11px; border-top: 1px solid var(--board-hairline); }
 .gs-vote-page .suggestion-pitch-label { display: block; margin-bottom: 4px; color: var(--green); font-size: .65rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
 .gs-vote-page .suggestion-pitch { margin: 0; color: var(--board-ink-soft); font-size: .85rem; line-height: 1.5; }
