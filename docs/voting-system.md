@@ -286,12 +286,12 @@ In the Discord Developer Portal, add matching OAuth2 redirect URLs for every env
 
 When `DISCORD_SUGGESTIONS_WEBHOOK_URL` is set, `/api/suggest` posts a Discord message for every new suggestion (see `functions/_lib/notify.js`):
 
-- Steam suggestions (auto-approved): "live on the voting board", with a link to the public `/vote` page.
-- Non-Steam suggestions (`pending`): flagged as needing approval, with a link to the `/vote-admin/` page.
+- Every notification includes the pitch when one was supplied, the suggester's Discord display name only when they opted to show it, and a `[Check it out on the vote page and suggest your own game](...)` link to the public `/vote` page.
+- Non-Steam suggestions (`pending`) are also flagged as needing approval and include a link to the `/vote-admin/` page.
 
 Links point at the live site (`SITE_URL` in `functions/api/suggest.js`), not the request origin, so they stay correct even when a notification fires from a local dev test.
 
-It is fire-and-forget via `waitUntil`, so a slow or failing webhook never blocks or breaks the suggestion submission. The secret is optional: if it is unset, notifications are skipped and everything else works unchanged. `allowed_mentions` is empty so a game title can never ping the channel.
+It is fire-and-forget via `waitUntil`, so a slow or failing webhook never blocks or breaks the suggestion submission. The secret is optional: if it is unset, notifications are skipped and everything else works unchanged. `allowed_mentions` is empty so a game title can never ping the channel, and Discord's `SUPPRESS_EMBEDS` message flag keeps the vote-page link clickable without generating a preview card.
 
 Create the webhook in Discord under Server Settings, Integrations, Webhooks, then store the URL as `DISCORD_SUGGESTIONS_WEBHOOK_URL` (encrypted env var in Cloudflare Pages, and in `.dev.vars` for local testing). This is a separate secret from the sales-alert workflow's `DISCORD_WEBHOOK_URL` (a GitHub Actions secret), so the two can post to different channels.
 

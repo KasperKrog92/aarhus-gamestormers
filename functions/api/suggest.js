@@ -48,13 +48,22 @@ export async function onRequestPost({ request, env, waitUntil }) {
   return suggestSteam(db, round, body, auth.user, env, waitUntil);
 }
 
-function bySuffix(user) {
-  const name = displayName(user);
-  return name ? ` by ${name}` : '';
-}
-
 export function showNameValue(body) {
   return body && body.showName === false ? 0 : 1;
+}
+
+export function suggestionNotification({ title, pitch, user, showName, pending = false }) {
+  const lines = [pending ? `New suggestion needs your approval: **${title}**` : `New suggestion: **${title}**`];
+  const suggesterName = showName ? displayName(user) : '';
+  const suggestionPitch = clean(pitch, 500);
+
+  if (suggesterName) lines.push(`Suggested by: ${suggesterName}`);
+  if (suggestionPitch) lines.push(`Pitch: ${suggestionPitch}`);
+
+  lines.push(`[Check it out on the vote page and suggest your own game](${SITE_URL}/vote)`);
+  if (pending) lines.push(`[Review it in vote admin](${SITE_URL}/vote-admin/)`);
+
+  return lines.join('\n');
 }
 
 async function suggestSteam(db, round, body, user, env, waitUntil) {
@@ -114,7 +123,12 @@ async function suggestSteam(db, round, body, user, env, waitUntil) {
   notifyDiscord(
     env.DISCORD_SUGGESTIONS_WEBHOOK_URL,
     waitUntil,
-    `New suggestion: **${game.title}**${bySuffix(user)}. It is live on the voting board.\n${SITE_URL}/vote`
+    suggestionNotification({
+      title: game.title,
+      pitch: body.pitch,
+      user,
+      showName: showNameValue(body) === 1,
+    })
   );
 
   return json({ ok: true, pending: false, game: toCard(suggestion) }, 201);
@@ -156,7 +170,13 @@ async function suggestManual(db, round, body, user, env, waitUntil) {
   notifyDiscord(
     env.DISCORD_SUGGESTIONS_WEBHOOK_URL,
     waitUntil,
-    `New suggestion needs your approval: **${title}**${bySuffix(user)}. Review it in vote-admin.\n${SITE_URL}/vote-admin/`
+    suggestionNotification({
+      title,
+      pitch: body.pitch,
+      user,
+      showName: showNameValue(body) === 1,
+      pending: true,
+    })
   );
 
   return json({ ok: true, pending: true, game: { title } }, 201);
