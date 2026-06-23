@@ -14,9 +14,8 @@ export function notifyDiscord(url, waitUntil, content) {
   const task = fetch(url, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    // allowed_mentions: parse [] means a game title containing @everyone or a
-    // role mention can never actually ping the channel. flags: 4 tells Discord
-    // to keep links clickable without adding an unfurled embed below the message.
+    // allowed_mentions: parse [] means titles, and the opt-in <@user-id> byline,
+    // stay non-pinging. flags: 4 keeps links clickable without an unfurled embed.
     body: JSON.stringify({ content: content.slice(0, 2000), allowed_mentions: { parse: [] }, flags: 4 }),
   }).catch(() => {});
 

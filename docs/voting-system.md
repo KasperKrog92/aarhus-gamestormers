@@ -286,7 +286,7 @@ In the Discord Developer Portal, add matching OAuth2 redirect URLs for every env
 
 When `DISCORD_SUGGESTIONS_WEBHOOK_URL` is set, `/api/suggest` posts a Discord message for every new suggestion (see `functions/_lib/notify.js`):
 
-- Every notification includes the pitch when one was supplied, the suggester's Discord display name only when they opted to show it, and a `[Check it out on the vote page and suggest your own game](...)` link to the public `/vote` page.
+- Steam suggestions also make the game title a link to its Steam store page. Every notification includes the pitch when one was supplied, the suggester as a clickable Discord `@` link only when they opted to show their name, and a `[Check it out on the vote page and suggest your own game](...)` link to the public `/vote` page. The webhook's `allowed_mentions` setting keeps that `@` link from pinging the member.
 - Non-Steam suggestions (`pending`) are also flagged as needing approval and include a link to the `/vote-admin/` page.
 
 Links point at the live site (`SITE_URL` in `functions/api/suggest.js`), not the request origin, so they stay correct even when a notification fires from a local dev test.

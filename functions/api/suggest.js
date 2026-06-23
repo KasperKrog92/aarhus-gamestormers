@@ -52,9 +52,15 @@ export function showNameValue(body) {
   return body && body.showName === false ? 0 : 1;
 }
 
-export function suggestionNotification({ title, pitch, user, showName, pending = false }) {
-  const lines = [pending ? `New suggestion needs your approval: **${title}**` : `New suggestion: **${title}**`];
-  const suggesterName = showName ? displayName(user) : '';
+function mentionOrName(user, discordId, showName) {
+  if (!showName) return '';
+  return /^\d{17,20}$/.test(discordId || '') ? `<@${discordId}>` : displayName(user);
+}
+
+export function suggestionNotification({ title, steamUrl, pitch, user, discordId, showName, pending = false }) {
+  const gameTitle = steamUrl ? `**[${title}](${steamUrl})**` : `**${title}**`;
+  const lines = [pending ? `New suggestion needs your approval: ${gameTitle}` : `New suggestion: ${gameTitle}`];
+  const suggesterName = mentionOrName(user, discordId, showName);
   const suggestionPitch = clean(pitch, 500);
 
   if (suggesterName) lines.push(`Suggested by: ${suggesterName}`);
@@ -125,8 +131,10 @@ async function suggestSteam(db, round, body, user, env, waitUntil) {
     waitUntil,
     suggestionNotification({
       title: game.title,
+      steamUrl: game.storeUrl,
       pitch: body.pitch,
       user,
+      discordId: user.discordId,
       showName: showNameValue(body) === 1,
     })
   );
@@ -174,6 +182,7 @@ async function suggestManual(db, round, body, user, env, waitUntil) {
       title,
       pitch: body.pitch,
       user,
+      discordId: user.discordId,
       showName: showNameValue(body) === 1,
       pending: true,
     })
