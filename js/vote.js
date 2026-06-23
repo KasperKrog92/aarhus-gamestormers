@@ -799,7 +799,11 @@ var STRINGS = {
     var states = steps.map(function (step) { return timelineState(round, step[0]); });
     var currentIndex = Math.max(0, states.indexOf('current'));
     var fill = Math.round(timelineProgress(round) * 1000) / 10;
-    return el('ol', { class: 'vote-phase-timeline progress-' + currentIndex, style: '--vote-progress:' + fill + '%', 'aria-label': T.flowTitle }, steps.map(function (step, index) {
+    // Render at 0% then bump to the real value on the next frame so the CSS
+    // `transition: width` eases the green fill + arrow up to its position. Two
+    // rAFs ensure the browser registers the 0% start before the change.
+    var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var timeline = el('ol', { class: 'vote-phase-timeline progress-' + currentIndex, style: '--vote-progress:' + (reduceMotion ? fill : 0) + '%', 'aria-label': T.flowTitle }, steps.map(function (step, index) {
       var state = states[index];
       var date = formatDate(step[2]);
       return el('li', { class: 'vote-phase-step ' + state }, [
@@ -808,6 +812,14 @@ var STRINGS = {
         date ? el('time', { class: 'vote-phase-date', datetime: step[2], text: date }) : null,
       ]);
     }));
+    if (!reduceMotion) {
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () {
+          timeline.style.setProperty('--vote-progress', fill + '%');
+        });
+      });
+    }
+    return timeline;
   }
 
   function countdownTarget(round) {

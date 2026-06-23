@@ -3369,7 +3369,29 @@ details[open] > .admin-section-summary::before { transform: rotate(90deg); }
   height: 3px;
   background: rgba(43,36,54,.68);
 }
-.gs-vote-page .vote-phase-timeline::after { display: none; }
+/* Green fill + arrow grows along the inset track (11%–89%) to mirror how far
+   we are, time-wise, between the timeline's first and last phase. The width is
+   driven by --vote-progress (0%–100% of the whole span) set inline by vote.js. */
+.gs-vote-page .vote-phase-timeline::after {
+  display: block;
+  top: 31px;
+  left: 11%;
+  right: auto;
+  width: calc(var(--vote-progress, 0%) * 0.78);
+  height: 9px;
+  border-radius: 0;
+  background: var(--green);
+  clip-path: polygon(
+    0 3px,
+    calc(100% - 9px) 3px,
+    calc(100% - 9px) 0,
+    100% 4.5px,
+    calc(100% - 9px) 9px,
+    calc(100% - 9px) 6px,
+    0 6px
+  );
+  transition: width 1.2s cubic-bezier(.25,.8,.35,1) .15s;
+}
 .gs-vote-page .vote-phase-step { gap: 6px; padding: 0; }
 .gs-vote-page .vote-phase-marker {
   width: 68px;
@@ -3408,7 +3430,8 @@ details[open] > .admin-section-summary::before { transform: rotate(90deg); }
 @media (max-width: 860px) {
   .gs-vote-page .vote-round-hero { width: min(100%, 420px); }
   .gs-vote-page .vote-phase-timeline { grid-template-columns: repeat(2, 1fr); gap: 28px 18px; }
-  .gs-vote-page .vote-phase-timeline::before { display: none; }
+  .gs-vote-page .vote-phase-timeline::before,
+  .gs-vote-page .vote-phase-timeline::after { display: none; }
   .gs-vote-page .suggestion-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 560px) {
