@@ -18,6 +18,7 @@ export async function onRequestPatch({ request, env, params }) {
   if (!db) return fail('Database not configured', 500);
 
   const body = await readJson(request);
+  if (body instanceof Response) return body;
   if (!body) return fail('Invalid body.');
   const hasShowName = Object.prototype.hasOwnProperty.call(body, 'showName');
   const hasPitch = Object.prototype.hasOwnProperty.call(body, 'pitch');

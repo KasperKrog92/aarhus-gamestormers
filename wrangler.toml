@@ -20,7 +20,7 @@
 # Bind the D1 database (binding name DB) in the Cloudflare Pages project settings.
 
 name = "aarhus-gamestormers-site"
-compatibility_date = "2024-11-01"
+compatibility_date = "2026-06-23"
 pages_build_output_dir = "."
 
 [vars]

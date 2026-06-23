@@ -18,6 +18,7 @@ export async function onRequestPost({ request, env }) {
   if (!db) return fail('Database not configured', 500);
 
   const body = await readJson(request);
+  if (body instanceof Response) return body;
   if (!body) return fail('Invalid request body');
 
   const auth = await requireMemberSession(db, request, env);

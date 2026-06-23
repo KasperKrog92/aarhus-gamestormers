@@ -7,7 +7,7 @@
 //   PATCH  /api/admin/suggestion/:id   edit/approve/reject a suggestion
 //   DELETE /api/admin/suggestion/:id   delete a suggestion
 //   DELETE /api/admin/ballot/:ballotId remove a single ballot (all its votes)
-import { json, fail, readJson, clean, cleanLine } from '../../_lib/http.js';
+import { json, fail, readJson, clean, cleanLine, isHttpUrl } from '../../_lib/http.js';
 import { isAdmin } from '../../_lib/auth.js';
 import {
   deleteDiscordMessage,
@@ -70,7 +70,7 @@ const DEFAULT_DISCORD_INVITE = 'https://discord.gg/N2h6DJxVDF';
 export async function onRequest(context) {
   const { request, env, params } = context;
   if (!env.DB) return fail('Database not configured', 500);
-  if (!isAdmin(request, env)) return fail('Unauthorized', 401);
+  if (!(await isAdmin(request, env))) return fail('Unauthorized', 401);
 
   const db = env.DB;
   await ensureRoundScheduleColumns(db);
@@ -219,6 +219,7 @@ async function adminDeleteRound(db, id) {
 
 async function adminOpenRound(db, request) {
   const body = await readJson(request);
+  if (body instanceof Response) return body;
   if (!body) return fail('Invalid body');
   const id = Number(body.id);
   if (!Number.isInteger(id) || id <= 0) return fail('Meeting number (id) required');
@@ -259,6 +260,7 @@ async function adminOpenRound(db, request) {
 
 async function adminPatchRound(db, request, id) {
   const body = await readJson(request);
+  if (body instanceof Response) return body;
   if (!body) return fail('Invalid body');
   const round = await getRoundById(db, id);
   if (!round) return fail('Round not found', 404);
@@ -461,6 +463,7 @@ async function adminAnnounceWinner(db, request, env, id) {
 async function adminSelectGame(db, request, id) {
   if (!Number.isInteger(id) || id <= 0) return fail('Invalid round id');
   const body = await readJson(request);
+  if (body instanceof Response) return body;
   if (!body) return fail('Invalid body');
   const suggestionId = Number(body.suggestionId);
   if (!Number.isInteger(suggestionId) || suggestionId <= 0) return fail('suggestionId required');
@@ -498,6 +501,7 @@ async function adminSelectGame(db, request, id) {
 async function adminPatchMeeting(db, request, id) {
   if (!Number.isInteger(id) || id <= 0) return fail('Invalid meeting id');
   const body = await readJson(request);
+  if (body instanceof Response) return body;
   if (!body) return fail('Invalid body');
   const meeting = await getMeetingById(db, id);
   if (!meeting) return fail('Meeting not found', 404);
@@ -515,6 +519,12 @@ async function adminPatchMeeting(db, request, id) {
     if (meeting.selected_game_id == null) return fail('Select a winning game before editing game details', 409);
     const existing = await getGameById(db, meeting.selected_game_id);
     if (!existing) return fail('Selected game record missing', 404);
+
+    if (body.image && !isHttpUrl(body.image)) return fail('Cover image link must be a valid http(s) URL.');
+    if (body.storeUrl && !isHttpUrl(body.storeUrl)) return fail('Store link must be a valid http(s) URL.');
+    if (body.gogUrl && !isHttpUrl(body.gogUrl)) return fail('GOG link must be a valid http(s) URL.');
+    if (body.hltbUrl && !isHttpUrl(body.hltbUrl)) return fail('HowLongToBeat link must be a valid http(s) URL.');
+
     const input = gameRowToInput(existing);
     if (body.title !== undefined) input.title = cleanLine(body.title, 200) || existing.title;
     if (body.image !== undefined) input.image = cleanLine(body.image, 400) || null;
@@ -598,6 +608,8 @@ function meetingFromInput(body, round, existing = null) {
   if (!startTime) return { error: 'Meeting start time required' };
   if (!endTime) return { error: 'Meeting end time required' };
   if (!venueName) return { error: 'Venue name required' };
+  if (discordInvite && !isHttpUrl(discordInvite)) return { error: 'Discord invite link must be a valid http(s) URL' };
+  if (discordEventUrl && !isHttpUrl(discordEventUrl)) return { error: 'Discord event link must be a valid http(s) URL' };
 
   const range = meetingUtcRange(meetingDate, startTime, endTime, timeZone);
   if (!range.startsAtUtc || !range.endsAtUtc) return { error: 'Could not build meeting start/end time' };
@@ -622,7 +634,14 @@ async function adminPatchSuggestion(db, request, id) {
   if (!Number.isInteger(id)) return fail('Invalid id');
   await ensureSuggestionDescriptionColumns(db);
   const body = await readJson(request);
+  if (body instanceof Response) return body;
   if (!body) return fail('Invalid body');
+
+  if (body.gogUrl && !isHttpUrl(body.gogUrl)) return fail('GOG link must be a valid http(s) URL.');
+  if (body.hltbUrl && !isHttpUrl(body.hltbUrl)) return fail('HowLongToBeat link must be a valid http(s) URL.');
+  if (body.image && !isHttpUrl(body.image)) return fail('Image link must be a valid http(s) URL.');
+  if (body.storeUrl && !isHttpUrl(body.storeUrl)) return fail('Store link must be a valid http(s) URL.');
+
   if (!(await getSuggestionById(db, id))) return fail('Suggestion not found', 404);
 
   const sets = [];
@@ -683,6 +702,7 @@ async function adminDeleteBallot(db, ballotId) {
 // matching Discord post or handoff without failing the workflow.
 async function adminRecordAutomationEvent(db, request) {
   const body = await readJson(request);
+  if (body instanceof Response) return body;
   if (!body) return fail('Invalid body');
   const roundId = Number(body.roundId);
   if (!Number.isInteger(roundId) || roundId <= 0) return fail('roundId required');

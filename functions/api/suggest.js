@@ -2,7 +2,7 @@
 // Body (Steam):     { onSteam:true,  steamUrl, pitch, showName }
 // Body (non-Steam): { onSteam:false, title, storeUrl, genres, pitch, showName }
 // Gated by: phase === 'suggesting' and authenticated Discord guild membership.
-import { json, fail, readJson, clean, cleanLine } from '../_lib/http.js';
+import { json, fail, readJson, clean, cleanLine, isHttpUrl } from '../_lib/http.js';
 import {
   ensureRoundScheduleColumns,
   ensureSuggestionDescriptionColumns,
@@ -18,22 +18,14 @@ import { displayName, requireMemberSession } from '../_lib/member-auth.js';
 // Live site, used to build click-through links in the Discord notifications.
 const SITE_URL = 'https://www.gamestormers.dk';
 
-// Only allow plain http(s) links so a crafted store link cannot smuggle in a
-// javascript: URI that the admin/public card would later render as an href.
-function isHttpUrl(value) {
-  try {
-    const u = new URL(value);
-    return u.protocol === 'http:' || u.protocol === 'https:';
-  } catch {
-    return false;
-  }
-}
+
 
 export async function onRequestPost({ request, env, waitUntil }) {
   const db = env.DB;
   if (!db) return fail('Database not configured', 500);
 
   const body = await readJson(request);
+  if (body instanceof Response) return body;
   if (!body) return fail('Invalid request body');
   if (body.showName !== undefined && typeof body.showName !== 'boolean') {
     return fail('showName must be true or false.');

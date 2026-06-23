@@ -16,11 +16,76 @@ export function fail(message, status = 400) {
   return json({ error: message }, status);
 }
 
-export async function readJson(request) {
+export function isHttpUrl(value) {
+  if (!value) return false;
   try {
-    return await request.json();
+    const u = new URL(value);
+    return u.protocol === 'http:' || u.protocol === 'https:';
   } catch {
-    return null;
+    return false;
+  }
+}
+
+export async function readJson(request, maxBytes = 32768) {
+  const contentType = request.headers.get('content-type') || '';
+  if (!contentType.includes('application/json')) {
+    return fail('Unsupported Media Type: expected application/json', 415);
+  }
+
+  const contentLengthHeader = request.headers.get('content-length');
+  if (contentLengthHeader) {
+    const limit = parseInt(contentLengthHeader, 10);
+    if (isNaN(limit) || limit > maxBytes) {
+      return fail('Payload Too Large', 413);
+    }
+  }
+
+  if (!request.body) {
+    try {
+      const text = await request.text();
+      if (text.length > maxBytes) {
+        return fail('Payload Too Large', 413);
+      }
+      return JSON.parse(text);
+    } catch {
+      return null;
+    }
+  }
+
+  const reader = request.body.getReader();
+  const chunks = [];
+  let totalBytes = 0;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (value) {
+        totalBytes += value.byteLength;
+        if (totalBytes > maxBytes) {
+          await reader.cancel();
+          return fail('Payload Too Large', 413);
+        }
+        chunks.push(value);
+      }
+    }
+  } catch {
+    return fail('Error reading request stream', 400);
+  }
+
+  const length = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
+  const bodyData = new Uint8Array(length);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bodyData.set(chunk, offset);
+    offset += chunk.length;
+  }
+
+  const text = new TextDecoder().decode(bodyData);
+  try {
+    return JSON.parse(text);
+  } catch {
+    return fail('Invalid JSON', 400);
   }
 }
 

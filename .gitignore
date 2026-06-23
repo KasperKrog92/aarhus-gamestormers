@@ -9,3 +9,6 @@ project documents/
 
 # Voting scheduler handoff output (uploaded as a workflow artifact, never committed)
 automation-output/
+
+# Local Wrangler dev logs
+.wrangler-dev*.log

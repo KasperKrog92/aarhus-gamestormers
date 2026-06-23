@@ -35,7 +35,19 @@ All user-supplied text is sanitized server-side before it is stored, through hel
 - `clean(value, maxLen)` trims, caps length, and strips control characters plus invisible/bidirectional formatting characters (zero-width spaces, joiners, BOM, RTL override, etc.) that enable invisible content or "Trojan Source" spoofing. Tabs and line breaks are preserved, so multi-line fields (pitches, descriptions) keep their formatting.
 - `cleanLine(value, maxLen)` does the same but also collapses every run of whitespace (including newlines) to a single space. It is used for single-line fields, such as a game title or suggester name, so a value cannot smuggle line breaks into a Discord notification or break a card's layout.
 
-Member-submitted store links are additionally scheme-checked (`isHttpUrl` in `functions/api/suggest.js`) so only `http(s)` URLs are accepted as hrefs. On output, every renderer (`js/vote.js`, `js/meetings.js`, `vote-admin.html`) writes user text via `textContent` or explicit HTML escaping, never raw `innerHTML`.
+Every URL field is scheme-checked with the shared `isHttpUrl(value)` helper in `functions/_lib/http.js` so only `http(s)` URLs are accepted as hrefs and a `javascript:`/`data:` value is rejected with a `400`. This covers the member store link in `/api/suggest` and the admin-entered links in `PATCH /api/admin/meeting/:id`, `PATCH /api/admin/suggestion/:id`, and the meeting Discord invite/event URLs. On output, every renderer (`js/vote.js`, `js/meetings.js`, `vote-admin.html`) writes user text via `textContent` or explicit HTML escaping, never raw `innerHTML`.
+
+### Request Hardening
+
+`readJson(request, maxBytes = 32768)` is the single entry point for parsing write-route bodies. It enforces:
+
+- **Media type:** a request without `Content-Type: application/json` is rejected with `415 Unsupported Media Type`.
+- **Size:** a `Content-Length` over the 32 KB limit is rejected up front, and the body stream is read chunk by chunk and cancelled once the running total exceeds the limit, both returning `413 Payload Too Large`. This stops a Worker from buffering an oversized body into memory.
+- **Shape:** a body that is not valid JSON returns `400 Bad Request`.
+
+On any of these, `readJson` returns a `Response` object instead of the parsed body. Every write route checks `if (body instanceof Response) return body;` immediately after calling it, so the correct status reaches the client. The frontend (`js/vote.js`), admin UI (`vote-admin.html`), and the scheduler API client (`automation/voting/api-client.mjs`) all send `Content-Type: application/json` on every request with a body, so this enforcement is transparent to legitimate callers.
+
+The admin Bearer-token gate (`isAdmin` in `functions/_lib/auth.js`) compares the supplied token against `ADMIN_TOKEN` in constant time: both sides are hashed to fixed-length SHA-256 digests and compared with `timingSafeEqual` (Web Crypto, falling back to `node:crypto` or a constant-time byte loop), so neither the token length nor a partial match leaks through response timing.
 
 ## D1 Tables
 
