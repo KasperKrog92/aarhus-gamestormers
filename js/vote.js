@@ -72,7 +72,8 @@ var STRINGS = {
     pathSteam: 'På Steam',
     pathManual: 'Ikke på Steam',
     chipPc: 'Spilbart på PC',
-    chipLength: '~10t eller mindre',
+    chipLengthValue: '~10t',
+    chipLength: 'eller mindre',
     suggestToggle: 'Foreslå nyt spil',
     hideSuggest: 'Skjul formular',
     guidelinesTitle: 'Hvilke spil passer godt?',
@@ -229,7 +230,8 @@ var STRINGS = {
     pathSteam: 'On Steam',
     pathManual: 'Not on Steam',
     chipPc: 'Playable on PC',
-    chipLength: '~10 hrs or less',
+    chipLengthValue: '~10 hrs',
+    chipLength: 'or less',
     suggestToggle: 'Suggest new game',
     hideSuggest: 'Hide form',
     guidelinesTitle: 'What kind of game works well?',
@@ -629,17 +631,24 @@ var STRINGS = {
 
       var pitchEditor = pitchEditable ? buildPitchEditor(suggestion, message) : null;
 
-      list.appendChild(el('div', { class: 'vote-owner-item' }, [
-        el('div', { class: 'vote-owner-copy' }, [
-          el('strong', { text: suggestion.title }),
-          el('span', { class: 'vote-owner-status', text: suggestionStatusText(suggestion.status) }),
+      // Each suggestion is its own collapsible row, closed by default, so the
+      // panel stays compact when a member has several suggestions.
+      list.appendChild(el('details', { class: 'vote-owner-item' }, [
+        el('summary', { class: 'vote-owner-summary' }, [
+          el('div', { class: 'vote-owner-copy' }, [
+            el('strong', { text: suggestion.title }),
+            el('span', { class: 'vote-owner-status', text: suggestionStatusText(suggestion.status) }),
+          ]),
+          el('span', { class: 'vote-owner-chevron', html: CHEVRON_GLYPH }),
         ]),
-        el('label', { class: 'vote-name-choice vote-owner-toggle' }, [
-          checkbox,
-          el('span', { text: T.showNameLabel }),
+        el('div', { class: 'vote-owner-item-body' }, [
+          el('label', { class: 'vote-name-choice vote-owner-toggle' }, [
+            checkbox,
+            el('span', { text: T.showNameLabel }),
+          ]),
+          pitchEditor,
+          message,
         ]),
-        pitchEditor,
-        message,
       ]));
     });
 
@@ -981,19 +990,21 @@ var STRINGS = {
     if (s.playtimeHours) meta.push(playtimeText(s.playtimeHours));
     var platforms = platformIcons(s.platforms);
 
-    var coverStore = null;
-    if (s.storeUrl) coverStore = el('a', { class: 'suggestion-cover-store', href: s.storeUrl, target: '_blank', rel: 'noopener noreferrer', text: 'Steam' });
-    else if (s.gogUrl) coverStore = el('a', { class: 'suggestion-cover-store', href: s.gogUrl, target: '_blank', rel: 'noopener noreferrer', text: 'GOG' });
-    var cover = el('div', { class: 'suggestion-cover-art' + (s.image ? '' : ' is-placeholder'), role: 'img', 'aria-label': s.title }, [
-      el('h3', { text: s.title }),
-      coverStore,
-    ]);
+    // Like the homepage event cards: a clean banner image with the title and
+    // meta sitting below the artwork, instead of text overlaid on the banner.
+    var storeLink = null;
+    if (s.storeUrl) storeLink = el('a', { class: 'suggestion-store-link', href: s.storeUrl, target: '_blank', rel: 'noopener noreferrer', text: 'Steam' });
+    else if (s.gogUrl) storeLink = el('a', { class: 'suggestion-store-link', href: s.gogUrl, target: '_blank', rel: 'noopener noreferrer', text: 'GOG' });
+    var cover = el('div', { class: 'suggestion-cover-art' + (s.image ? '' : ' is-placeholder'), role: 'img', 'aria-label': s.title });
     if (s.image) cover.style.backgroundImage = 'url("' + String(s.image).replace(/["\\]/g, '\\$&') + '")';
 
+    var metaRight = platforms || storeLink ? el('span', { class: 'suggestion-meta-right' }, [platforms, storeLink]) : null;
+
     var body = [
-      meta.length || platforms ? el('div', { class: 'suggestion-meta' }, [
-        meta.length ? el('span', { text: meta.join(' · ') }) : null,
-        platforms,
+      el('h3', { class: 'suggestion-title', text: s.title }),
+      meta.length || metaRight ? el('div', { class: 'suggestion-meta' }, [
+        el('span', { text: meta.join(' · ') }),
+        metaRight,
       ]) : null,
       description ? el('div', { class: 'suggestion-copy suggestion-copy-description' }, [
         el('p', { class: 'suggestion-description', text: description }),
@@ -1263,7 +1274,7 @@ var STRINGS = {
         el('p', { class: 'vote-board-disclosure-lead', text: T.introSuggesting }),
         el('div', { class: 'vote-suggest-chips' }, [
           el('span', { class: 'vote-suggest-chip' }, [el('b', { text: 'PC' }), document.createTextNode(T.chipPc)]),
-          el('span', { class: 'vote-suggest-chip' }, [el('b', { text: '~10' }), document.createTextNode(T.chipLength)]),
+          el('span', { class: 'vote-suggest-chip' }, [el('b', { text: T.chipLengthValue }), document.createTextNode(T.chipLength)]),
           el('span', { class: 'vote-suggest-chip' }, [
             document.createTextNode(T.guidelinesCheckPrefix),
             el('a', { href: eventsHref, text: T.guidelinesUpcoming }),
