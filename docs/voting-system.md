@@ -47,7 +47,7 @@ Every URL field is scheme-checked with the shared `isHttpUrl(value)` helper in `
 
 On any of these, `readJson` returns a `Response` object instead of the parsed body. Every write route checks `if (body instanceof Response) return body;` immediately after calling it, so the correct status reaches the client. The frontend (`js/vote.js`), admin UI (`vote-admin.html`), and the scheduler API client (`automation/voting/api-client.mjs`) all send `Content-Type: application/json` on every request with a body, so this enforcement is transparent to legitimate callers.
 
-The admin Bearer-token gate (`isAdmin` in `functions/_lib/auth.js`) compares the supplied token against `ADMIN_TOKEN` in constant time: both sides are hashed to fixed-length SHA-256 digests and compared with `timingSafeEqual` (Web Crypto, falling back to `node:crypto` or a constant-time byte loop), so neither the token length nor a partial match leaks through response timing.
+The admin Bearer-token gate (`isAdmin` in `functions/_lib/auth.js`) compares the supplied token against `ADMIN_TOKEN` in constant time: both sides are hashed to fixed-length SHA-256 digests and compared with `crypto.subtle.timingSafeEqual` (a Cloudflare Workers extension), falling back to a constant-time byte loop where that is unavailable (e.g. Node.js tests), so neither the token length nor a partial match leaks through response timing. The fallback avoids importing `node:crypto`, which keeps the Worker bundle free of the `nodejs_compat` requirement.
 
 ## D1 Tables
 

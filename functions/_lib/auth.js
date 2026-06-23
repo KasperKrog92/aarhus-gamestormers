@@ -12,19 +12,17 @@ async function timingSafeEqual(a, b) {
     return crypto.subtle.timingSafeEqual(aHash, bHash);
   }
 
-  // Fallback for environments lacking timingSafeEqual on Web Crypto (e.g. Node.js tests)
-  try {
-    const { timingSafeEqual: nodeTimingSafeEqual } = await import('node:crypto');
-    return nodeTimingSafeEqual(new Uint8Array(aHash), new Uint8Array(bHash));
-  } catch {
-    const aArr = new Uint8Array(aHash);
-    const bArr = new Uint8Array(bHash);
-    let diff = 0;
-    for (let i = 0; i < aArr.length; i++) {
-      diff |= aArr[i] ^ bArr[i];
-    }
-    return diff === 0;
+  // Fallback for environments lacking timingSafeEqual on Web Crypto (e.g. Node.js
+  // tests). Both operands are fixed-length SHA-256 digests, so this byte-wise XOR
+  // runs in constant time with respect to the secret. Avoiding a node:crypto import
+  // keeps the Worker bundle free of the nodejs_compat requirement.
+  const aArr = new Uint8Array(aHash);
+  const bArr = new Uint8Array(bHash);
+  let diff = 0;
+  for (let i = 0; i < aArr.length; i++) {
+    diff |= aArr[i] ^ bArr[i];
   }
+  return diff === 0;
 }
 
 export async function isAdmin(request, env) {
