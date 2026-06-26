@@ -1,19 +1,19 @@
 {
-  "updatedAt": "2026-06-25T08:32:35.778Z",
+  "updatedAt": "2026-06-26T08:36:33.510Z",
   "country": "DK",
   "apps": {
     "1569580": {
-      "onSale": false,
-      "discountPercent": 0,
-      "initialFormatted": "",
-      "finalFormatted": "29,99€",
+      "onSale": true,
+      "discountPercent": 40,
+      "initialFormatted": "29,99€",
+      "finalFormatted": "17,99€",
       "currency": "EUR"
     },
     "2592160": {
-      "onSale": false,
-      "discountPercent": 0,
-      "initialFormatted": "",
-      "finalFormatted": "28,99€",
+      "onSale": true,
+      "discountPercent": 20,
+      "initialFormatted": "28,99€",
+      "finalFormatted": "23,19€",
       "currency": "EUR"
     }
   }
