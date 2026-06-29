@@ -41,6 +41,7 @@ var STRINGS = {
     scheduleSuggestionsOpen: 'Forslag åbner',
     scheduleVotingOpens: 'Afstemning åbner',
     scheduleVotingCloses: 'Afstemning lukker',
+    schedulerTimeNote: 'kl. 09.00',
     nextRoundHeading: 'Næste runde',
     nextRoundIntro: 'Vil du være med igen? Her er den næste runde.',
     nextRoundMeeting: 'Næste møde',
@@ -201,6 +202,7 @@ var STRINGS = {
     scheduleSuggestionsOpen: 'Suggestions open',
     scheduleVotingOpens: 'Voting opens',
     scheduleVotingCloses: 'Voting closes',
+    schedulerTimeNote: 'at 09:00',
     nextRoundHeading: 'Next round',
     nextRoundIntro: 'Want to join again? Here is the next round.',
     nextRoundMeeting: 'Next meeting',
@@ -741,10 +743,15 @@ var STRINGS = {
     }).format(date);
   }
 
-  function parseDateOnly(dateString) {
+  // Scheduler-driven phase changes (voting opens, winner reveal) run on the
+  // daily 09:00 Europe/Copenhagen job, so their countdowns target 09:00 instead
+  // of the local midnight used by the pure-date suggestions-open boundary.
+  var SCHEDULER_HOUR = 9;
+
+  function parseDateOnly(dateString, hour) {
     var match = String(dateString || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
     if (!match) return null;
-    var date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+    var date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]), hour || 0, 0, 0, 0);
     if (
       date.getFullYear() !== Number(match[1]) ||
       date.getMonth() !== Number(match[2]) - 1 ||
@@ -794,9 +801,11 @@ var STRINGS = {
   }
 
   function phaseTimeline(round) {
+    // The voting step carries SCHEDULER_HOUR so the timeline can note that voting
+    // opens at 09:00 (the scheduler run), below its date.
     var steps = [
       ['suggestions', T.timelineSuggestions, round.suggestionsOpenAt],
-      ['voting', T.timelineVoting, round.votingOpensAt],
+      ['voting', T.timelineVoting, round.votingOpensAt, SCHEDULER_HOUR],
       ['winner', T.timelineWinner, round.votingClosesAt],
       ['meeting', T.timelineMeeting, round.meetingDate],
     ];
@@ -810,10 +819,19 @@ var STRINGS = {
     var timeline = el('ol', { class: 'vote-phase-timeline progress-' + currentIndex, style: '--vote-progress:' + (reduceMotion ? fill : 0) + '%', 'aria-label': T.flowTitle }, steps.map(function (step, index) {
       var state = states[index];
       var date = formatDate(step[2]);
+      var dateNode = date ? el('time', { class: 'vote-phase-date', datetime: step[2], text: date }) : null;
+      // The voting step pairs its date with the 09:00 note. .vote-phase-when keeps
+      // the two stacked on desktop and side by side on mobile.
+      var when = date && step[3]
+        ? el('span', { class: 'vote-phase-when' }, [
+            dateNode,
+            el('span', { class: 'vote-phase-time', text: T.schedulerTimeNote }),
+          ])
+        : dateNode;
       return el('li', { class: 'vote-phase-step ' + state }, [
         el('span', { class: 'vote-phase-marker', text: state === 'done' ? '✓' : String(index + 1) }),
         el('span', { class: 'vote-phase-name', text: step[1] }),
-        date ? el('time', { class: 'vote-phase-date', datetime: step[2], text: date }) : null,
+        when,
       ]);
     }));
     if (!reduceMotion) {
@@ -826,16 +844,19 @@ var STRINGS = {
     return timeline;
   }
 
+  // Each target is [label, dateString, hour]. Voting opening is a scheduler phase
+  // flip at 09:00; suggestions opening and the voting-close boundary are local
+  // midnight, so they use hour 0.
   function countdownTarget(round) {
     if (round.phase === 'suggesting') {
       return round.suggestionsAreOpen === false
-        ? [T.scheduleSuggestionsOpen, round.suggestionsOpenAt]
-        : [T.scheduleVotingOpens, round.votingOpensAt];
+        ? [T.scheduleSuggestionsOpen, round.suggestionsOpenAt, 0]
+        : [T.scheduleVotingOpens, round.votingOpensAt, SCHEDULER_HOUR];
     }
     if (round.phase === 'voting') {
       return round.votingHasStarted === false
-        ? [T.scheduleVotingOpens, round.votingOpensAt]
-        : [T.scheduleVotingCloses, round.votingClosesAt];
+        ? [T.scheduleVotingOpens, round.votingOpensAt, SCHEDULER_HOUR]
+        : [T.scheduleVotingCloses, round.votingClosesAt, 0];
     }
     return null;
   }
@@ -851,8 +872,9 @@ var STRINGS = {
     fetchState().catch(function () {});
   }
 
-  function countdownDetail(dateString, label, onComplete) {
-    var target = parseDateOnly(dateString);
+  function countdownDetail(dateString, label, onComplete, atHour) {
+    var hour = atHour || 0;
+    var target = parseDateOnly(dateString, hour);
     if (!target) return null;
     var valueNodes = {
       days: el('strong', { class: 'vote-countdown-days', text: '0' }),
@@ -903,7 +925,7 @@ var STRINGS = {
     // so it is the one transition that goes live at local midnight. Auto-refresh
     // when its countdown hits zero; other transitions wait on the 09:00 scheduler.
     var onZero = round.phase === 'suggesting' && round.suggestionsAreOpen === false ? autoReload : null;
-    return countdownDetail(item[1], item[0], onZero);
+    return countdownDetail(item[1], item[0], onZero, item[2]);
   }
 
   function dateCard(label, dateString) {
@@ -1016,28 +1038,46 @@ var STRINGS = {
 
     var metaRight = platforms || storeLink ? el('span', { class: 'suggestion-meta-right' }, [platforms, storeLink]) : null;
 
-    var descriptionNode = null;
-    var descriptionToggle = null;
-    var descriptionBlock = null;
-    if (description) {
-      var descriptionId = 'suggestion-description-' + mode + '-' + s.id;
-      descriptionNode = el('p', { class: 'suggestion-description', id: descriptionId, text: description });
-      descriptionToggle = el('button', {
+    // Both the description and the suggester's pitch collapse to a few lines
+    // with a "show more" toggle that is revealed only when the text actually
+    // overflows. clampChecks collects the nodes whose overflow we measure once
+    // the card is connected to the DOM (see the requestAnimationFrame below).
+    var clampChecks = [];
+    function makeCollapsible(text, id, nodeClass) {
+      var node = el('p', { class: nodeClass, id: id, text: text });
+      var toggle = el('button', {
         class: 'suggestion-description-toggle',
         type: 'button',
         hidden: 'hidden',
-        'aria-controls': descriptionId,
+        'aria-controls': id,
         'aria-expanded': 'false',
         text: T.showMore,
         onclick: function () {
-          var expanded = descriptionNode.classList.toggle('is-expanded');
-          descriptionToggle.setAttribute('aria-expanded', String(expanded));
-          descriptionToggle.textContent = expanded ? T.showLess : T.showMore;
+          var expanded = node.classList.toggle('is-expanded');
+          toggle.setAttribute('aria-expanded', String(expanded));
+          toggle.textContent = expanded ? T.showLess : T.showMore;
         },
       });
+      clampChecks.push({ node: node, toggle: toggle });
+      return { node: node, toggle: toggle };
+    }
+
+    var descriptionBlock = null;
+    if (description) {
+      var desc = makeCollapsible(description, 'suggestion-description-' + mode + '-' + s.id, 'suggestion-description');
       descriptionBlock = el('div', { class: 'suggestion-copy suggestion-copy-description' }, [
-        descriptionNode,
-        descriptionToggle,
+        desc.node,
+        desc.toggle,
+      ]);
+    }
+
+    var pitchBlock = null;
+    if (s.pitch) {
+      var pitchCopy = makeCollapsible(s.pitch, 'suggestion-pitch-' + mode + '-' + s.id, 'suggestion-pitch');
+      pitchBlock = el('div', { class: 'suggestion-pitch-block' }, [
+        el('span', { class: 'suggestion-pitch-label', text: T.suggestedPitch }),
+        pitchCopy.node,
+        pitchCopy.toggle,
       ]);
     }
 
@@ -1048,10 +1088,7 @@ var STRINGS = {
         metaRight,
       ]) : null,
       descriptionBlock,
-      s.pitch ? el('div', { class: 'suggestion-pitch-block' }, [
-        el('span', { class: 'suggestion-pitch-label', text: T.suggestedPitch }),
-        el('p', { class: 'suggestion-pitch', text: s.pitch }),
-      ]) : null,
+      pitchBlock,
       bylineName ? el('p', {
         class: 'suggestion-by',
         html: T.by + ' <b>' + escapeHtml(bylineName) + '</b>',
@@ -1093,10 +1130,12 @@ var STRINGS = {
       cover,
       el('div', { class: 'suggestion-body' }, body),
     ]);
-    if (descriptionNode) {
+    if (clampChecks.length) {
       requestAnimationFrame(function () {
-        if (!descriptionNode.isConnected) return;
-        if (descriptionNode.scrollHeight > descriptionNode.clientHeight + 1) descriptionToggle.hidden = false;
+        clampChecks.forEach(function (check) {
+          if (!check.node.isConnected) return;
+          if (check.node.scrollHeight > check.node.clientHeight + 1) check.toggle.hidden = false;
+        });
       });
     }
     return node;

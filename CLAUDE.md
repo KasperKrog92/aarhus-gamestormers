@@ -32,10 +32,13 @@ The repo is `github.com/KasperKrog92/aarhus-gamestormers`. The live site is `htt
 - When changing `css/style.css`, bump its `?v=N` query string on affected pages.
 - Do not commit or push unless explicitly asked. When asked to commit and push, commit directly to `main` and push `main`; do not create a branch or pull request unless explicitly asked. Pushing to `main` deploys the live site.
 - When asked to "commit and push" (or to commit), first update any Markdown docs affected by the change (`CLAUDE.md`, `docs/*.md`, `MEETING_WORKFLOW.md`, `README`, etc.) so documentation lands in the same commit as the code.
+- Do not verify changes by running the dev server or driving the browser (no preview/screenshot/eval loops). Make the change, then ask the maintainer to verify manually. Local setup that genuinely needs a running server (mirroring D1, flipping a round phase) is fine; it is browser verification that is unwanted. Static checks (`npm test`, reading code) are still expected.
 
 ## Local Preview
 
-Use the Cloudflare Pages dev server for real verification:
+Agents: do not start this server to verify your own changes — ask the maintainer to verify manually instead (see High-Priority Rules). This section is the reference for when the maintainer runs the server, or when local setup (D1, round phase) genuinely requires it.
+
+The Cloudflare Pages dev server:
 
 ```powershell
 npm run dev

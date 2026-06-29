@@ -1,6 +1,5 @@
 // POST /api/vote - cast a ranked ballot of one or more approved games.
-// Body: { rankings: number[] }. suggestionIds remains a temporary alias for the
-// approval-voting frontend until the ranking UI lands.
+// Body: { rankings: number[] }. suggestionIds is accepted as a legacy alias.
 // Gated by: phase === 'voting', voting schedule window, and authenticated
 // Discord guild membership. Re-submitting replaces the logged-in user's ballot.
 import { json, fail, readJson } from '../_lib/http.js';

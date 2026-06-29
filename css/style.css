@@ -1050,7 +1050,10 @@ img { display: block; max-width: 100%; height: auto; }
 
 /* ─── Vote page redesign: a shared club ritual, not a dashboard ───────────── */
 .gs-vote-page { background: var(--cream); }
-.vote-page-shell { overflow: hidden; }
+/* `clip` contains the hero's horizontal bleed like `hidden` did, but without
+   creating a scroll container, so the sticky `.vote-ballot-panel` can follow
+   the viewport while members scroll the game slate. */
+.vote-page-shell { overflow: clip; }
 .vote-ritual-hero {
   position: relative;
   overflow: hidden;
@@ -3407,6 +3410,8 @@ details[open] > .admin-section-summary::before { transform: rotate(90deg); }
 .gs-vote-page .vote-phase-step.current .vote-phase-marker { border-color: var(--cream); background: var(--green); color: var(--purple); }
 .gs-vote-page .vote-phase-name { color: var(--purple); font-size: 1.08rem; }
 .gs-vote-page .vote-phase-date { color: rgba(28,24,38,.7); font-size: .82rem; }
+.gs-vote-page .vote-phase-time { color: var(--green-dark); font-size: .74rem; font-weight: 700; }
+.gs-vote-page .vote-phase-when { display: flex; flex-direction: column; align-items: center; gap: 6px; }
 .gs-vote-page .suggestion-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
 .gs-vote-page .suggestion-card { border-color: rgba(247,244,238,.16); border-radius: 13px; background: rgba(247,244,238,.075); }
 .gs-vote-page .suggestion-card.is-selectable:hover { transform: translateY(-2px); box-shadow: 0 12px 30px rgba(0,0,0,.2); }
@@ -3440,7 +3445,10 @@ details[open] > .admin-section-summary::before { transform: rotate(90deg); }
   .gs-vote-page .vote-phase-step { grid-template-columns: 68px minmax(0, 1fr); align-items: center; }
   .gs-vote-page .vote-phase-marker { grid-row: span 2; margin: 0; }
   .gs-vote-page .vote-phase-name,
-  .gs-vote-page .vote-phase-date { grid-column: 2; }
+  .gs-vote-page .vote-phase-date,
+  .gs-vote-page .vote-phase-when { grid-column: 2; }
+  /* Mobile: date and 09:00 note sit on one line instead of stacked. */
+  .gs-vote-page .vote-phase-when { flex-direction: row; align-items: baseline; gap: 8px; }
   .gs-vote-page .suggestion-grid { grid-template-columns: 1fr; }
 }
 
@@ -3583,7 +3591,8 @@ details[open] > .admin-section-summary::before { transform: rotate(90deg); }
 .gs-vote-page .suggestion-description-toggle:focus-visible { outline: 2px solid var(--green); outline-offset: 3px; }
 .gs-vote-page .suggestion-pitch-block { padding-top: 11px; border-top: 1px solid var(--board-hairline); }
 .gs-vote-page .suggestion-pitch-label { display: block; margin-bottom: 4px; color: var(--green); font-size: .65rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
-.gs-vote-page .suggestion-pitch { margin: 0; color: var(--board-ink-soft); font-size: .85rem; line-height: 1.5; }
+.gs-vote-page .suggestion-pitch { margin: 0; display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 3; color: var(--board-ink-soft); font-size: .85rem; line-height: 1.5; }
+.gs-vote-page .suggestion-pitch.is-expanded { display: block; overflow: visible; -webkit-line-clamp: unset; }
 .gs-vote-page .suggestion-by { margin: 6px 0 0; color: var(--board-ink-faint); font-size: .8rem; }
 .gs-vote-page .vote-participation-line { display: flex; align-items: center; gap: 9px; margin: 0 0 26px; color: var(--board-ink-soft); font-size: .9rem; font-weight: 600; }
 .gs-vote-page .vote-participation-line::before { content: ''; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--green); }
