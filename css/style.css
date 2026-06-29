@@ -3663,6 +3663,11 @@ details[open] > .admin-section-summary::before { transform: rotate(90deg); }
 .gs-vote-page .suggestion-cover-art.is-placeholder { background: linear-gradient(150deg,var(--purple),#3a3147); }
 .gs-vote-page .suggestion-body { gap: 10px; padding: 15px 16px 17px; }
 .gs-vote-page .suggestion-title { color: var(--board-ink); font-size: 1.38rem; line-height: 1.08; }
+.gs-vote-page .suggestion-title-row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.gs-vote-page .suggestion-title-row .suggestion-title { min-width: 0; }
+.gs-vote-page .suggestion-playtime { flex-shrink: 0; white-space: nowrap; color: var(--board-ink-faint); font-size: .8rem; font-weight: 600; }
+.gs-vote-page a.suggestion-playtime { color: var(--green); transition: color .15s; }
+.gs-vote-page a.suggestion-playtime:hover { color: var(--green-light); }
 .gs-vote-page .suggestion-meta { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--board-ink-faint); font-size: .8rem; font-weight: 600; }
 .gs-vote-page .suggestion-meta-right { display: inline-flex; align-items: center; gap: 9px; flex-shrink: 0; }
 .gs-vote-page .suggestion-store-link { display: inline-flex; align-items: center; min-height: 22px; padding: 0 8px; border-radius: 6px; background: rgba(150,195,141,.12); color: var(--green); font-size: .68rem; font-weight: 700; letter-spacing: .04em; transition: background .15s; }

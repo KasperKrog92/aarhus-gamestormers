@@ -22,7 +22,7 @@ It is the site's only dynamic feature. It runs on Cloudflare Pages Functions and
 
 The green round hero and cream phase timeline stay shared across phases. The dark board below them changes with the round:
 
-- Suggesting uses closed native disclosures for the Steam/manual suggestion forms and for owner-only pitch/name management. Suggestion cards remain readable without login and use a branded placeholder when no cover image exists.
+- Suggesting uses closed native disclosures for the Steam/manual suggestion forms and for owner-only pitch/name management. Suggestion cards remain readable without login and use a branded placeholder when no cover image exists. Each card pairs its title with the playtime on one row (the playtime links to HowLongToBeat when `hltbUrl` is set), while genres and platform/store badges sit on the meta line below.
 - Voting uses a two-column game slate and sticky ranked-ballot panel on desktop, collapsing to one column on smaller screens. Logged-out and non-member visitors see the same slate without ranking controls.
 - Revealed rounds lead with a dedicated winner block, then show the aggregate instant-runoff rounds and the next-round notice. Ranked winners use the final-round count; legacy approval rounds keep their generic aggregate count. Winner artwork has the same no-image fallback as suggestion cards.
 

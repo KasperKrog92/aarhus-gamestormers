@@ -759,6 +759,7 @@ export function toCard(s, votes) {
     platforms: splitList(s.platforms),
     price: s.price || null,
     playtimeHours: s.playtime_hours != null ? Number(s.playtime_hours) : null,
+    hltbUrl: s.hltb_url || null,
     descriptionDa: s.description_da || null,
     descriptionEn: s.description_en || null,
     pitch: s.pitch || null,

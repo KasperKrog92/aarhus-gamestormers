@@ -155,6 +155,7 @@ var STRINGS = {
     rcvWinnerRound: 'Nåede et flertal og vinder.',
     rcvTransferred: '+{n} overført',
     playtime: '⏱ ~{h} t.',
+    hltbAria: 'Se spilletid for {title} på HowLongToBeat',
     platformPrefix: 'Tilgængelig på ',
     platformAnd: ' og ',
     errGeneric: 'Noget gik galt. Prøv igen.',
@@ -316,6 +317,7 @@ var STRINGS = {
     rcvWinnerRound: 'Reached a majority and wins.',
     rcvTransferred: '+{n} transferred',
     playtime: '⏱ ~{h} hrs.',
+    hltbAria: 'View playtime for {title} on HowLongToBeat',
     platformPrefix: 'Available on ',
     platformAnd: ' and ',
     errGeneric: 'Something went wrong. Please try again.',
@@ -699,6 +701,24 @@ var STRINGS = {
     return T.playtime.replace('{h}', h);
   }
 
+  // Playtime chip for a card's title row. Becomes a link to HowLongToBeat when
+  // the suggestion carries an hltbUrl, mirroring the homepage history cards.
+  function playtimeNode(s) {
+    if (!s.playtimeHours) return null;
+    var label = playtimeText(s.playtimeHours);
+    if (s.hltbUrl) {
+      return el('a', {
+        class: 'suggestion-playtime',
+        href: s.hltbUrl,
+        target: '_blank',
+        rel: 'noopener noreferrer',
+        'aria-label': T.hltbAria.replace('{title}', s.title),
+        text: label,
+      });
+    }
+    return el('span', { class: 'suggestion-playtime', text: label });
+  }
+
   // Steam platform name -> sprite symbol id (the sprite lives in the page body).
   var PLATFORM_ICONS = { Windows: 'gs-icon-windows', macOS: 'gs-icon-apple', Linux: 'gs-icon-linux' };
 
@@ -1025,7 +1045,6 @@ var STRINGS = {
     var bylineName = s.suggestedBy || (mine && mine.suggestedBy) || '';
     var description = lang === 'en' ? (s.descriptionEn || s.descriptionDa) : (s.descriptionDa || s.descriptionEn);
     var meta = (s.genres || []).slice(0, 3);
-    if (s.playtimeHours) meta.push(playtimeText(s.playtimeHours));
     var platforms = platformIcons(s.platforms);
 
     // Like the homepage event cards: a clean banner image with the title and
@@ -1082,7 +1101,10 @@ var STRINGS = {
     }
 
     var body = [
-      el('h3', { class: 'suggestion-title', text: s.title }),
+      el('div', { class: 'suggestion-title-row' }, [
+        el('h3', { class: 'suggestion-title', text: s.title }),
+        playtimeNode(s),
+      ]),
       meta.length || metaRight ? el('div', { class: 'suggestion-meta' }, [
         el('span', { text: meta.join(' · ') }),
         metaRight,
