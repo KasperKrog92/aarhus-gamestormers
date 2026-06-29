@@ -219,7 +219,7 @@ Algorithm per round:
 
 Edge cases are explicit: zero ballots → `blocked: no_ballots`; a single candidate → immediate winner; all-but-no-majority resolves to the remaining top candidate; partial rankings simply exhaust when the list runs out.
 
-**Elimination tie** (lowest is shared) is broken deterministically, in order: (1) fewest first-preference (round-1) votes, then (2) lowest in the most recent prior round where the tied candidates differed, then (3) lowest suggestion `id` (oldest). This always terminates without a coin flip and `id` order is stable and not voter-influenced.
+**Elimination tie** (lowest is shared) is broken deterministically, in order: (1) fewest first-preference (round-1) votes, then (2) lowest in the most recent prior round where the tied candidates differed, then (3) fewest ballots ranking the candidate anywhere (breadth of support, so a broadly liked consensus pick survives over a narrow first-choice game), then (4) lowest suggestion `id` (oldest). This always terminates without a coin flip and `id` order is stable and not voter-influenced.
 
 **Final / decisive tie** (the last standing candidates are exactly equal and none can reach majority) is **not** auto-resolved. `runIrv` returns `blocked: { reason: 'tie', tied: [...] }`, the scheduler leaves the round for the maintainer, and the admin Votes section surfaces the tied games and prompts breaking it by selecting the winner in the Selected game section. Rationale: an elimination order is a low-stakes internal step safe to break by rule, but the actual winner of a tied final is a real decision the maintainer should own.
 

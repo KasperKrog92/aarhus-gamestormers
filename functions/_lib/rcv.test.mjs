@@ -130,6 +130,17 @@ test('an elimination tie next uses the most recent prior round where counts diff
   assert.equal(result.rounds[2].eliminatedId, 2);
 });
 
+test('an elimination tie then removes the candidate ranked on the fewest ballots', () => {
+  // 1, 2, 3 each hold one first preference and never diverge in a prior round, so
+  // breadth of support decides: id 2 is named on a single ballot while id 1 is named
+  // on two. Eliminating id 2 transfers its ballot to id 1, which then takes the
+  // majority. The old id-only rule would instead cut id 1 and dead-heat 2 and 3.
+  const result = runIrv({ ballots: [[3], [1], [2, 1]], candidateIds: [1, 2, 3] });
+
+  assert.equal(result.rounds[0].eliminatedId, 2);
+  assert.equal(result.winnerId, 1);
+});
+
 test('an otherwise unresolved elimination tie removes the lowest candidate id', () => {
   const result = runIrv({ ballots: [[1], [2], [3]], candidateIds: [3, 2, 1] });
 

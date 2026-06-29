@@ -68,7 +68,15 @@ function countFor(round, id) {
   return entry ? entry.votes : 0;
 }
 
-function chooseElimination(tiedIds, firstRound, priorRounds) {
+function ballotsMentioning(ballots, id) {
+  let count = 0;
+  for (const ballot of ballots) {
+    if (ballot.includes(id)) count += 1;
+  }
+  return count;
+}
+
+function chooseElimination(tiedIds, firstRound, priorRounds, ballots) {
   let tied = [...tiedIds];
 
   const fewestFirstPreferences = Math.min(...tied.map((id) => countFor(firstRound, id)));
@@ -83,6 +91,13 @@ function chooseElimination(tiedIds, firstRound, priorRounds) {
     tied = tied.filter((id) => countFor(prior, id) === fewestPriorVotes);
     if (tied.length === 1) return tied[0];
   }
+
+  // Breadth of support: among candidates still tied, eliminate the one named on the
+  // fewest ballots (ranked anywhere, not just first). This keeps a broadly liked
+  // consensus pick alive over a narrow first-choice game before the id fallback.
+  const fewestMentions = Math.min(...tied.map((id) => ballotsMentioning(ballots, id)));
+  tied = tied.filter((id) => ballotsMentioning(ballots, id) === fewestMentions);
+  if (tied.length === 1) return tied[0];
 
   return Math.min(...tied);
 }
@@ -161,7 +176,7 @@ export function runIrv({ ballots = [], candidateIds = [] } = {}) {
 
     const eliminatedId = lowestIds.length === 1
       ? lowestIds[0]
-      : chooseElimination(lowestIds, result.rounds[0] || round, result.rounds);
+      : chooseElimination(lowestIds, result.rounds[0] || round, result.rounds, normalizedBallots);
     round.eliminatedId = eliminatedId;
     result.rounds.push(round);
     standing.delete(eliminatedId);
