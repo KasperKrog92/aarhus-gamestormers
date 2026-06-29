@@ -202,7 +202,7 @@ Logged-in members can also edit the `pitch` on their own suggestions, but only w
 
 The lazy D1 migration adds `show_suggester_name` as nullable. Existing authenticated suggestions therefore stay hidden, while older pre-auth suggestions retain their previous byline behaviour. Every new authenticated submission writes an explicit `1` or `0`, defaulting to `1` when `showName` is omitted.
 
-For votes, submitting a ballot deletes that Discord user's previous rows for the current round and inserts the new ranked choices (one row per ranked game, `rank` 1..N). That makes the latest ranking count across browsers and devices. Individual ranked ballots are never exposed publicly, and the default admin UI shows aggregate ranked-choice results rather than individual voter rankings.
+For votes, submitting a ballot deletes that Discord user's previous rows for the current round and inserts the new ranked choices (one row per ranked game, `rank` 1..N). That makes the latest ranking count across browsers and devices. Individual ranked ballots are never exposed publicly. The admin Votes section shows the aggregate ranked-choice results first, then lists each individual ballot (expandable, in submission order) so the maintainer can spot-check that the count matches the raw rankings. Ballots are labelled by index, not by who cast them, and Discord ids are never shown.
 
 ## Ranked-Choice Counting And Tie Rules
 
@@ -227,8 +227,8 @@ Edge cases are explicit: zero ballots → `blocked: no_ballots`; a single candid
 
 - **Never expose individual ranked ballots publicly.** `/api/round/current` exposes only the aggregate `rcvResult` (per-round counts, transfers, exhausted totals), and only after reveal.
 - **Participation count is turnout, not a tally.** `round.ballotCount` (`COUNT(DISTINCT ballot_id)`, so a multi-row ranked ballot counts once) is the only vote-derived number exposed during the `voting` phase. It says how many people voted, never which game leads, so it is distinct from the per-candidate counts that stay hidden until reveal.
-- **Admin sees aggregates by default.** Ordered ballots exist server-side only for the count and the `ballot_id` deletion key; no endpoint returns voter-attributed rankings.
-- **Small-electorate caveat:** with a small club, even aggregate transfer patterns can hint at individual preferences, and ranked data is more revealing than approval was. This is an accepted trade-off; reporting stays coarse (counts, not cross-tabs).
+- **Admin can see individual ballots.** The Bearer-gated `GET /api/admin/round` returns each ordered ballot, and the admin Votes section lists them (expandable) below the aggregates so the maintainer can verify the IRV count. Ballots are listed by submission order, never tied to a Discord id in the response or UI. No public endpoint returns ranked ballots.
+- **Small-electorate caveat:** with a small club, even aggregate transfer patterns can hint at individual preferences, and ranked data is more revealing than approval was. Listing individual ballots in the admin UI goes further, so it stays admin-only behind the token gate. This is an accepted trade-off; public reporting stays coarse (counts, not cross-tabs).
 
 ## Suggestion Curation
 

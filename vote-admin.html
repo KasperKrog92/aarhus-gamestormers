@@ -7,7 +7,7 @@
   <title>Vote admin – Aarhus Gamestormers</title>
   <link rel="icon" type="image/png" href="/favicon/favicon.png">
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=DM+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/style.css?v=23">
+  <link rel="stylesheet" href="/css/style.css?v=24">
   <meta name="theme-color" content="#2B2436">
 </head>
 
@@ -809,7 +809,7 @@
     wrap.innerHTML = '';
 
     wrap.appendChild(h('p', { class: 'admin-meta', text: plural(ballots.length, 'ballot') + ' submitted.' }));
-    wrap.appendChild(h('p', { class: 'admin-meta', text: 'Individual ballots are stored for vote integrity but are not shown in the default admin UI. Ranked-choice results are aggregate only.' }));
+    wrap.appendChild(h('p', { class: 'admin-meta', text: 'Aggregate ranked-choice results are below, followed by each individual ballot so you can spot-check the count. Ballots are listed by submission order, not by who cast them; Discord ids are never shown.' }));
 
     if (!ballots.length) {
       wrap.appendChild(h('div', { class: 'admin-card' }, [h('p', { class: 'admin-meta', text: 'No votes yet.' })]));
@@ -849,42 +849,89 @@
     });
     wrap.appendChild(fpCard);
 
-    // Round-by-round IRV summary from rcvResult. Falls back to nothing extra for
-    // historical approval rounds (rcvResult null), where the first-preference
-    // list above already reflects the single-row-per-vote legacy data.
-    if (!rcvResult || !rcvResult.rounds || !rcvResult.rounds.length) return;
+    // Round-by-round IRV summary from rcvResult. Skipped for historical approval
+    // rounds (rcvResult null), where the first-preference list above already
+    // reflects the single-row-per-vote legacy data. The individual ballot list
+    // below still renders either way.
+    if (rcvResult && rcvResult.rounds && rcvResult.rounds.length) {
+      var irv = h('div', { class: 'admin-card' }, [
+        h('h3', { style: 'margin:0 0 0.25rem', text: 'Ranked-choice count' }),
+        h('p', { class: 'admin-meta', style: 'margin:0 0 0.75rem', text: 'Instant-runoff, round by round. Each round eliminates the lowest game and transfers its ballots to the next still-standing choice; a game wins once it passes the majority line.' }),
+      ]);
 
-    var irv = h('div', { class: 'admin-card' }, [
-      h('h3', { style: 'margin:0 0 0.25rem', text: 'Ranked-choice count' }),
-      h('p', { class: 'admin-meta', style: 'margin:0 0 0.75rem', text: 'Instant-runoff, round by round. Each round eliminates the lowest game and transfers its ballots to the next still-standing choice; a game wins once it passes the majority line.' }),
-    ]);
+      if (rcvResult.winnerId != null) {
+        irv.appendChild(h('p', { class: 'admin-meta', style: 'margin:0 0 0.75rem' }, [
+          h('strong', { text: 'Winner: ' + titleFor(suggestions, rcvResult.winnerId) }),
+        ]));
+      }
 
-    if (rcvResult.winnerId != null) {
-      irv.appendChild(h('p', { class: 'admin-meta', style: 'margin:0 0 0.75rem' }, [
-        h('strong', { text: 'Winner: ' + titleFor(suggestions, rcvResult.winnerId) }),
-      ]));
+      rcvResult.rounds.forEach(function (r) {
+        var metaParts = ['Majority ' + r.majority + ' of ' + r.activeBallots + ' active'];
+        if (r.exhausted) metaParts.push(plural(r.exhausted, 'exhausted ballot'));
+        var roundBox = h('div', { style: 'margin:0 0 0.75rem' }, [
+          h('p', { class: 'admin-meta', style: 'margin:0;font-weight:600', text: 'Round ' + r.round + ' · ' + metaParts.join(' · ') }),
+        ]);
+        var transfers = r.transfersInto || {};
+        (r.counts || []).forEach(function (c) {
+          var line = titleFor(suggestions, c.id) + ': ' + plural(c.votes, 'vote');
+          var tags = [];
+          if (transfers[c.id]) tags.push('+' + transfers[c.id] + ' transferred');
+          if (r.winnerId === c.id) tags.push('winner, reached majority');
+          else if (r.eliminatedId === c.id) tags.push('eliminated');
+          if (tags.length) line += ' (' + tags.join(', ') + ')';
+          roundBox.appendChild(h('p', { class: 'admin-meta', style: 'margin:0', text: line }));
+        });
+        irv.appendChild(roundBox);
+      });
+
+      wrap.appendChild(irv);
     }
 
-    rcvResult.rounds.forEach(function (r) {
-      var metaParts = ['Majority ' + r.majority + ' of ' + r.activeBallots + ' active'];
-      if (r.exhausted) metaParts.push(plural(r.exhausted, 'exhausted ballot'));
-      var roundBox = h('div', { style: 'margin:0 0 0.75rem' }, [
-        h('p', { class: 'admin-meta', style: 'margin:0;font-weight:600', text: 'Round ' + r.round + ' · ' + metaParts.join(' · ') }),
+    wrap.appendChild(renderBallotList(ballots, suggestions));
+  }
+
+  // Individual ballots — an expandable list so the maintainer can read each
+  // ranking and confirm the aggregate count above matches. This intentionally
+  // surfaces per-ballot rankings in the admin UI (accepted privacy trade-off for
+  // a small club). Ballots arrive in submission order and are labelled by index;
+  // Discord ids are never exposed here.
+  function renderBallotList(ballots, suggestions) {
+    var card = h('div', { class: 'admin-card' }, [
+      h('h3', { style: 'margin:0 0 0.25rem', text: 'Individual ballots' }),
+      h('p', { class: 'admin-meta', style: 'margin:0 0 0.75rem', text: 'Each submitted ballot, top preference first. Expand one to see its full ranking and cross-check the count above.' }),
+    ]);
+
+    ballots.forEach(function (b, i) {
+      var rankings = (b.rankings || []).slice();
+      var topTitle = rankings.length ? titleFor(suggestions, rankings[0]) : 'No ranking';
+
+      var summary = h('summary', { class: 'admin-ballot-summary' }, [
+        h('span', { class: 'admin-ballot-index', text: 'Ballot ' + (i + 1) }),
+        h('span', { class: 'admin-ballot-top' }, [
+          h('span', { class: 'admin-ballot-top-rank', text: '1. ' }),
+          topTitle,
+        ]),
+        h('span', { class: 'admin-ballot-count', text: plural(rankings.length, 'game') }),
       ]);
-      var transfers = r.transfersInto || {};
-      (r.counts || []).forEach(function (c) {
-        var line = titleFor(suggestions, c.id) + ': ' + plural(c.votes, 'vote');
-        var tags = [];
-        if (transfers[c.id]) tags.push('+' + transfers[c.id] + ' transferred');
-        if (r.winnerId === c.id) tags.push('winner, reached majority');
-        else if (r.eliminatedId === c.id) tags.push('eliminated');
-        if (tags.length) line += ' (' + tags.join(', ') + ')';
-        roundBox.appendChild(h('p', { class: 'admin-meta', style: 'margin:0', text: line }));
-      });
-      irv.appendChild(roundBox);
+
+      var body = rankings.length
+        ? h('ol', { class: 'admin-ballot-rankings' }, rankings.map(function (id) {
+            return h('li', { text: titleFor(suggestions, id) });
+          }))
+        : h('p', { class: 'admin-meta admin-ballot-empty', text: 'This ballot has no ranked games.' });
+
+      var bodyKids = [body];
+      if (b.createdAt) {
+        bodyKids.push(h('p', { class: 'admin-meta admin-ballot-meta', text: 'Submitted ' + b.createdAt + (b.voterName ? ' · ' + b.voterName : '') }));
+      }
+
+      card.appendChild(h('details', { class: 'admin-ballot' }, [
+        summary,
+        h('div', { class: 'admin-ballot-body' }, bodyKids),
+      ]));
     });
 
-    wrap.appendChild(irv);
+    return card;
   }
 
   // open new round
