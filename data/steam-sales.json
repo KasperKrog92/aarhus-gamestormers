@@ -1,14 +1,7 @@
 {
-  "updatedAt": "2026-07-06T09:41:19.639Z",
+  "updatedAt": "2026-07-07T08:45:47.659Z",
   "country": "DK",
   "apps": {
-    "1569580": {
-      "onSale": true,
-      "discountPercent": 40,
-      "initialFormatted": "29,99€",
-      "finalFormatted": "17,99€",
-      "currency": "EUR"
-    },
     "2592160": {
       "onSale": true,
       "discountPercent": 20,
