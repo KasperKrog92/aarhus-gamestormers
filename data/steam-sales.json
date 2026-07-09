@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-07-09T08:48:32.853Z",
+  "updatedAt": "2026-07-09T12:08:54.390Z",
   "country": "DK",
   "apps": {
     "2592160": {
@@ -7,14 +7,18 @@
       "discountPercent": 20,
       "initialFormatted": "28,99€",
       "finalFormatted": "23,19€",
-      "currency": "EUR"
+      "currency": "EUR",
+      "discountEndsAt": "2026-07-09T17:00:00.000Z",
+      "endingSoonNotified": true
     },
     "2806640": {
       "onSale": true,
       "discountPercent": 75,
       "initialFormatted": "39,99€",
       "finalFormatted": "9,99€",
-      "currency": "EUR"
+      "currency": "EUR",
+      "discountEndsAt": "2026-07-09T17:00:00.000Z",
+      "endingSoonNotified": true
     }
   }
 }
