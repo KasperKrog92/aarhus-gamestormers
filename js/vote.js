@@ -41,7 +41,6 @@ var STRINGS = {
     scheduleSuggestionsOpen: 'Forslag åbner',
     scheduleVotingOpens: 'Afstemning åbner',
     scheduleVotingCloses: 'Afstemning lukker',
-    schedulerTimeNote: 'kl. 09.00',
     nextRoundHeading: 'Næste runde',
     nextRoundIntro: 'Vil du være med igen? Her er den næste runde.',
     nextRoundMeeting: 'Næste møde',
@@ -203,7 +202,6 @@ var STRINGS = {
     scheduleSuggestionsOpen: 'Suggestions open',
     scheduleVotingOpens: 'Voting opens',
     scheduleVotingCloses: 'Voting closes',
-    schedulerTimeNote: 'at 09:00',
     nextRoundHeading: 'Next round',
     nextRoundIntro: 'Want to join again? Here is the next round.',
     nextRoundMeeting: 'Next meeting',
@@ -821,11 +819,9 @@ var STRINGS = {
   }
 
   function phaseTimeline(round) {
-    // The voting step carries SCHEDULER_HOUR so the timeline can note that voting
-    // opens at 09:00 (the scheduler run), below its date.
     var steps = [
       ['suggestions', T.timelineSuggestions, round.suggestionsOpenAt],
-      ['voting', T.timelineVoting, round.votingOpensAt, SCHEDULER_HOUR],
+      ['voting', T.timelineVoting, round.votingOpensAt],
       ['winner', T.timelineWinner, round.votingClosesAt],
       ['meeting', T.timelineMeeting, round.meetingDate],
     ];
@@ -840,18 +836,10 @@ var STRINGS = {
       var state = states[index];
       var date = formatDate(step[2]);
       var dateNode = date ? el('time', { class: 'vote-phase-date', datetime: step[2], text: date }) : null;
-      // The voting step pairs its date with the 09:00 note. .vote-phase-when keeps
-      // the two stacked on desktop and side by side on mobile.
-      var when = date && step[3]
-        ? el('span', { class: 'vote-phase-when' }, [
-            dateNode,
-            el('span', { class: 'vote-phase-time', text: T.schedulerTimeNote }),
-          ])
-        : dateNode;
       return el('li', { class: 'vote-phase-step ' + state }, [
         el('span', { class: 'vote-phase-marker', text: state === 'done' ? '✓' : String(index + 1) }),
         el('span', { class: 'vote-phase-name', text: step[1] }),
-        when,
+        dateNode,
       ]);
     }));
     if (!reduceMotion) {
@@ -1701,9 +1689,8 @@ var STRINGS = {
 
     var cover = el('div', { class: 'vote-winner-cover' + (winner.image ? '' : ' is-placeholder') }, [
       el('span', { class: 'vote-winner-badge', text: '★ ' + T.winnerTag }),
-      el('h2', { text: winner.title }),
+      winner.image ? el('img', { class: 'vote-winner-img', src: winner.image, alt: '', loading: 'lazy', decoding: 'async' }) : null,
     ]);
-    if (winner.image) cover.style.backgroundImage = 'url("' + String(winner.image).replace(/["\\]/g, '\\$&') + '")';
     var meta = (winner.genres || []).slice(0, 3);
     if (winner.playtimeHours) meta.push(playtimeText(winner.playtimeHours));
     var action = winner.storeUrl
@@ -1713,12 +1700,14 @@ var STRINGS = {
       cover,
       el('div', { class: 'vote-winner-copy' }, [
         el('p', { class: 'vote-winner-eyebrow', text: T.winnerReveal }),
+        el('h2', { class: 'vote-winner-title', text: winner.title }),
         finalVotes == null ? null : el('div', { class: 'vote-winner-tally' }, [
           el('strong', { text: String(finalVotes) }),
           el('span', { text: tallySuffix }),
         ]),
         meta.length ? el('p', { class: 'vote-winner-meta', text: meta.join(' · ') }) : null,
         winner.pitch ? el('p', { class: 'vote-winner-pitch', text: winner.pitch }) : null,
+        winner.suggestedBy ? el('p', { class: 'vote-winner-by', html: T.by + ' <b>' + escapeHtml(winner.suggestedBy) + '</b>' }) : null,
         action ? el('div', { class: 'vote-winner-actions' }, [action]) : null,
       ]),
     ]);
