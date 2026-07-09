@@ -206,6 +206,45 @@ jobs:
               return apps;
             }
 
+            // Steam's classic appdetails endpoint (used above) does not expose when
+            // a discount ends. The newer store browse API does, under
+            // best_purchase_option.active_discounts[].discount_end_date (Unix
+            // seconds). We fetch it separately so the proven price logic above
+            // stays untouched, and degrade gracefully (no end dates) if it fails.
+            async function fetchSteamDiscountEndDates(ids) {
+              const endDates = {};
+              if (!ids.length) return endDates;
+
+              try {
+                const input = {
+                  ids: ids.map((id) => ({ appid: Number(id) })),
+                  context: { language: 'english', country_code: 'DK' },
+                  data_request: { include_assets: false }
+                };
+                const endpoint = new URL('https://api.steampowered.com/IStoreBrowseService/GetItems/v1/');
+                endpoint.searchParams.set('input_json', JSON.stringify(input));
+
+                const response = await fetch(endpoint);
+                if (!response.ok) {
+                  throw new Error(`Steam GetItems returned ${response.status}`);
+                }
+
+                const payload = await response.json();
+                const items = payload?.response?.store_items || [];
+                for (const item of items) {
+                  const appId = String(item?.appid ?? item?.id ?? '');
+                  const endTs = Number(item?.best_purchase_option?.active_discounts?.[0]?.discount_end_date || 0);
+                  if (appId && endTs > 0) {
+                    endDates[appId] = new Date(endTs * 1000).toISOString();
+                  }
+                }
+              } catch (error) {
+                core.warning(`Could not read Steam discount end dates: ${error.message}`);
+              }
+
+              return endDates;
+            }
+
             async function fetchGogSales(ids) {
               const products = {};
 
@@ -260,10 +299,22 @@ jobs:
             const previousSteam = await readJson(steamFile);
             const previousGog = await readJson(gogFile);
 
+            const steamApps = await fetchSteamSales(steamIds);
+            const steamDiscountEndDates = await fetchSteamDiscountEndDates(steamIds);
+            for (const [appId, info] of Object.entries(steamApps)) {
+              const prev = previousSteam?.apps?.[appId];
+              info.discountEndsAt = info.onSale ? (steamDiscountEndDates[appId] || null) : null;
+              // Carry the "ending soon" reminder flag across daily runs while the
+              // same discount is running, so we remind at most once. Reset it when
+              // the game is off sale or Steam moved the end date (a new discount).
+              const sameDiscount = info.onSale && prev?.onSale && prev.discountEndsAt === info.discountEndsAt;
+              info.endingSoonNotified = sameDiscount ? Boolean(prev.endingSoonNotified) : false;
+            }
+
             const steamData = {
               updatedAt: new Date().toISOString(),
               country: 'DK',
-              apps: await fetchSteamSales(steamIds)
+              apps: steamApps
             };
             const gogData = {
               updatedAt: new Date().toISOString(),
@@ -271,11 +322,9 @@ jobs:
               products: await fetchGogSales(gogIds)
             };
 
-            await writeJson(steamFile, steamData);
-            await writeJson(gogFile, gogData);
-
-            // Announce newly discounted games to Discord. Stays silent when a
-            // game is already on sale from a previous run, so it never spams.
+            // Announce sale changes to Discord: games that newly went on sale, and
+            // a reminder the day before a Steam discount ends. Stays silent while a
+            // sale simply continues, so it never spams.
             const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
             if (webhookUrl) {
               const announcements = [];
@@ -292,6 +341,34 @@ jobs:
                 return `${Math.round(eur * EUR_TO_DKK)} kr.`;
               }
 
+              function formatPrice(info, convertToDkk) {
+                let price = info.initialFormatted
+                  ? `~~${info.initialFormatted}~~ **${info.finalFormatted}**`
+                  : `**${info.finalFormatted}**`;
+                if (convertToDkk) {
+                  const dkk = eurToDkk(info.finalFormatted);
+                  if (dkk) price += ` (≈${dkk})`;
+                }
+                return price;
+              }
+
+              function meetingLineFor(game) {
+                return game.date
+                  ? `Our game for the meeting on ${game.date}.`
+                  : 'Our next club game.';
+              }
+
+              // Discord renders <t:UNIX:R>/<t:UNIX:F> in each reader's own locale
+              // and timezone, so we hand it the raw timestamp instead of a fixed
+              // string. Returns { relative, full } tags, or null when unknown.
+              function saleEndTags(info) {
+                if (!info.discountEndsAt) return null;
+                const unix = Math.floor(Date.parse(info.discountEndsAt) / 1000);
+                if (!Number.isFinite(unix) || unix <= 0) return null;
+                return { relative: `<t:${unix}:R>`, full: `<t:${unix}:F>` };
+              }
+
+              // (a) Games that newly went on sale (off -> on since the last run).
               function collectNewSales(currentMap, previousMap, meta, convertToDkk) {
                 for (const [id, info] of Object.entries(currentMap || {})) {
                   if (!info.onSale) continue;
@@ -299,24 +376,43 @@ jobs:
 
                   const game = meta[id] || {};
                   const title = game.title || id;
-                  let price = info.initialFormatted
-                    ? `~~${info.initialFormatted}~~ **${info.finalFormatted}**`
-                    : `**${info.finalFormatted}**`;
-                  if (convertToDkk) {
-                    const dkk = eurToDkk(info.finalFormatted);
-                    if (dkk) price += ` (≈${dkk})`;
-                  }
-                  const meetingLine = game.date
-                    ? `Our game for the meeting on ${game.date}.`
-                    : 'Our next club game.';
+                  const price = formatPrice(info, convertToDkk);
+                  const ends = saleEndTags(info);
+                  const endLine = ends ? `\nSale ends ${ends.relative} (${ends.full}).` : '';
                   // Bare URL on its own line so Discord unfurls a rich store embed.
                   const linkLine = game.url ? `\n${game.url}` : '';
-                  announcements.push(`🔥 **${title}** is now ${info.discountPercent}% off!\n${meetingLine}\nPrice: ${price}${linkLine}`);
+                  announcements.push(`🔥 **${title}** is now ${info.discountPercent}% off!\n${meetingLineFor(game)}\nPrice: ${price}${endLine}${linkLine}`);
+                }
+              }
+
+              // (b) Steam discounts ending within the next SALE_ENDING_SOON_HOURS.
+              // The cron runs every 24h, so a ~30h window reliably catches the final
+              // day before a sale ends, and the endingSoonNotified flag keeps it to
+              // one reminder. Sales that only started this run are left to their own
+              // announcement above; only Steam exposes discount end dates.
+              const SALE_ENDING_SOON_HOURS = 30;
+              function collectEndingSoon(currentMap, previousMap, meta, convertToDkk) {
+                const now = Date.now();
+                for (const [id, info] of Object.entries(currentMap || {})) {
+                  if (!info.onSale || info.endingSoonNotified) continue;
+                  if (!(previousMap && previousMap[id] && previousMap[id].onSale)) continue;
+                  const ends = saleEndTags(info);
+                  if (!ends) continue;
+                  const hoursLeft = (Date.parse(info.discountEndsAt) - now) / 3600000;
+                  if (hoursLeft <= 0 || hoursLeft > SALE_ENDING_SOON_HOURS) continue;
+
+                  const game = meta[id] || {};
+                  const title = game.title || id;
+                  const price = formatPrice(info, convertToDkk);
+                  const linkLine = game.url ? `\n${game.url}` : '';
+                  announcements.push(`⏰ **${title}** is still ${info.discountPercent}% off, but the sale ends ${ends.relative} (${ends.full}).\n${meetingLineFor(game)}\nPrice: ${price}${linkLine}`);
+                  info.endingSoonNotified = true;
                 }
               }
 
               collectNewSales(steamData.apps, previousSteam && previousSteam.apps, steamMeta, true);
               collectNewSales(gogData.products, previousGog && previousGog.products, gogMeta, false);
+              collectEndingSoon(steamData.apps, previousSteam && previousSteam.apps, steamMeta, true);
 
               if (announcements.length) {
                 const res = await fetch(webhookUrl, {
@@ -333,11 +429,16 @@ jobs:
                   core.info(`Posted ${announcements.length} sale notification(s) to Discord.`);
                 }
               } else {
-                core.info('No newly discounted games to announce.');
+                core.info('No sale changes to announce.');
               }
             } else {
               core.info('DISCORD_WEBHOOK_URL not set; skipping Discord notification.');
             }
+
+            // Write after the Discord step so the endingSoonNotified flags set by
+            // the reminder pass are persisted for the next run.
+            await writeJson(steamFile, steamData);
+            await writeJson(gogFile, gogData);
 
             const diffExitCode = await exec.exec('git', ['diff', '--quiet', '--', 'data/steam-sales.json', 'data/gog-sales.json'], {
               ignoreReturnCode: true
