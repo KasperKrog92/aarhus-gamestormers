@@ -358,6 +358,12 @@ jobs:
                   : 'Our next club game.';
               }
 
+              // Angle brackets keep the store link clickable but stop Discord from
+              // unfurling the bulky store-page preview embed.
+              function linkLineFor(game) {
+                return game.url ? `\n<${game.url}>` : '';
+              }
+
               // Discord renders <t:UNIX:R>/<t:UNIX:F> in each reader's own locale
               // and timezone, so we hand it the raw timestamp instead of a fixed
               // string. Returns { relative, full } tags, or null when unknown.
@@ -379,8 +385,7 @@ jobs:
                   const price = formatPrice(info, convertToDkk);
                   const ends = saleEndTags(info);
                   const endLine = ends ? `\nSale ends ${ends.relative} (${ends.full}).` : '';
-                  // Bare URL on its own line so Discord unfurls a rich store embed.
-                  const linkLine = game.url ? `\n${game.url}` : '';
+                  const linkLine = linkLineFor(game);
                   announcements.push(`🔥 **${title}** is now ${info.discountPercent}% off!\n${meetingLineFor(game)}\nPrice: ${price}${endLine}${linkLine}`);
                 }
               }
@@ -404,7 +409,7 @@ jobs:
                   const game = meta[id] || {};
                   const title = game.title || id;
                   const price = formatPrice(info, convertToDkk);
-                  const linkLine = game.url ? `\n${game.url}` : '';
+                  const linkLine = linkLineFor(game);
                   announcements.push(`⏰ **${title}** is still ${info.discountPercent}% off, but the sale ends ${ends.relative} (${ends.full}).\n${meetingLineFor(game)}\nPrice: ${price}${linkLine}`);
                   info.endingSoonNotified = true;
                 }
