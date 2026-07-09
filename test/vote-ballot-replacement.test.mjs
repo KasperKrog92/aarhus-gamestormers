@@ -10,9 +10,13 @@ function makeDb() {
     round: {
       id: 19,
       phase: 'voting',
-      suggestions_open_at: '2026-06-10',
-      voting_opens_at: '2026-06-13',
-      voting_closes_at: '2026-07-08',
+      // Date-independent voting window: opened in the far past and closes in the
+      // far future, so roundScheduleState always reports voting as open no matter
+      // when the suite runs. (Mirrors votingRound() in
+      // suggestion-name-visibility.test.mjs.)
+      suggestions_open_at: '2000-01-01',
+      voting_opens_at: '2000-02-01',
+      voting_closes_at: '2999-02-01',
     },
     suggestions: [
       { id: 7, round_id: 19, status: 'approved', created_at: '2026-06-01' },
