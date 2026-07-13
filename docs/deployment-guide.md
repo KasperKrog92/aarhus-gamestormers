@@ -92,7 +92,7 @@ automated run does not race the lazy migration.
 
 ## Voting Automation (GitHub Actions)
 
-The voting scheduler runs from `.github/workflows/voting-automation.yml` (once a day at 09:00 Europe/Copenhagen, and on manual dispatch). GitHub Actions cron is UTC-only, so the workflow triggers at the two possible UTC hours for 09:00 in Denmark and skips the one that is not 09:00 local before checkout, tests, or scheduler work. It talks to
+The voting scheduler runs from `.github/workflows/voting-automation.yml` (daily from 09:00 Europe/Copenhagen, and on manual dispatch). GitHub Actions cron is UTC-only and its triggers often start hours late, so the workflow has candidate triggers at 07:00, 08:00, and 12:00 UTC; a first-step gate skips any candidate that starts before 09:00 Copenhagen time and lets every later one proceed to checkout, tests, and scheduler work (repeat same-day runs are no-ops thanks to the `automation_events` idempotency log). It talks to
 the live admin API over HTTPS and needs these **GitHub Actions secrets** (Settings, Secrets and variables, Actions):
 
 - `VOTING_BASE_URL`: `https://www.gamestormers.dk`

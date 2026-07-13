@@ -16,9 +16,13 @@ on:
   schedule:
     # GitHub Actions cron is UTC-only and cannot express Europe/Copenhagen with
     # daylight saving time. Trigger at the two possible UTC hours for 09:00 in
-    # Denmark, then let the first job step skip whichever one is not 09:00 local.
+    # Denmark, plus a midday backstop in case GitHub drops or heavily delays the
+    # morning triggers. The first job step runs the scheduler on any trigger that
+    # lands at or after 09:00 local; duplicate same-day runs are no-ops because
+    # every scheduler action is guarded by the automation_events idempotency log.
     - cron: "0 7 * * *"
     - cron: "0 8 * * *"
+    - cron: "0 12 * * *"
 
 # Read-only: the scheduler talks to the site over HTTPS and only uploads an
 # artifact. It never needs to write to the repository.
@@ -34,14 +38,18 @@ jobs:
       - name: Check Copenhagen 09:00 gate
         id: copenhagen_gate
         run: |
+          # GitHub cron triggers routinely start 1-4 hours late, so requiring the
+          # local hour to be exactly 09 silently skipped the scheduler for days.
+          # Run on any trigger at or after 09:00 local instead; the scheduler's
+          # automation_events log makes a repeat same-day run a no-op.
           local_time="$(TZ=Europe/Copenhagen date '+%Y-%m-%d %H:%M:%S %Z')"
-          local_hour="$(TZ=Europe/Copenhagen date '+%H')"
+          local_hour="$(TZ=Europe/Copenhagen date '+%-H')"
           echo "Copenhagen time: ${local_time}"
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "${local_hour}" = "09" ]; then
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "${local_hour}" -ge 9 ]; then
             echo "should_run=true" >> "$GITHUB_OUTPUT"
           else
             echo "should_run=false" >> "$GITHUB_OUTPUT"
-            echo "Skipping voting scheduler because it is not 09:00 in Denmark."
+            echo "Skipping voting scheduler because it is before 09:00 in Denmark."
           fi
 
       - uses: actions/checkout@v5
