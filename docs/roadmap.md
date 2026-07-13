@@ -2,6 +2,8 @@
 
 Future work that is intentionally out of scope for current changes. Each item should explain the goal and any constraints that the current code already assumes.
 
+Candidate features from the July 2026 audit (ICS calendar feed, public voting archive, "already played" suggestion guard) are outlined in [`plans/2026-07-13-recommended-features.md`](plans/2026-07-13-recommended-features.md).
+
 ## Admin section for past and upcoming games / public meetings
 
 Add a dedicated admin area for managing public meeting records (the homepage event/history cards) independently of voting rounds.
