@@ -68,6 +68,7 @@ The game suggestion and voting feature lives in:
 - `js/vote.js`
 - `functions/`
 - `schema.sql`
+- `automation/voting/` (scheduler modules) and `automation/cron-worker/` (the Cloudflare Worker that is the scheduler's primary clock)
 
 Read [`docs/voting-system.md`](docs/voting-system.md) before changing it.
 
@@ -81,4 +82,6 @@ For manual direct upload, use:
 npm run deploy
 ```
 
-Never deploy the repo root with `wrangler pages deploy .`, because local-only files such as `.dev.vars` can be uploaded as public assets. Do not use `wrangler deploy`; that targets Workers, not Pages.
+Never deploy the repo root with `wrangler pages deploy .`, because local-only files such as `.dev.vars` can be uploaded as public assets. Do not use `wrangler deploy` for the site; that targets Workers, not Pages.
+
+One intentional exception: the voting scheduler's cron Worker (`automation/cron-worker/`) is deliberately a Worker and deploys with `npm run deploy:cron`. See [`docs/deployment-guide.md`](docs/deployment-guide.md).

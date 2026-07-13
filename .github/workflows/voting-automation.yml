@@ -1,10 +1,16 @@
 name: Voting automation
 
-# Runs the voting scheduler against the live admin API. It moves a round from
-# suggestions to voting on its scheduled open date, reveals the winner from the
-# D1 tallies after voting closes, posts the matching Discord announcements, and
-# uploads a maintainer handoff artifact when a revealed winner still needs manual
-# fields before its homepage card can be published.
+# BACKSTOP clock for the voting scheduler. The primary clock is the Cloudflare
+# cron Worker in automation/cron-worker/, which runs the same scheduler module
+# punctually; this workflow provides redundancy on independent infrastructure
+# (GitHub cron routinely fires hours late, which is fine for a backstop). Both
+# clocks are safe to overlap thanks to the automation_events idempotency log.
+#
+# The scheduler moves a round from suggestions to voting on its scheduled open
+# date, reveals the winner from the D1 tallies after voting closes, posts the
+# matching Discord announcements, and uploads a maintainer handoff artifact when
+# a revealed winner still needs manual fields before its homepage card can be
+# published.
 #
 # The scheduler is idempotent (D1 automation_events guard each transition), so the
 # daily run and any manual workflow_dispatch reruns will not duplicate phase
@@ -72,7 +78,8 @@ jobs:
           VOTING_ADMIN_TOKEN: ${{ secrets.VOTING_ADMIN_TOKEN }}
           DISCORD_VOTING_WEBHOOK_URL: ${{ secrets.DISCORD_VOTING_WEBHOOK_URL }}
           DISCORD_VOTING_ALERTS_WEBHOOK_URL: ${{ secrets.DISCORD_VOTING_ALERTS_WEBHOOK_URL }}
-        run: node automation/voting/run-scheduler.mjs
+          HEALTHCHECKS_PING_URL: ${{ secrets.HEALTHCHECKS_PING_URL }}
+        run: node automation/voting/cli.mjs
 
       - name: Upload winner handoff
         # Only runs when the scheduler wrote a handoff into automation-output/.

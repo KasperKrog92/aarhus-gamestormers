@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  postDiscordFile,
   blockedMessage,
   deleteDiscordMessage,
   postDiscord,
@@ -209,6 +210,49 @@ test('postDiscord reports a non-ok webhook response without throwing', async () 
   const fetch = async () => ({ ok: false, status: 400 });
   const result = await postDiscord('https://discord.example/webhook', 'hi', { fetch });
   assert.deepEqual(result, { skipped: false, posted: false, status: 400 });
+});
+
+test('postDiscordFile posts a multipart form with the markdown attachment', async () => {
+  const calls = [];
+  const fetch = async (url, init) => {
+    calls.push({ url, init });
+    return { ok: true, status: 200 };
+  };
+
+  const result = await postDiscordFile(
+    'https://discord.example/webhook',
+    { content: 'handoff ready', filename: 'meeting-21-winner.md', fileContent: '# brief' },
+    { fetch }
+  );
+
+  assert.deepEqual(result, { skipped: false, posted: true, status: 200 });
+  assert.equal(calls[0].init.method, 'POST');
+  const form = calls[0].init.body;
+  assert.ok(form instanceof FormData);
+  assert.deepEqual(JSON.parse(form.get('payload_json')), {
+    content: 'handoff ready',
+    allowed_mentions: { parse: [] },
+  });
+  const file = form.get('files[0]');
+  assert.equal(file.name, 'meeting-21-winner.md');
+  assert.equal(await file.text(), '# brief');
+});
+
+test('postDiscordFile is a no-op without a url or file content', async () => {
+  let called = false;
+  const fetch = async () => {
+    called = true;
+    return { ok: true, status: 200 };
+  };
+  assert.deepEqual(await postDiscordFile('', { fileContent: 'x' }, { fetch }), {
+    skipped: true,
+    posted: false,
+  });
+  assert.deepEqual(await postDiscordFile('https://discord.example/webhook', {}, { fetch }), {
+    skipped: true,
+    posted: false,
+  });
+  assert.equal(called, false);
 });
 
 test('postDiscord is a no-op without a url or content', async () => {

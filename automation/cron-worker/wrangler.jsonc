@@ -1,0 +1,33 @@
+// Cloudflare Worker config for the voting scheduler's primary clock.
+//
+// This is deliberately a WORKER, not the Pages site: Pages Functions cannot
+// have cron triggers. Deploy with `npm run deploy:cron` from the repo root
+// (wraps `wrangler deploy --config automation/cron-worker/wrangler.jsonc`).
+// The CLAUDE.md warning against `wrangler deploy` protects the site deploy;
+// this directory is the documented exception.
+//
+// Secrets (set once via `wrangler secret put <NAME> --config
+// automation/cron-worker/wrangler.jsonc`):
+//   VOTING_ADMIN_TOKEN                 same value as the Pages ADMIN_TOKEN
+//   DISCORD_VOTING_WEBHOOK_URL         public announcements channel
+//   DISCORD_VOTING_ALERTS_WEBHOOK_URL  private maintainer alerts channel
+//   CRON_TOKEN                         auth for the manual HTTP trigger
+//   HEALTHCHECKS_PING_URL              dead-man's-switch ping URL (optional)
+{
+  "name": "gamestormers-voting-cron",
+  "main": "worker.mjs",
+  "compatibility_date": "2026-06-23",
+  "triggers": {
+    // 07:00 and 08:00 UTC are the two candidates for 09:00 Europe/Copenhagen
+    // across DST; 12:30 UTC is a same-day backstop. The in-worker gate no-ops
+    // any trigger landing before 09:00 local, and the automation_events
+    // idempotency log makes repeat same-day passes no-ops.
+    "crons": ["0 7 * * *", "0 8 * * *", "30 12 * * *"]
+  },
+  "vars": {
+    "VOTING_BASE_URL": "https://www.gamestormers.dk"
+  },
+  "observability": {
+    "enabled": true
+  }
+}

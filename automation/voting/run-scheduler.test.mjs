@@ -223,7 +223,7 @@ test('announce_suggestions records the event and posts the suggestions-open temp
   const result = await runScheduler({
     env: ENV,
     today: '2026-06-20',
-    deps: { client, postDiscord: discord.fn, logger },
+    deps: { client, postDiscord: discord.fn, writeHandoff: async () => 'unused.md', logger },
   });
 
   assert.equal(result.action, 'announce_suggestions');
@@ -240,7 +240,7 @@ test('announce_suggestions records the event and posts the suggestions-open temp
 test('no current round is a clean no-op', async () => {
   const client = makeClient({ current: { round: null } });
   const { logger, messages } = makeLogger();
-  const result = await runScheduler({ env: ENV, today: '2026-07-10', deps: { client, logger } });
+  const result = await runScheduler({ env: ENV, today: '2026-07-10', deps: { client, writeHandoff: async () => 'unused.md', logger } });
 
   assert.equal(result.action, 'noop');
   assert.equal(result.roundId, null);
@@ -268,7 +268,7 @@ test('open_voting patches the phase, records the event, then announces', async (
   const result = await runScheduler({
     env: ENV,
     today: '2026-06-30',
-    deps: { client, postDiscord: discord.fn, deleteDiscordMessage: deletes.fn, logger },
+    deps: { client, postDiscord: discord.fn, deleteDiscordMessage: deletes.fn, writeHandoff: async () => 'unused.md', logger },
   });
 
   assert.equal(result.action, 'open_voting');
@@ -302,7 +302,7 @@ test('open_voting deletes a just-posted message when event recording reports a d
   const result = await runScheduler({
     env: ENV,
     today: '2026-06-30',
-    deps: { client, postDiscord: discord.fn, deleteDiscordMessage: deletes.fn, logger },
+    deps: { client, postDiscord: discord.fn, deleteDiscordMessage: deletes.fn, writeHandoff: async () => 'unused.md', logger },
   });
 
   assert.equal(result.duplicate, true);
@@ -454,7 +454,7 @@ test('blocked states alert the private channel once and record the alert', async
   const result = await runScheduler({
     env: ENV,
     today: '2026-07-10',
-    deps: { client, postDiscord: discord.fn, logger },
+    deps: { client, postDiscord: discord.fn, writeHandoff: async () => 'unused.md', logger },
   });
 
   assert.equal(result.action, 'blocked');
@@ -481,7 +481,7 @@ test('blocked states stay quiet after blocked_alerted is recorded', async () => 
   const result = await runScheduler({
     env: ENV,
     today: '2026-07-10',
-    deps: { client, postDiscord: discord.fn, logger },
+    deps: { client, postDiscord: discord.fn, writeHandoff: async () => 'unused.md', logger },
   });
 
   assert.equal(result.action, 'blocked');
@@ -501,7 +501,7 @@ test('a record failure after a successful phase patch is logged loudly and re-th
   const { logger, messages } = makeLogger();
 
   await assert.rejects(
-    () => runScheduler({ env: ENV, today: '2026-06-30', deps: { client, postDiscord: discord.fn, deleteDiscordMessage: deletes.fn, logger } }),
+    () => runScheduler({ env: ENV, today: '2026-06-30', deps: { client, postDiscord: discord.fn, deleteDiscordMessage: deletes.fn, writeHandoff: async () => 'unused.md', logger } }),
     /D1 unavailable/
   );
 
@@ -522,7 +522,7 @@ test('a missing webhook skips the announcement without failing the run', async (
   const result = await runScheduler({
     env: { VOTING_BASE_URL: ENV.VOTING_BASE_URL, VOTING_ADMIN_TOKEN: ENV.VOTING_ADMIN_TOKEN },
     today: '2026-06-30',
-    deps: { client, logger },
+    deps: { client, writeHandoff: async () => 'unused.md', logger },
   });
 
   assert.equal(result.action, 'open_voting');

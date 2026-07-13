@@ -340,6 +340,24 @@ export async function postDiscord(url, content, { fetch = globalThis.fetch, wait
   return { ...result, messageId };
 }
 
+// POST a message with a file attachment to a Discord webhook (multipart form,
+// per the Discord webhook API). Used by the cron Worker to deliver the winner
+// handoff Markdown to the private alerts channel, where a filesystem artifact
+// is not an option. Same no-throw contract as postDiscord: a missing url or
+// file is a skip, and a non-ok response is reported via posted/status.
+export async function postDiscordFile(
+  url,
+  { content = '', filename = 'handoff.md', fileContent } = {},
+  { fetch = globalThis.fetch } = {}
+) {
+  if (!url || !fileContent) return { skipped: true, posted: false };
+  const form = new FormData();
+  form.append('payload_json', JSON.stringify(toWebhookPayload(content)));
+  form.append('files[0]', new Blob([String(fileContent)], { type: 'text/markdown' }), filename);
+  const response = await fetch(url, { method: 'POST', body: form });
+  return { skipped: false, posted: Boolean(response.ok), status: response.status };
+}
+
 // Delete a webhook-created message. This is intentionally best-effort: rolling
 // announcement cleanup should never make an otherwise-valid scheduler run fail.
 export async function deleteDiscordMessage(url, messageId, { fetch = globalThis.fetch } = {}) {

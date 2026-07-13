@@ -19,9 +19,10 @@
 // manual fields such as HowLongToBeat data or localized copy, so the normal
 // incomplete reveal flow writes this handoff and leaves homepage publication to
 // MEETING_WORKFLOW.md.
-
-import { mkdir, writeFile } from 'node:fs/promises';
-import path from 'node:path';
+//
+// This module is platform-neutral (no node: imports) so the Cloudflare cron
+// Worker can bundle it. Handoff delivery is host-specific: the Node CLI writes
+// a file via handoff-node.mjs, the Worker posts a Discord attachment.
 
 function numberOrNull(value) {
   if (value == null || value === '') return null;
@@ -377,23 +378,4 @@ export function buildHandoffMarkdown({ roundPayload, winnerSuggestionId, plan, b
   lines.push('');
 
   return lines.join('\n');
-}
-
-// Workflow-relative path the handoff artifact is written to. Kept stable so the
-// GitHub Actions workflow can upload `automation-output/**` as an artifact.
-export function handoffArtifactPath(roundId, { outputDir = 'automation-output' } = {}) {
-  return path.posix.join(outputDir, `meeting-${numberOrNull(roundId) ?? 'unknown'}-winner.md`);
-}
-
-// Write the handoff Markdown to the workflow output directory and return the
-// path. fs hooks are injectable for tests; the scheduled workflow must NOT commit
-// this file, only upload it as an artifact.
-export async function writeHandoff(
-  markdown,
-  { roundId, outputDir = 'automation-output', fs = { mkdir, writeFile } } = {}
-) {
-  const filePath = handoffArtifactPath(roundId, { outputDir });
-  await fs.mkdir(path.dirname(filePath), { recursive: true });
-  await fs.writeFile(filePath, markdown, 'utf8');
-  return filePath;
 }

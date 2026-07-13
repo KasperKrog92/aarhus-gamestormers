@@ -90,9 +90,35 @@ The voting scheduler relies on the schedule columns, the meeting `discord_event_
 `ensure*` helpers also add them on demand, but apply the schema before enabling the scheduled workflow so the first
 automated run does not race the lazy migration.
 
-## Voting Automation (GitHub Actions)
+## Voting Automation (Cloudflare Cron Worker, primary clock)
 
-The voting scheduler runs from `.github/workflows/voting-automation.yml` (daily from 09:00 Europe/Copenhagen, and on manual dispatch). GitHub Actions cron is UTC-only and its triggers often start hours late, so the workflow has candidate triggers at 07:00, 08:00, and 12:00 UTC; a first-step gate skips any candidate that starts before 09:00 Copenhagen time and lets every later one proceed to checkout, tests, and scheduler work (repeat same-day runs are no-ops thanks to the `automation_events` idempotency log). It talks to
+The primary clock for the daily voting scheduler pass is the Cloudflare Worker `gamestormers-voting-cron`
+(`automation/cron-worker/`). Cloudflare cron triggers fire within about a minute of schedule, unlike GitHub's.
+Deploy it from the repo root:
+
+```powershell
+npm run deploy:cron
+```
+
+This wraps `wrangler deploy --config automation/cron-worker/wrangler.jsonc` and is the one intentional exception to
+the "never `wrangler deploy`" rule (that rule protects the Pages site deploy; this is deliberately a Worker, since
+Pages Functions cannot have cron triggers). The Worker needs these secrets, set once via
+`wrangler secret put <NAME> --config automation/cron-worker/wrangler.jsonc`:
+
+- `VOTING_ADMIN_TOKEN`: the same value as the Cloudflare Pages `ADMIN_TOKEN`
+- `DISCORD_VOTING_WEBHOOK_URL` and `DISCORD_VOTING_ALERTS_WEBHOOK_URL`: same values and channel semantics as the
+  GitHub Actions secrets below
+- `CRON_TOKEN`: random value that authenticates the manual HTTP trigger (`POST /` with `Authorization: Bearer
+  <CRON_TOKEN>` on the Worker's workers.dev URL runs one pass immediately)
+- `HEALTHCHECKS_PING_URL`: optional dead-man's-switch ping URL from healthchecks.io; pinged after every successful
+  pass so a day with no pass at all raises an alert
+
+`VOTING_BASE_URL` is a plain var in the Worker's `wrangler.jsonc`. Handoffs from this host are posted as Markdown
+file attachments to the private alerts webhook instead of workflow artifacts.
+
+## Voting Automation (GitHub Actions, backstop clock)
+
+The backstop clock runs from `.github/workflows/voting-automation.yml` (daily from 09:00 Europe/Copenhagen, and on manual dispatch). GitHub Actions cron is UTC-only and its triggers often start hours late, so the workflow has candidate triggers at 07:00, 08:00, and 12:00 UTC; a first-step gate skips any candidate that starts before 09:00 Copenhagen time and lets every later one proceed to checkout, tests, and scheduler work (repeat same-day runs, including overlap with the cron Worker, are no-ops thanks to the `automation_events` idempotency log). It talks to
 the live admin API over HTTPS and needs these **GitHub Actions secrets** (Settings, Secrets and variables, Actions):
 
 - `VOTING_BASE_URL`: `https://www.gamestormers.dk`
@@ -105,6 +131,8 @@ the live admin API over HTTPS and needs these **GitHub Actions secrets** (Settin
   reveal fields, plus blocked-round alerts for ties or no-vote outcomes. Optional; if unset, the scheduler still
   writes the handoff artifact and logs missing setup/blocked states. Blocked alerts are not recorded when the webhook
   is unset, so adding the secret later will still send the first private alert for an unresolved blocked round.
+- `HEALTHCHECKS_PING_URL`: optional; same dead-man's-switch ping URL as on the cron Worker, so the backstop pass
+  also counts as "the scheduler ran today".
 
 These are distinct from the sales workflow's `DISCORD_WEBHOOK_URL` and from the Cloudflare Pages
 `DISCORD_SUGGESTIONS_WEBHOOK_URL`, so voting lifecycle posts, private maintainer alerts, sale alerts, and

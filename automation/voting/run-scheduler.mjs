@@ -1,8 +1,10 @@
-// Runner for the voting scheduler, executed by GitHub Actions (see
+// Runner for the voting scheduler, executed by two independent hosts: the
+// Cloudflare cron Worker (automation/cron-worker/worker.mjs, the primary clock)
+// and GitHub Actions via cli.mjs (the backstop clock, see
 // .github/workflows/voting-automation.yml). It wires the pure decision logic in
 // scheduler.mjs to the side-effecting modules (api-client, discord, handoff) and
 // is the only place that performs phase patches, Discord posts, promotion, and
-// handoff writes.
+// handoff writes. It must stay free of node: imports so wrangler can bundle it.
 //
 // Idempotency model: phase transitions patch the round first, then post Discord
 // and record an automation event through the admin API. `recordAutomationEvent`
@@ -12,8 +14,6 @@
 // change is the primary re-entry guard, because decideRoundActions branches on
 // phase and never re-opens or re-reveals a round that already moved on. Blocked
 // states (tie / no votes) post one private alert, guarded by blocked_alerted.
-
-import { pathToFileURL } from 'node:url';
 
 import { createApiClient } from './api-client.mjs';
 import { ACTIONS, decideRoundActions } from './scheduler.mjs';
@@ -26,7 +26,7 @@ import {
   winnerAnnouncementFromPayload,
   winnerSetupNeededMessage,
 } from './discord.mjs';
-import { buildHandoffMarkdown, winnerPublicationPlan, writeHandoff } from './handoff.mjs';
+import { buildHandoffMarkdown, winnerPublicationPlan } from './handoff.mjs';
 import { todayDateOnly } from '../../functions/_lib/schedule.js';
 
 // Read and validate the runner environment. VOTING_BASE_URL and
@@ -379,16 +379,20 @@ async function handleBlocked(ctx, { round, decision }) {
 //   deps.client        api client (defaults to a real createApiClient)
 //   deps.postDiscord   Discord poster (defaults to the real postDiscord)
 //   deps.deleteDiscordMessage best-effort Discord message cleanup
-//   deps.writeHandoff  handoff writer (defaults to the real writeHandoff)
+//   deps.writeHandoff  handoff writer, REQUIRED: delivery is host-specific
+//                      (file for the Node CLI, Discord attachment for the Worker)
 //   deps.logger        { info, warn, error } (defaults to console)
 // `today` defaults to the real current date (YYYY-MM-DD).
-export async function runScheduler({ env = process.env, today, deps = {} } = {}) {
-  const config = readEnv(env);
+export async function runScheduler({ env, today, deps = {} } = {}) {
+  const config = readEnv(env ?? (typeof process !== 'undefined' ? process.env : {}));
+  if (typeof deps.writeHandoff !== 'function') {
+    throw new Error('runScheduler requires deps.writeHandoff (host-specific handoff delivery).');
+  }
   const logger = deps.logger || defaultLogger();
   const client = deps.client || createApiClient({ baseUrl: config.baseUrl, adminToken: config.adminToken });
   const postDiscordFn = deps.postDiscord || postDiscord;
   const deleteDiscordMessageFn = deps.deleteDiscordMessage || deleteDiscordMessage;
-  const writeHandoffFn = deps.writeHandoff || writeHandoff;
+  const writeHandoffFn = deps.writeHandoff;
   const day = today || todayDateOnly();
 
   const payload = await client.getCurrentRound();
@@ -435,18 +439,4 @@ export async function runScheduler({ env = process.env, today, deps = {} } = {})
   }
 
   return { action: ACTIONS.NOOP, roundId: decision.roundId, reason: decision.reason };
-}
-
-// Execute when run directly (node automation/voting/run-scheduler.mjs). A thrown
-// error exits non-zero so a genuine failure surfaces as a red workflow run;
-// blocked/no-op states resolve normally and stay green.
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  runScheduler()
-    .then((result) => {
-      console.log(`Scheduler finished: ${JSON.stringify(result)}`);
-    })
-    .catch((err) => {
-      console.error(`Scheduler failed: ${err.message}`);
-      process.exitCode = 1;
-    });
 }

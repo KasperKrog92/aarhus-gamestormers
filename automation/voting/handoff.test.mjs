@@ -1,12 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import {
-  buildHandoffMarkdown,
-  handoffArtifactPath,
-  winnerPublicationPlan,
-  writeHandoff,
-} from './handoff.mjs';
+import { buildHandoffMarkdown, winnerPublicationPlan } from './handoff.mjs';
+import { handoffArtifactPath, writeHandoff } from './handoff-node.mjs';
 import { runIrv } from '../../functions/_lib/rcv.js';
 
 const BASE = 'https://www.gamestormers.dk';

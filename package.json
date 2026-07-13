@@ -8,6 +8,7 @@
     "dev": "npx --yes wrangler pages dev .",
     "test": "node --test",
     "prepare:deploy-pages": "node scripts/prepare-pages-deploy.mjs",
-    "deploy": "npm run prepare:deploy-pages && npx --yes wrangler pages deploy .deploy/pages --project-name aarhus-gamestormers-site --branch main"
+    "deploy": "npm run prepare:deploy-pages && npx --yes wrangler pages deploy .deploy/pages --project-name aarhus-gamestormers-site --branch main",
+    "deploy:cron": "npx --yes wrangler deploy --config automation/cron-worker/wrangler.jsonc"
   }
 }
