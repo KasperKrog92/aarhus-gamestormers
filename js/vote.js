@@ -383,10 +383,16 @@ var STRINGS = {
 
   function api(path, opts) {
     return fetch('/api' + path, opts).then(function (res) {
-      return res.json().then(function (data) {
-        if (!res.ok) throw new Error(data && data.error ? data.error : T.errGeneric);
-        return data;
-      });
+      // A non-JSON body (e.g. a Cloudflare HTML error page) must not surface a
+      // raw parser message to the member; fall back to the generic error.
+      return res
+        .json()
+        .catch(function () { return null; })
+        .then(function (data) {
+          if (!res.ok) throw new Error(data && data.error ? data.error : T.errGeneric);
+          if (data === null) throw new Error(T.errGeneric);
+          return data;
+        });
     });
   }
 
@@ -1450,7 +1456,6 @@ var STRINGS = {
     var suggestionsById = {};
     data.suggestions.forEach(function (s) { suggestionsById[Number(s.id)] = s; });
     var ranking = []; // ordered suggestion ids, first = top preference
-    var hadBallot = false;
 
     var cards = data.suggestions.map(function (s) { return card(s, 'vote'); });
     var cardsById = {};
@@ -1570,7 +1575,6 @@ var STRINGS = {
         body: JSON.stringify({ rankings: ranking.slice() }),
       })
         .then(function () {
-          hadBallot = true;
           btn.textContent = T.btnUpdateVote;
           showMsg(box, T.voteThanks, true);
           refreshParticipation();
@@ -1593,7 +1597,6 @@ var STRINGS = {
           .filter(function (id) { return suggestionsById[id]; });
         if (prefilled.length) {
           ranking = prefilled;
-          hadBallot = true;
           btn.textContent = T.btnUpdateVote;
           syncAll();
         }

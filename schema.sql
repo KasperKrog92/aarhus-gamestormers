@@ -166,6 +166,8 @@ CREATE INDEX IF NOT EXISTS idx_suggestions_round ON suggestions(round_id, status
 CREATE INDEX IF NOT EXISTS idx_votes_round       ON votes(round_id, suggestion_id);
 CREATE INDEX IF NOT EXISTS idx_votes_ballot      ON votes(round_id, ballot_id);
 CREATE INDEX IF NOT EXISTS idx_votes_ballot_rank ON votes(round_id, ballot_id, rank);
+-- The admin ballot delete filters on ballot_id alone (no round context).
+CREATE INDEX IF NOT EXISTS idx_votes_ballotid    ON votes(ballot_id);
 CREATE INDEX IF NOT EXISTS idx_suggestions_discord_user ON suggestions(round_id, discord_user_id);
 CREATE INDEX IF NOT EXISTS idx_votes_discord_user ON votes(round_id, discord_user_id);
 CREATE INDEX IF NOT EXISTS idx_auth_sessions_user ON auth_sessions(discord_user_id, expires_at);

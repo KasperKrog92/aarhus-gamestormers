@@ -252,7 +252,7 @@ export async function getSessionUser(db, request, env) {
   const hash = await tokenHash(token, env.SESSION_SECRET);
   const row = await db
     .prepare(
-      `SELECT u.discord_id, u.username, u.avatar, u.is_gamestormers_member, s.expires_at
+      `SELECT u.discord_id, u.username, u.avatar, u.is_gamestormers_member, s.expires_at, s.last_seen_at
          FROM auth_sessions s
          JOIN discord_users u ON u.discord_id = s.discord_user_id
         WHERE s.token_hash = ? AND s.expires_at > ?
@@ -261,7 +261,13 @@ export async function getSessionUser(db, request, env) {
     .bind(hash, nowIso())
     .first();
   if (!row) return null;
-  await db.prepare('UPDATE auth_sessions SET last_seen_at = ? WHERE token_hash = ?').bind(nowIso(), hash).run();
+  // Throttle the last-seen bump: writing it on every authenticated read turns
+  // each GET into a D1 write. The column is diagnostic housekeeping, so one
+  // update per session per hour is plenty.
+  const lastSeen = row.last_seen_at ? Date.parse(row.last_seen_at) : NaN;
+  if (!Number.isFinite(lastSeen) || Date.now() - lastSeen > 60 * 60 * 1000) {
+    await db.prepare('UPDATE auth_sessions SET last_seen_at = ? WHERE token_hash = ?').bind(nowIso(), hash).run();
+  }
   return toSessionUser(row);
 }
 

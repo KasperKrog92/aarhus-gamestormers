@@ -28,4 +28,4 @@ The agent Preview panel renders the raw `.html` file directly. That breaks two t
 - First-time setup (if `/api/*` errors with a missing-table error) needs the local D1 schema applied once:
   `wrangler d1 execute gamestormers --local --file=./schema.sql`. `.dev.vars` must hold `ADMIN_TOKEN` plus the Discord OAuth variables from `docs/voting-system.md`.
 
-When changing `css/style.css`, bump its `?v=N` query string on the affected page(s) so the dev server / browser doesn't serve a stale stylesheet.
+When changing `css/style.css`, bump the shared `?v=N` query string on every page that links it (one version number across all pages) so the dev server / browser doesn't serve a stale stylesheet.

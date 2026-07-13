@@ -119,6 +119,7 @@ test('keeps voting open through the close date itself', () => {
     round: votingRound(),
     suggestions: SUGGESTIONS,
     rcvResult: CLEAR_RCV_RESULT,
+    automationEvents: [{ eventType: 'voting_opened' }, { eventType: 'voting_last_day_reminded' }],
   });
   assert.equal(decision.action, ACTIONS.NOOP);
 });
@@ -185,6 +186,7 @@ test('does not reveal a winner when no close date is set', () => {
     round: votingRound({ voting_closes_at: '' }),
     suggestions: SUGGESTIONS,
     rcvResult: CLEAR_RCV_RESULT,
+    automationEvents: [{ eventType: 'voting_opened' }],
   });
   assert.equal(decision.action, ACTIONS.NOOP);
   assert.match(decision.reason, /voting_closes_at/);
@@ -340,10 +342,64 @@ test('reminds halfway through the voting window', () => {
   assert.equal(decision.eventType, 'voting_halfway_reminded');
 });
 
-test('voting reminders require the voting-open announcement', () => {
+test('a voting round with no voting_opened event re-announces instead of reminding', () => {
+  // The announcement was lost (e.g. Discord failed between the phase patch and
+  // the event record): the recovery decision re-emits open_voting, and no
+  // reminder can fire before the announcement it refers to.
   const decision = decideRoundActions({
     today: '2026-07-04',
     round: votingRound(),
+    automationEvents: [],
+  });
+  assert.equal(decision.action, ACTIONS.OPEN_VOTING);
+  assert.match(decision.reason, /never recorded/);
+});
+
+test('a round flipped to voting manually before the open date is left alone', () => {
+  const decision = decideRoundActions({
+    today: '2026-06-25',
+    round: votingRound(),
+    automationEvents: [],
+  });
+  assert.equal(decision.action, ACTIONS.NOOP);
+});
+
+test('a missing voting_opened event does not block the reveal once voting closed', () => {
+  const decision = decideRoundActions({
+    today: '2026-07-10',
+    round: votingRound(),
+    suggestions: SUGGESTIONS,
+    rcvResult: CLEAR_RCV_RESULT,
+    automationEvents: [],
+  });
+  assert.equal(decision.action, ACTIONS.REVEAL_WINNER);
+});
+
+test('a revealed round with only winner_revealed recorded resumes the reveal side effects', () => {
+  const decision = decideRoundActions({
+    today: '2026-07-11',
+    round: votingRound({ phase: 'revealed', winner_suggestion_id: 101 }),
+    automationEvents: [{ eventType: 'winner_revealed' }],
+  });
+  assert.equal(decision.action, ACTIONS.RESUME_REVEAL);
+  assert.equal(decision.winnerSuggestionId, 101);
+});
+
+test('a revealed round does not resume once any follow-up event is recorded', () => {
+  for (const followUp of ['winner_announcement_posted', 'winner_setup_needed_alerted', 'handoff_generated']) {
+    const decision = decideRoundActions({
+      today: '2026-07-11',
+      round: votingRound({ phase: 'revealed', winner_suggestion_id: 101 }),
+      automationEvents: [{ eventType: 'winner_revealed' }, { eventType: followUp }],
+    });
+    assert.equal(decision.action, ACTIONS.NOOP, `follow-up ${followUp} should settle the round`);
+  }
+});
+
+test('a manually revealed round (no winner_revealed event) is left alone', () => {
+  const decision = decideRoundActions({
+    today: '2026-07-11',
+    round: votingRound({ phase: 'revealed', winner_suggestion_id: 101 }),
     automationEvents: [],
   });
   assert.equal(decision.action, ACTIONS.NOOP);

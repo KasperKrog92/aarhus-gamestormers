@@ -2,6 +2,17 @@
 
 The site is hosted on Cloudflare Pages. Pushing to `main` deploys automatically.
 
+Both deploy paths (git push and manual direct upload) publish the same allowlisted artifact built by `scripts/prepare-pages-deploy.mjs` into `.deploy/pages`. This is a hard requirement, not a convenience: the git-connected Pages build does NOT honor `.assetsignore`, and until 2026-07-13 it served the entire repo (schema.sql, wrangler.toml, docs, tests, automation source, migration SQL) as public assets. Never point `pages_build_output_dir` back at the repo root.
+
+## ONE-TIME DASHBOARD MIGRATION (required before pushing the 2026-07-13 changes)
+
+`wrangler.toml` now sets `pages_build_output_dir = ".deploy/pages"`. The Cloudflare Pages dashboard build command must produce that directory, or the next git deploy fails:
+
+1. In the Cloudflare dashboard, open the Pages project `aarhus-gamestormers-site`, Settings, Build & deployments.
+2. Set **Build command** to `npm run prepare:deploy-pages`.
+3. Set **Build output directory** to `.deploy/pages` (if the dashboard does not already take it from `wrangler.toml`).
+4. Push, then verify: `https://www.gamestormers.dk/schema.sql` and `/CLAUDE.md` must return the 404 page, while `/`, `/en/`, `/vote`, `/privacy`, and `/api/round/current` work.
+
 ## Local Preview
 
 Use the Cloudflare Pages dev server when you need to see the rendered site or test `/api/*`:
@@ -82,7 +93,8 @@ wrangler d1 execute gamestormers --remote --file=./backfill-meetings.sql
 - After backfilling production, verify `https://www.gamestormers.dk/api/meetings/public` returns the expected
   `upcoming`/`history` groups, then confirm both `/` and `/en/` render the dynamic cards.
 - `backfill-meetings.sql` and `scripts/` are not in the Pages deploy allowlist (`scripts/prepare-pages-deploy.mjs`),
-  so they are never published as public assets.
+  so they are never published as public assets. Since 2026-07-13 the git deploy also builds from that allowlist,
+  so this holds on both deploy paths.
 
 The voting scheduler relies on the schedule columns, the meeting `discord_event_url` column, and the
 `automation_events` table. These are part of
@@ -152,8 +164,8 @@ permissions and never commits to the repo; the winner handoff is uploaded as the
 ## Cloudflare Pages Settings
 
 - Project root: `/`
-- Build command: empty
-- Pages build output directory: `.`
+- Build command: `npm run prepare:deploy-pages`
+- Pages build output directory: `.deploy/pages` (from `wrangler.toml`)
 - D1 binding: `DB`
 - Required production vars in `wrangler.toml`: `DISCORD_REDIRECT_URI`, `DISCORD_GUILD_ID`
 - Required encrypted environment variables/secrets: `ADMIN_TOKEN`, `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`, `SESSION_SECRET`
@@ -182,7 +194,7 @@ Do not run:
 wrangler pages deploy .
 ```
 
-Deploying the repo root can upload local-only files such as `.dev.vars` as public assets.
+Deploying the repo root can upload local-only files such as `.dev.vars` as public assets. `.assetsignore` exists only as defense in depth for wrangler asset uploads (including the local dev server, which serves the repo root); the git build ignores it entirely.
 
 Do not run:
 
@@ -202,7 +214,8 @@ Cloudflare Pages is the sole host of `www.gamestormers.dk` (confirm with the `Se
 
 ## Legacy Files
 
-- `.htaccess` is kept for reference. It is inert on Cloudflare Pages.
+- `.htaccess` (Apache leftover) and `cloudflare-dns-import.zone` (pointed at the retired GitHub Pages infrastructure) were deleted on 2026-07-13. Neither had any effect on Cloudflare Pages.
+- `/index_en.html` is now a `301` to `/en/` via the `_redirects` file; the old meta-refresh stub was deleted.
 
 ## Commit And Push Safety
 

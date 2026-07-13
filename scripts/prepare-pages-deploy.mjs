@@ -4,12 +4,13 @@ import { pathToFileURL } from 'node:url';
 
 const PUBLIC_ENTRIES = [
   'index.html',
-  'index_en.html',
+  'privacy.html',
   'vote.html',
   'vote-admin.html',
+  '404.html',
+  '_redirects',
   'robots.txt',
   'sitemap.xml',
-  'CNAME',
   'css',
   'data',
   'en',

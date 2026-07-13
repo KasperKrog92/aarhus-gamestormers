@@ -19,9 +19,14 @@
 # optional webhook URLs as encrypted secrets in the Cloudflare Pages settings.
 # Bind the D1 database (binding name DB) in the Cloudflare Pages project settings.
 
+# The git-connected Pages build must produce the allowlisted artifact, never
+# serve the repo root: git builds ignore .assetsignore, so a root output dir
+# publishes every tracked file (schema, docs, tests, automation source) as a
+# public asset. The Pages dashboard build command must be set to
+# "npm run prepare:deploy-pages" so this output directory exists at deploy time.
 name = "aarhus-gamestormers-site"
 compatibility_date = "2026-06-23"
-pages_build_output_dir = "."
+pages_build_output_dir = ".deploy/pages"
 
 [vars]
 DISCORD_GUILD_ID = "1333453198408683613"

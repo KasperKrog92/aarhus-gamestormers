@@ -1,5 +1,7 @@
 /* ===============================
-   Aarhus Gamestormers - style.css v9
+   Aarhus Gamestormers - style.css
+   Cache-busted via the shared ?v=N query string on every page; bump it on all
+   pages together when this file changes (see docs/project-guide.md).
    Design tokens:
    --purple:     #2B2436
    --green:      #96C38D
@@ -3745,3 +3747,40 @@ details[open] > .admin-section-summary::before { transform: rotate(90deg); }
 .gs-vote-page .vote-next-round-countdown span { color: var(--board-ink-faint); font-size: .76rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
 @media (max-width: 860px) { .gs-vote-page .vote-voting-layout { grid-template-columns: 1fr; } .gs-vote-page .vote-ballot-panel { position: static; } }
 @media (max-width: 560px) { .gs-vote-page .vote-content-section { padding: 42px 0 60px; } .gs-vote-page .vote-board-disclosure > summary { padding: 18px; } .gs-vote-page .vote-board-disclosure-body { padding: 0 18px 18px; } .gs-vote-page .vote-manual-field-grid, .gs-vote-page .vote-slate-grid { grid-template-columns: 1fr; } .gs-vote-page .vote-next-round { grid-template-columns: 1fr; } }
+
+/* ─── Legal / simple prose pages (privacy.html, 404.html and /en/ twins) ────── */
+.gs-legal { padding: 56px 0 72px; background: var(--cream); flex: 1; }
+.legal-prose { max-width: 760px; }
+.legal-prose .section-title { margin-bottom: 8px; }
+.legal-updated { color: var(--muted); font-size: 0.95rem; margin-bottom: 36px; }
+.legal-prose h2 {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 1.45rem;
+  font-weight: 700;
+  color: var(--purple);
+  margin: 38px 0 14px;
+}
+.legal-prose p {
+  color: var(--muted);
+  line-height: 1.75;
+  margin-bottom: 14px;
+}
+.legal-prose ul { margin: 0 0 14px 1.25rem; }
+.legal-prose li { color: var(--muted); line-height: 1.7; margin-bottom: 8px; }
+.legal-prose a { color: var(--green-dark); text-decoration: underline; }
+.legal-prose strong { color: var(--text); }
+.legal-lead {
+  font-size: 1.08rem;
+  color: var(--text);
+  line-height: 1.7;
+  margin-bottom: 24px;
+}
+.legal-card {
+  background: var(--white);
+  border-radius: var(--radius);
+  padding: 22px 26px;
+  box-shadow: var(--shadow-sm);
+  margin: 20px 0;
+}
+.legal-card p:last-child { margin-bottom: 0; }
+@media (max-width: 860px) { .gs-legal { padding: 40px 0 56px; } }

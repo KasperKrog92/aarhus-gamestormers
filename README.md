@@ -14,10 +14,11 @@ Hosted on Cloudflare Pages. Changes pushed to `main` deploy automatically.
 /
 ├── index.html          # Danish landing page (primary)
 ├── en/index.html       # English landing page
-├── index_en.html       # Redirect to /en/ for old links
 ├── privacy.html        # Danish privacy policy (en/privacy.html is the English one)
 ├── vote.html           # Danish suggestion & voting page (en/vote.html is English)
 ├── vote-admin.html     # Maintainer curation tool, token-gated
+├── 404.html            # Danish not-found page (en/404.html is English)
+├── _redirects          # Cloudflare Pages redirects (e.g. old /index_en.html -> /en/)
 ├── css/style.css       # All styles
 ├── js/script.js        # Calendar dropdowns, countdown, history, sale badges
 ├── js/meetings.js      # Renders homepage event/history cards from the D1 API
@@ -57,4 +58,4 @@ Two GitHub Actions workflows handle background work:
 
 ## Deployment
 
-No app build process. Push to `main` and Cloudflare Pages deploys automatically. For a manual direct upload, use `npm run deploy`; it prepares a clean `.deploy/pages` artifact so local secrets and project notes are not uploaded as public assets.
+No app build process beyond an allowlist copy. Push to `main` and Cloudflare Pages deploys automatically; the Pages build command runs `npm run prepare:deploy-pages`, which copies only the public files into `.deploy/pages` so repo internals (schema, docs, tests, automation source) are never served as public assets. Manual direct upload (`npm run deploy`) uses the same artifact. See [docs/deployment-guide.md](docs/deployment-guide.md).

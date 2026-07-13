@@ -41,14 +41,21 @@ export async function readJson(request, maxBytes = 32768) {
   }
 
   if (!request.body) {
+    let text = '';
     try {
-      const text = await request.text();
-      if (text.length > maxBytes) {
-        return fail('Payload Too Large', 413);
-      }
+      text = await request.text();
+    } catch {
+      return fail('Error reading request stream', 400);
+    }
+    // Measure bytes, not characters, so multibyte input cannot slip past the
+    // limit; mirrors the streaming path below.
+    if (new TextEncoder().encode(text).byteLength > maxBytes) {
+      return fail('Payload Too Large', 413);
+    }
+    try {
       return JSON.parse(text);
     } catch {
-      return null;
+      return fail('Invalid JSON', 400);
     }
   }
 

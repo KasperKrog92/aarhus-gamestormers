@@ -11,10 +11,11 @@ Aarhus Gamestormers is a mostly static HTML website for a monthly video game dis
 |-- MEETING_WORKFLOW.md
 |-- README.md
 |-- index.html
-|-- index_en.html
 |-- privacy.html
 |-- vote.html
 |-- vote-admin.html
+|-- 404.html
+|-- _redirects
 |-- css/
 |   `-- style.css
 |-- js/
@@ -24,7 +25,8 @@ Aarhus Gamestormers is a mostly static HTML website for a monthly video game dis
 |-- en/
 |   |-- index.html
 |   |-- privacy.html
-|   `-- vote.html
+|   |-- vote.html
+|   `-- 404.html
 |-- functions/
 |   |-- _lib/
 |   `-- api/
@@ -68,12 +70,15 @@ The homepage upcoming-events and history sections are database-backed. D1 is the
 | --- | --- | --- |
 | `index.html` | Danish | Primary landing page |
 | `en/index.html` | English | English landing page |
-| `index_en.html` | Redirect | Legacy redirect to `/en/` |
 | `vote.html` | Danish | Game suggestion and voting page |
 | `en/vote.html` | English | Game suggestion and voting page |
 | `privacy.html` | Danish | Privacy policy, linked from every footer |
 | `en/privacy.html` | English | Privacy policy, linked from every footer |
+| `404.html` | Danish | Not-found page; its presence gives unknown paths a real 404 status instead of the SPA index fallback |
+| `en/404.html` | English | Not-found page for `/en/*` paths |
 | `vote-admin.html` | English | Maintainer curation tool. Out of nav and search (`noindex`, `robots.txt`), reachable via a hidden footer link, admin-token gated |
+
+The old `/index_en.html` stub was replaced by a `301` in `_redirects` (Cloudflare Pages redirect file).
 
 The landing pages share the same structure: sticky header, hero, how-it-works cards, upcoming events, about/practical info, history grid, and footer.
 
@@ -125,7 +130,9 @@ The base reset includes `[hidden] { display: none !important; }`. Keep that rule
 - `.suggestion-description`: localized Steam-imported description on voting suggestion cards. It is initially clamped to three lines; when text is hidden, its adjacent `.suggestion-description-toggle` reveals the full description and can collapse it again.
 - `.suggestion-pitch`: optional member pitch on voting suggestion cards. It is wrapped and labelled separately from the game description.
 
-When editing `css/style.css`, bump the `?v=N` query string on affected pages so local preview and browsers do not serve stale CSS.
+When editing `css/style.css`, bump the `?v=N` query string on **every** page that links it (all pages share one version number, `?v=76` as of 2026-07-13). One shared token keeps a returning visitor's cache warm across pages and prevents one page from serving stale CSS next to another; do not let the numbers diverge per page again.
+
+The legal-page styles (`.gs-legal`, `.legal-prose`, `.legal-card`, used by the privacy and 404 pages) live in `style.css`, not inline in the pages. A future optimization, deliberately not done blind: the admin console styles (`style.css` "Admin curation page" section) ship to every public visitor and could be split into their own file, but the shared 860px media query interleaves admin and public selectors, so a split needs visual verification of `vote-admin.html` at narrow widths.
 
 ## Images
 

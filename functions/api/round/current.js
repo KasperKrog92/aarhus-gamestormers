@@ -31,8 +31,12 @@ export async function onRequestGet({ env }) {
   if (!round) return json({ round: null, suggestions: [] });
 
   const revealed = round.phase === 'revealed' || round.phase === 'closed';
-  const suggestions = await getSuggestions(db, round.id, { approvedOnly: true });
-  const ballotCount = await getBallotCount(db, round.id);
+  // Independent reads for the public page's hottest endpoint run in parallel.
+  const [suggestions, ballotCount, nextRoundRow] = await Promise.all([
+    getSuggestions(db, round.id, { approvedOnly: true }),
+    getBallotCount(db, round.id),
+    getNextRound(db, round.id),
+  ]);
   let tallies = null;
   let rcvResult = null;
 
@@ -77,7 +81,7 @@ export async function onRequestGet({ env }) {
 
   // Surface the next round so the vote page can point people there once this
   // round is decided.
-  const nextRound = toNextRoundNotice(await getNextRound(db, round.id));
+  const nextRound = toNextRoundNotice(nextRoundRow);
 
   return json({
     round: {

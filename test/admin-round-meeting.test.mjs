@@ -40,6 +40,11 @@ function fakeD1() {
       };
       return statement;
     },
+    async batch(stmts) {
+      const results = [];
+      for (const stmt of stmts) results.push(await stmt.run());
+      return results;
+    },
   };
 }
 

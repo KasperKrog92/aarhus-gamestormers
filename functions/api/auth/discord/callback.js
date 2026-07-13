@@ -12,7 +12,7 @@ import {
 
 const DISCORD_TOKEN_URL = 'https://discord.com/api/oauth2/token';
 const DISCORD_USER_URL = 'https://discord.com/api/users/@me';
-const DISCORD_GUILDS_URL = 'https://discord.com/api/users/@me/guilds?limit=200';
+const DISCORD_GUILDS_URL = 'https://discord.com/api/users/@me/guilds';
 const DEFAULT_GUILD_ID = '1333453198408683613';
 
 function redirectUri(request, env) {
@@ -41,6 +41,23 @@ async function discordJson(url, accessToken) {
   });
   if (!res.ok) throw new Error('Discord API request failed');
   return res.json();
+}
+
+// Discord pages /users/@me/guilds at 200 guilds per request. A member of more
+// than 200 servers whose club guild sorts past the first page would otherwise
+// be silently flagged a non-member, so walk the `after` cursor until the club
+// guild turns up or the list ends (capped as a runaway stop).
+async function isGuildMember(accessToken, guildId) {
+  let after = '';
+  for (let page = 0; page < 10; page += 1) {
+    const url = `${DISCORD_GUILDS_URL}?limit=200${after ? `&after=${after}` : ''}`;
+    const guilds = await discordJson(url, accessToken);
+    if (!Array.isArray(guilds) || guilds.length === 0) return false;
+    if (guilds.some((guild) => String(guild && guild.id) === String(guildId))) return true;
+    if (guilds.length < 200) return false;
+    after = String(guilds[guilds.length - 1].id);
+  }
+  return false;
 }
 
 async function exchangeCode(request, env, code) {
@@ -91,12 +108,11 @@ export async function onRequestGet({ request, env }) {
 
   try {
     const accessToken = await exchangeCode(request, env, code);
-    const [user, guilds] = await Promise.all([
-      discordJson(DISCORD_USER_URL, accessToken),
-      discordJson(DISCORD_GUILDS_URL, accessToken),
-    ]);
     const guildId = env.DISCORD_GUILD_ID || DEFAULT_GUILD_ID;
-    const isMember = Array.isArray(guilds) && guilds.some((guild) => String(guild && guild.id) === String(guildId));
+    const [user, isMember] = await Promise.all([
+      discordJson(DISCORD_USER_URL, accessToken),
+      isGuildMember(accessToken, guildId),
+    ]);
     const discordUserId = await upsertDiscordUser(db, user, isMember);
     const sessionToken = await createSession(db, discordUserId, env);
 
@@ -107,7 +123,10 @@ export async function onRequestGet({ request, env }) {
     headers.append('Set-Cookie', sessionCookie(sessionToken, request));
     headers.append('Set-Cookie', clearOAuthStateCookie(request));
     return new Response(null, { status: 302, headers });
-  } catch {
+  } catch (err) {
+    // The user sees a friendly retry; keep the real cause in the server log so
+    // a Discord outage is distinguishable from a misconfigured secret.
+    console.error('Discord OAuth callback failed:', err && err.message ? err.message : err);
     return redirectBack(returnTo, request, { auth: 'login-failed' });
   }
 }

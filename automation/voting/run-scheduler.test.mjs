@@ -703,3 +703,162 @@ test('the results breakdown link is not repeated once recorded', async () => {
   const recorded = client.calls.recordAutomationEvent.map((call) => call.eventType);
   assert.ok(!recorded.includes('results_link_posted'));
 });
+
+test('a rejected suggestions-open post is not recorded, so the next pass retries', async () => {
+  const client = makeClient({
+    current: {
+      round: {
+        id: 19,
+        phase: 'suggesting',
+        meeting_date: '2026-09-15',
+        suggestions_open_at: '2026-06-20',
+        voting_opens_at: '2026-06-30',
+      },
+      suggestions: [],
+      tallies: {},
+      automationEvents: [],
+    },
+  });
+  const discord = makeDiscord({ skipped: false, posted: false, status: 500 });
+  const { logger, messages } = makeLogger();
+
+  const result = await runScheduler({
+    env: ENV,
+    today: '2026-06-20',
+    deps: { client, postDiscord: discord.fn, writeHandoff: async () => 'unused.md', logger },
+  });
+
+  assert.equal(result.action, 'announce_suggestions');
+  assert.equal(result.discordPosted, false);
+  assert.equal(client.calls.recordAutomationEvent.length, 0);
+  assert.ok(messages.warn.some((m) => m.includes('not recording')));
+});
+
+test('a rejected voting-open post is not recorded and the old message is kept', async () => {
+  const client = makeClient({
+    current: votingPayload({
+      automationEvents: [{ eventType: 'suggestions_opened', payload: { messageId: 'suggestions-message-1' } }],
+    }),
+  });
+  const discord = makeDiscord({ skipped: false, posted: false, status: 502 });
+  const deleteDiscord = makeDeleteDiscord();
+  const { logger } = makeLogger();
+
+  // Mid-window: the round is in voting with no voting_opened event, so the
+  // recovery decision re-announces; the failed post must not lock it out.
+  const result = await runScheduler({
+    env: ENV,
+    today: '2026-07-04',
+    deps: { client, postDiscord: discord.fn, deleteDiscordMessage: deleteDiscord.fn, writeHandoff: async () => 'unused.md', logger },
+  });
+
+  assert.equal(result.action, 'open_voting');
+  assert.equal(result.discordPosted, false);
+  assert.equal(client.calls.recordAutomationEvent.length, 0);
+  assert.equal(deleteDiscord.calls.length, 0);
+
+  // The next pass re-announces and records once Discord accepts the post.
+  const client2 = makeClient({
+    current: votingPayload({
+      automationEvents: [{ eventType: 'suggestions_opened', payload: { messageId: 'suggestions-message-1' } }],
+    }),
+  });
+  const discord2 = makeDiscord({ skipped: false, posted: true, status: 200, messageId: 'voting-message-1' });
+  const deleteDiscord2 = makeDeleteDiscord();
+  const result2 = await runScheduler({
+    env: ENV,
+    today: '2026-07-05',
+    deps: { client: client2, postDiscord: discord2.fn, deleteDiscordMessage: deleteDiscord2.fn, writeHandoff: async () => 'unused.md', logger },
+  });
+
+  assert.equal(result2.action, 'open_voting');
+  assert.equal(result2.discordPosted, true);
+  assert.equal(client2.calls.recordAutomationEvent[0].eventType, 'voting_opened');
+  assert.equal(deleteDiscord2.calls[0].messageId, 'suggestions-message-1');
+});
+
+test('a rejected reminder post is not recorded, so the next pass retries', async () => {
+  const client = makeClient({
+    current: {
+      round: {
+        id: 19,
+        phase: 'suggesting',
+        meeting_date: '2026-09-15',
+        suggestions_open_at: '2026-06-20',
+        voting_opens_at: '2026-06-30',
+      },
+      suggestions: [],
+      tallies: {},
+      automationEvents: [{ eventType: 'suggestions_opened' }],
+    },
+  });
+  const discord = makeDiscord({ skipped: false, posted: false, status: 429 });
+  const { logger } = makeLogger();
+
+  const result = await runScheduler({
+    env: GENERAL_ENV,
+    today: '2026-06-25',
+    deps: { client, postDiscord: discord.fn, writeHandoff: async () => 'unused.md', logger },
+  });
+
+  assert.equal(result.action, 'remind_suggestions');
+  assert.equal(result.discordPosted, false);
+  assert.equal(client.calls.recordAutomationEvent.length, 0);
+});
+
+test('the winner setup alert posts before recording and a rejected post is not recorded', async () => {
+  const client = makeClient({
+    current: votingPayload({ automationEvents: [{ eventType: 'voting_opened' }] }),
+    adminSequence: [revealedAdminPayload()],
+  });
+  // The reveal's alert post is rejected; only winner_revealed and the handoff
+  // may be recorded, so a later pass can still alert.
+  const discord = makeDiscord({ skipped: false, posted: false, status: 500 });
+  const handoff = makeWriteHandoff();
+  const { logger } = makeLogger();
+
+  const result = await runScheduler({
+    env: ENV,
+    today: '2026-07-10',
+    deps: { client, postDiscord: discord.fn, writeHandoff: handoff.fn, logger },
+  });
+
+  assert.equal(result.action, 'reveal_winner');
+  const recorded = client.calls.recordAutomationEvent.map((call) => call.eventType);
+  assert.ok(recorded.includes('winner_revealed'));
+  assert.ok(!recorded.includes('winner_setup_needed_alerted'));
+});
+
+test('a revealed round with no follow-up events resumes announcement and cleanup without re-patching', async () => {
+  const client = makeClient({
+    current: {
+      round: { id: 19, phase: 'revealed', meeting_date: '2026-09-15', winner_suggestion_id: 101, voting_opens_at: '2026-06-30', voting_closes_at: '2026-07-09' },
+      suggestions: SUGGESTIONS,
+      tallies: { 101: 5, 102: 3, 103: 4 },
+      rcvResult: CLEAR_RCV_RESULT,
+      automationEvents: [
+        { eventType: 'voting_opened', payload: { messageId: 'voting-message-1' } },
+        { eventType: 'winner_revealed' },
+      ],
+    },
+    adminSequence: [promotedAdminPayload()],
+  });
+  const discord = makeDiscord({ skipped: false, posted: true, status: 200, messageId: 'winner-message-1' });
+  const deleteDiscord = makeDeleteDiscord();
+  const { logger, messages } = makeLogger();
+
+  const result = await runScheduler({
+    env: ENV,
+    today: '2026-07-11',
+    deps: { client, postDiscord: discord.fn, deleteDiscordMessage: deleteDiscord.fn, writeHandoff: async () => 'unused.md', logger },
+  });
+
+  assert.equal(result.action, 'resume_reveal');
+  assert.equal(result.winnerSuggestionId, 101);
+  assert.equal(client.calls.patchRound.length, 0, 'resume must not re-patch the phase');
+  const recorded = client.calls.recordAutomationEvent.map((call) => call.eventType);
+  assert.ok(!recorded.includes('winner_revealed'), 'winner_revealed is not re-recorded');
+  assert.ok(recorded.includes('winner_announcement_posted'));
+  assert.equal(deleteDiscord.calls[0].messageId, 'voting-message-1');
+  assert.ok(messages.warn.some((m) => m.includes('resuming post-reveal steps')));
+});

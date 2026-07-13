@@ -27,7 +27,10 @@ test('preparePagesDeploy creates a clean Pages artifact without private project 
 
   try {
     await touch(root, 'index.html');
+    await touch(root, 'privacy.html');
     await touch(root, 'vote.html');
+    await touch(root, '404.html');
+    await touch(root, '_redirects');
     await touch(root, 'en/vote.html');
     await touch(root, 'css/style.css');
     await touch(root, 'js/vote.js');
@@ -37,7 +40,6 @@ test('preparePagesDeploy creates a clean Pages artifact without private project 
     await touch(root, 'functions/api/round/current.js');
     await touch(root, 'robots.txt');
     await touch(root, 'sitemap.xml');
-    await touch(root, 'CNAME');
 
     await touch(root, '.dev.vars', 'SECRET=do-not-copy');
     await touch(root, '.wrangler/state/db.sqlite');
@@ -45,14 +47,23 @@ test('preparePagesDeploy creates a clean Pages artifact without private project 
     await touch(root, 'schema.sql');
     await touch(root, 'package.json');
     await touch(root, 'CLAUDE.md');
-    await touch(root, 'cloudflare-dns-import.zone');
+    await touch(root, 'CNAME');
+    await touch(root, 'automation/voting/scheduler.mjs');
+    await touch(root, 'test/vote.test.mjs');
+    await touch(root, 'scripts/prepare-pages-deploy.mjs');
+    await touch(root, 'migrations/2026-06-19-discord-auth.sql');
+    await touch(root, 'backfill-meetings.sql');
+    await touch(root, 'docs/voting-system.md');
     await touch(out, 'stale.txt');
 
     await preparePagesDeploy({ rootDir: root, outDir: out });
 
     for (const path of [
       'index.html',
+      'privacy.html',
       'vote.html',
+      '404.html',
+      '_redirects',
       'en/vote.html',
       'css/style.css',
       'js/vote.js',
@@ -62,7 +73,6 @@ test('preparePagesDeploy creates a clean Pages artifact without private project 
       'functions/api/round/current.js',
       'robots.txt',
       'sitemap.xml',
-      'CNAME',
     ]) {
       assert.equal(await exists(out, path), true, `${path} should be copied`);
     }
@@ -74,7 +84,14 @@ test('preparePagesDeploy creates a clean Pages artifact without private project 
       'schema.sql',
       'package.json',
       'CLAUDE.md',
-      'cloudflare-dns-import.zone',
+      // GitHub Pages was retired; a CNAME file must never ship again.
+      'CNAME',
+      'automation/voting/scheduler.mjs',
+      'test/vote.test.mjs',
+      'scripts/prepare-pages-deploy.mjs',
+      'migrations/2026-06-19-discord-auth.sql',
+      'backfill-meetings.sql',
+      'docs/voting-system.md',
       'stale.txt',
     ]) {
       assert.equal(await exists(out, path), false, `${path} should not be copied`);

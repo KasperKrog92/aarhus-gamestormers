@@ -1,7 +1,15 @@
 # Files that must NOT be served as public static assets by Cloudflare Pages.
+#
+# Scope warning: this file is only honored by wrangler asset uploads
+# (wrangler pages dev / wrangler pages deploy). The git-connected Pages build
+# IGNORES it, which is why the git deploy builds the allowlisted artifact via
+# scripts/prepare-pages-deploy.mjs instead of serving the repo root. This file
+# remains as protection for local dev (npm run dev serves the repo root) and as
+# defense in depth if someone runs `wrangler pages deploy .` against the docs.
 .dev.vars
 .wrangler
 .git
+.github
 .claude
 .deploy
 *.md
@@ -9,5 +17,10 @@ schema.sql
 wrangler.toml
 package.json
 package-lock.json
-.htaccess
-cloudflare-dns-import.zone
+automation
+test
+scripts
+migrations
+docs
+backfill-meetings.sql
+dev-preview.cmd

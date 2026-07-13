@@ -44,6 +44,12 @@ export async function ensureVoteRankColumn(db) {
   await db
     .prepare('CREATE INDEX IF NOT EXISTS idx_votes_ballot_rank ON votes(round_id, ballot_id, rank)')
     .run();
+  // The admin ballot delete filters on ballot_id alone (no round context), so
+  // it needs its own leading-column index; every other votes index leads with
+  // round_id.
+  await db
+    .prepare('CREATE INDEX IF NOT EXISTS idx_votes_ballotid ON votes(ballot_id)')
+    .run();
   voteRankColumnChecked = true;
 }
 
@@ -256,9 +262,11 @@ export async function getMeetingById(db, id) {
   return db.prepare('SELECT * FROM meetings WHERE id = ?').bind(id).first();
 }
 
-export async function upsertMeeting(db, meeting) {
-  await ensureMeetingContentTables(db);
-  const result = await db
+// Statement builder so callers can include the upsert in a db.batch()
+// transaction alongside other writes. upsertMeeting below is the standalone
+// variant that also lazily ensures the tables.
+export function upsertMeetingStatement(db, meeting) {
+  return db
     .prepare(
       `INSERT INTO meetings
          (id, meeting_date, starts_at_utc, ends_at_utc, timezone, venue_name, venue_address, discord_invite, discord_event_url, status)
@@ -286,9 +294,12 @@ export async function upsertMeeting(db, meeting) {
       meeting.discordInvite || null,
       meeting.discordEventUrl || null,
       meeting.status || 'planned'
-    )
-    .run();
-  return result;
+    );
+}
+
+export async function upsertMeeting(db, meeting) {
+  await ensureMeetingContentTables(db);
+  return upsertMeetingStatement(db, meeting).run();
 }
 
 export async function upsertGame(db, game) {
@@ -405,9 +416,8 @@ export function gameRowToInput(row) {
   };
 }
 
-export async function attachGameToMeeting(db, meetingId, gameId, suggestionId = null) {
-  await ensureMeetingContentTables(db);
-  await db
+export function attachGameToMeetingStatement(db, meetingId, gameId, suggestionId = null) {
+  return db
     .prepare(
       `UPDATE meetings
           SET selected_game_id = ?,
@@ -415,8 +425,12 @@ export async function attachGameToMeeting(db, meetingId, gameId, suggestionId = 
               updated_at = datetime('now')
         WHERE id = ?`
     )
-    .bind(Number(gameId), suggestionId == null ? null : Number(suggestionId), Number(meetingId))
-    .run();
+    .bind(Number(gameId), suggestionId == null ? null : Number(suggestionId), Number(meetingId));
+}
+
+export async function attachGameToMeeting(db, meetingId, gameId, suggestionId = null) {
+  await ensureMeetingContentTables(db);
+  await attachGameToMeetingStatement(db, meetingId, gameId, suggestionId).run();
 }
 
 export async function getMeetingCopy(db, meetingId) {
@@ -440,12 +454,15 @@ export async function getMeetingCopy(db, meetingId) {
   return copy;
 }
 
+export function setMeetingStatusStatement(db, meetingId, status) {
+  return db
+    .prepare("UPDATE meetings SET status = ?, updated_at = datetime('now') WHERE id = ?")
+    .bind(status, Number(meetingId));
+}
+
 export async function setMeetingStatus(db, meetingId, status) {
   await ensureMeetingContentTables(db);
-  await db
-    .prepare("UPDATE meetings SET status = ?, updated_at = datetime('now') WHERE id = ?")
-    .bind(status, Number(meetingId))
-    .run();
+  await setMeetingStatusStatement(db, meetingId, status).run();
 }
 
 export async function upsertMeetingCopy(db, meetingId, lang, copy) {

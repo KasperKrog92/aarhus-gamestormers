@@ -53,17 +53,22 @@ export async function onRequestPost({ request, env }) {
   const ballotId = previous && previous.ballot_id ? previous.ballot_id : crypto.randomUUID();
   const voterName = displayName(auth.user);
 
-  await db
-    .prepare('DELETE FROM votes WHERE round_id = ? AND discord_user_id = ?')
-    .bind(round.id, auth.user.discordId)
-    .run();
+  // Replace the previous ballot atomically: the delete and every ranked
+  // insert run in one db.batch() transaction, so a failure mid-write cannot
+  // drop the old ballot without the new one, and two overlapping submissions
+  // cannot interleave into a double ballot.
   const stmt = db.prepare(
     `INSERT INTO votes (round_id, suggestion_id, ballot_id, rank, voter_name, discord_user_id)
      VALUES (?, ?, ?, ?, ?, ?)`
   );
-  await db.batch(valid.map((id, index) => (
-    stmt.bind(round.id, id, ballotId, index + 1, voterName, auth.user.discordId)
-  )));
+  await db.batch([
+    db
+      .prepare('DELETE FROM votes WHERE round_id = ? AND discord_user_id = ?')
+      .bind(round.id, auth.user.discordId),
+    ...valid.map((id, index) => (
+      stmt.bind(round.id, id, ballotId, index + 1, voterName, auth.user.discordId)
+    )),
+  ]);
 
   return json({ ok: true, counted: valid.length, replaced: !!previous }, previous ? 200 : 201);
 }

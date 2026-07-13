@@ -29,7 +29,7 @@ The repo is `github.com/KasperKrog92/aarhus-gamestormers`. The live site is `htt
 - Always verify Steam app IDs from the canonical Steam store URL before using banners or links.
 - Ask the maintainer for the HowLongToBeat link and hours; this project does not fetch HLTB automatically.
 - For meaningful content changes, update `sitemap.xml` `lastmod` for both language URLs.
-- When changing `css/style.css`, bump its `?v=N` query string on affected pages.
+- When changing `css/style.css`, bump the shared `?v=N` query string on EVERY page that links it (all pages use one version number; see docs/project-guide.md).
 - Do not commit or push unless explicitly asked. When asked to commit and push, commit directly to `main` and push `main`; do not create a branch or pull request unless explicitly asked. Pushing to `main` deploys the live site.
 - When asked to "commit and push" (or to commit), first update any Markdown docs affected by the change (`CLAUDE.md`, `docs/*.md`, `MEETING_WORKFLOW.md`, `README`, etc.) so documentation lands in the same commit as the code.
 - Do not verify changes by running the dev server or driving the browser (no preview/screenshot/eval loops). Make the change, then ask the maintainer to verify manually. Local setup that genuinely needs a running server (mirroring D1, flipping a round phase) is fine; it is browser verification that is unwanted. Static checks (`npm test`, reading code) are still expected.
@@ -74,7 +74,7 @@ Read [`docs/voting-system.md`](docs/voting-system.md) before changing it.
 
 ## Deployment
 
-Cloudflare Pages deploys automatically from `main`.
+Cloudflare Pages deploys automatically from `main`. The git build runs `npm run prepare:deploy-pages` (set as the Pages build command) and serves the allowlisted `.deploy/pages` artifact, never the repo root; new public files must be added to `PUBLIC_ENTRIES` in `scripts/prepare-pages-deploy.mjs` or they will not deploy. See [`docs/deployment-guide.md`](docs/deployment-guide.md).
 
 For manual direct upload, use:
 

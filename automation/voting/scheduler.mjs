@@ -21,6 +21,9 @@ import {
 //                  decision.eventType names the idempotency event)
 //   remind_voting  same, mid-voting-window
 //   reveal_winner  move the round voting -> revealed with a winnerSuggestionId
+//   resume_reveal  the round is revealed and winner_revealed is recorded, but
+//                  no follow-up event exists (announcement, setup alert, or
+//                  handoff); re-run the post-reveal side effects
 //   blocked        a transition is due but cannot complete automatically
 //                  (no ballots, or a final IRV tie); needs the maintainer
 //   noop           nothing to do this run
@@ -30,6 +33,7 @@ export const ACTIONS = {
   REMIND_SUGGESTIONS: 'remind_suggestions',
   REMIND_VOTING: 'remind_voting',
   REVEAL_WINNER: 'reveal_winner',
+  RESUME_REVEAL: 'resume_reveal',
   BLOCKED: 'blocked',
   NOOP: 'noop',
 };
@@ -138,6 +142,26 @@ export function decideRoundActions({
       return { action: ACTIONS.NOOP, roundId, reason: 'Winner already revealed for this round.' };
     }
     const closesAt = cleanDateOnly(round.voting_closes_at);
+
+    // Recovery: the phase already moved to voting but the public announcement
+    // was never recorded (e.g. Discord failed between the phase patch and the
+    // event record). Re-emit open_voting while voting is genuinely open; the
+    // phase re-patch is a harmless no-op and the event stays the lock. A round
+    // flipped to voting manually ahead of voting_opens_at is left alone, since
+    // votes are not accepted before that date.
+    const votingOpensAt = cleanDateOnly(round.voting_opens_at);
+    if (
+      !hasEvent(automationEvents, 'voting_opened') &&
+      (!votingOpensAt || !isBeforeDateOnly(day, votingOpensAt)) &&
+      (!closesAt || !isAfterDateOnly(day, closesAt))
+    ) {
+      return {
+        action: ACTIONS.OPEN_VOTING,
+        roundId,
+        reason: 'Round is in voting but the voting_opened announcement was never recorded; re-announcing.',
+      };
+    }
+
     if (!closesAt) {
       return {
         action: ACTIONS.NOOP,
@@ -221,6 +245,29 @@ export function decideRoundActions({
       winner: { id: winnerId, title: suggestionTitle(suggestions, winnerId), votes },
       reason: `Winner is suggestion ${winnerId} with ${votes} first-preference vote(s).`,
     };
+  }
+
+  if (phase === 'revealed') {
+    // Recovery: the reveal happened (winner_revealed is recorded) but the pass
+    // died before recording any follow-up: no public announcement, no
+    // setup-needed alert, and no handoff. Re-run the post-reveal side effects;
+    // each carries its own idempotency event so a rerun stays safe. A round
+    // revealed manually by the admin records no winner_revealed event and is
+    // deliberately left alone.
+    if (
+      hasEvent(automationEvents, 'winner_revealed') &&
+      !hasEvent(automationEvents, 'winner_announcement_posted') &&
+      !hasEvent(automationEvents, 'winner_setup_needed_alerted') &&
+      !hasEvent(automationEvents, 'handoff_generated')
+    ) {
+      const winnerId = round.winner_suggestion_id != null ? Number(round.winner_suggestion_id) : null;
+      return {
+        action: ACTIONS.RESUME_REVEAL,
+        roundId,
+        winnerSuggestionId: Number.isInteger(winnerId) ? winnerId : null,
+        reason: 'Round is revealed but no post-reveal side effect was recorded; resuming announcement and handoff steps.',
+      };
+    }
   }
 
   return { action: ACTIONS.NOOP, roundId, reason: `Phase "${phase}" needs no scheduled action.` };

@@ -170,6 +170,14 @@ async function handleAnnounceSuggestions(ctx, { round }) {
     content: suggestionsOpenedMessage({ round, baseUrl: ctx.baseUrl }),
     wait: true,
   });
+  // A real post attempt that Discord rejected (non-ok status) must not be
+  // recorded, or the announcement is locked out forever; the next pass retries.
+  // A skipped post (no webhook configured) still records, matching the
+  // documented degrade-quietly behaviour.
+  if (!discord.posted && !discord.skipped) {
+    ctx.logger.warn(`Round ${roundId}: suggestions_opened announcement returned status ${discord.status}; not recording so the next pass retries.`);
+    return { action: ACTIONS.ANNOUNCE_SUGGESTIONS, roundId, duplicate: false, discordPosted: false };
+  }
   const record = await recordEventAfterDiscord(ctx, {
     roundId,
     eventType: 'suggestions_opened',
@@ -210,16 +218,14 @@ async function alertWinnerSetupNeeded(ctx, { roundPayload }) {
     ctx.logger.info(`Round ${roundId}: no DISCORD_VOTING_ALERTS_WEBHOOK_URL set, skipped winner setup alert.`);
     return { skipped: true, posted: false };
   }
-  const record = await ctx.client.recordAutomationEvent({
-    roundId,
-    eventType: 'winner_setup_needed_alerted',
-    payload: { today: ctx.today, missing: readiness.missing || [] },
-  });
-  if (record.duplicate) {
+  if (hasEvent(roundPayload.automationEvents, 'winner_setup_needed_alerted')) {
     ctx.logger.info(`Round ${roundId}: winner setup alert already recorded, skipping.`);
     return { skipped: false, posted: false, duplicate: true };
   }
-  return await announce(ctx, {
+  // Post first, record only on success (same ordering as the blocked alert):
+  // recording an alert that never reached Discord would silence the
+  // maintainer's only nudge to finish winner setup.
+  const discord = await announce(ctx, {
     roundId,
     eventType: 'winner_setup_needed_alerted',
     content: winnerSetupNeededMessage({
@@ -231,6 +237,17 @@ async function alertWinnerSetupNeeded(ctx, { roundPayload }) {
     label: 'Discord alerts',
     webhookName: 'DISCORD_VOTING_ALERTS_WEBHOOK_URL',
   });
+  if (discord.posted) {
+    const record = await ctx.client.recordAutomationEvent({
+      roundId,
+      eventType: 'winner_setup_needed_alerted',
+      payload: { today: ctx.today, missing: readiness.missing || [] },
+    });
+    if (record.duplicate) ctx.logger.info(`Round ${roundId}: winner_setup_needed_alerted was already recorded.`);
+  } else {
+    ctx.logger.warn(`Round ${roundId}: winner setup alert returned status ${discord.status}; not recording so a later pass can retry.`);
+  }
+  return discord;
 }
 
 async function handleOpenVoting(ctx, { round }) {
@@ -246,6 +263,14 @@ async function handleOpenVoting(ctx, { round }) {
     content: votingOpenedMessage({ round, baseUrl, games: approvedGameTitles(ctx.suggestions) }),
     wait: true,
   });
+  // Do not record a failed post: the phase has already advanced, and the
+  // decision logic re-emits open_voting while voting_opened is missing, so the
+  // next pass re-announces instead of losing the announcement forever. The old
+  // suggestions message is only cleaned up once the new post succeeded.
+  if (!discord.posted && !discord.skipped) {
+    logger.warn(`Round ${roundId}: voting_opened announcement returned status ${discord.status}; not recording so the next pass re-announces.`);
+    return { action: ACTIONS.OPEN_VOTING, roundId, duplicate: false, discordPosted: false };
+  }
   await cleanupPostedMessage(ctx, {
     roundId,
     messageId: messageIdForEvent(ctx.automationEvents, 'suggestions_opened'),
@@ -292,6 +317,13 @@ async function handleReminder(ctx, { round, decision }) {
     webhookName: 'DISCORD_GENERAL_WEBHOOK_URL',
     wait: true,
   });
+  // Same retry rule as the phase announcements: a rejected post is not
+  // recorded, so the next pass retries (a halfway reminder simply lapses once
+  // the last day arrives). A skipped post still records.
+  if (!discord.posted && !discord.skipped) {
+    ctx.logger.warn(`Round ${roundId}: ${decision.eventType} reminder returned status ${discord.status}; not recording so the next pass retries.`);
+    return { action: decision.action, roundId, reminder: decision.reminder, duplicate: false, discordPosted: false };
+  }
   const record = await recordEventAfterDiscord(ctx, {
     roundId,
     eventType: decision.eventType,
@@ -343,30 +375,24 @@ async function postResultsBreakdown(ctx, { roundPayload }) {
   });
 }
 
-async function handleRevealWinner(ctx, { payload, decision }) {
+// Post-reveal side effects shared by the initial reveal pass and the
+// resume_reveal recovery pass: refetch, plan, promote when safe, announce or
+// alert, and write the handoff. Every step is guarded by its own automation
+// event, so re-running after a mid-flight failure is safe. `announce` is false
+// on a duplicate reveal (a concurrent pass owns the announcement);
+// `previousEvents` supplies the stored voting_opened message id for cleanup.
+async function completeRevealSideEffects(ctx, { roundId, winnerSuggestionId, previousEvents, announce: shouldAnnounce = true }) {
   const { client, logger, baseUrl } = ctx;
-  const round = payload.round;
-  const roundId = decision.roundId;
-  const winnerSuggestionId = decision.winnerSuggestionId;
-
-  const record = await patchPhaseAndRecord(ctx, {
-    roundId,
-    patch: { phase: 'revealed', winnerSuggestionId },
-    eventType: 'winner_revealed',
-    payload: { today: ctx.today, winnerSuggestionId },
-  });
-
   let discord = { skipped: true, posted: false };
-  if (record.duplicate) logger.info(`Round ${roundId}: winner_revealed already recorded.`);
 
-  // Refetch so the publication planner sees the just-recorded winner and any
+  // Refetch so the publication planner sees the recorded winner and any
   // existing selected-game state.
   let latest = await client.getAdminRound(roundId);
   let plan = winnerPublicationPlan({ roundPayload: latest, winnerSuggestionId });
   logger.info(`Round ${roundId}: publication plan: ${plan.reason}`);
 
   let promoted = false;
-  if (plan.mayPromote) {
+  if (plan.mayPromote && winnerSuggestionId != null) {
     // Safe publication: either re-confirm an already-selected publish-ready
     // winner, or promote a winning suggestion whose copied fields already make a
     // complete frontpage card.
@@ -377,14 +403,14 @@ async function handleRevealWinner(ctx, { payload, decision }) {
     plan = winnerPublicationPlan({ roundPayload: latest, winnerSuggestionId });
   }
 
-  if (!record.duplicate) {
+  if (shouldAnnounce) {
     const readiness = latest.announcementReadiness || latest.publishReadiness || { ready: false, missing: [] };
     if (readiness.ready) {
       discord = await postWinnerAnnouncement(ctx, { roundPayload: latest, source: 'scheduler' });
       if (discord.posted) {
         await cleanupPostedMessage(ctx, {
           roundId,
-          messageId: messageIdForEvent(payload.automationEvents, 'voting_opened'),
+          messageId: messageIdForEvent(previousEvents, 'voting_opened'),
           reason: 'winner announcement posted',
         });
         await postResultsBreakdown(ctx, { roundPayload: latest });
@@ -411,14 +437,61 @@ async function handleRevealWinner(ctx, { payload, decision }) {
     logger.info(`Round ${roundId}: meeting card is publish-ready, no handoff needed.`);
   }
 
+  return { discord, promoted, handoffPath };
+}
+
+async function handleRevealWinner(ctx, { payload, decision }) {
+  const { logger } = ctx;
+  const roundId = decision.roundId;
+  const winnerSuggestionId = decision.winnerSuggestionId;
+
+  const record = await patchPhaseAndRecord(ctx, {
+    roundId,
+    patch: { phase: 'revealed', winnerSuggestionId },
+    eventType: 'winner_revealed',
+    payload: { today: ctx.today, winnerSuggestionId },
+  });
+  if (record.duplicate) logger.info(`Round ${roundId}: winner_revealed already recorded.`);
+
+  const outcome = await completeRevealSideEffects(ctx, {
+    roundId,
+    winnerSuggestionId,
+    previousEvents: payload.automationEvents,
+    announce: !record.duplicate,
+  });
+
   return {
     action: ACTIONS.REVEAL_WINNER,
     roundId,
     winnerSuggestionId,
     duplicate: Boolean(record.duplicate),
-    discordPosted: Boolean(discord.posted),
-    promoted,
-    handoffPath,
+    discordPosted: Boolean(outcome.discord.posted),
+    promoted: outcome.promoted,
+    handoffPath: outcome.handoffPath,
+  };
+}
+
+// Recovery for a reveal whose pass died before recording any follow-up: the
+// round is revealed and winner_revealed is recorded, but neither the public
+// announcement, the setup alert, nor the handoff ever got recorded (e.g. the
+// admin API or Discord failed mid-reveal). Re-run the post-reveal side effects.
+async function handleResumeReveal(ctx, { decision }) {
+  const roundId = decision.roundId;
+  ctx.logger.warn(`Round ${roundId}: resuming post-reveal steps; no follow-up event was recorded after winner_revealed.`);
+  const outcome = await completeRevealSideEffects(ctx, {
+    roundId,
+    winnerSuggestionId: decision.winnerSuggestionId,
+    previousEvents: ctx.automationEvents,
+    announce: true,
+  });
+  return {
+    action: ACTIONS.RESUME_REVEAL,
+    roundId,
+    winnerSuggestionId: decision.winnerSuggestionId,
+    duplicate: false,
+    discordPosted: Boolean(outcome.discord.posted),
+    promoted: outcome.promoted,
+    handoffPath: outcome.handoffPath,
   };
 }
 
@@ -526,6 +599,9 @@ export async function runScheduler({ env, today, deps = {} } = {}) {
   }
   if (decision.action === ACTIONS.REVEAL_WINNER) {
     return await handleRevealWinner(ctx, { payload, decision });
+  }
+  if (decision.action === ACTIONS.RESUME_REVEAL) {
+    return await handleResumeReveal(ctx, { decision });
   }
   if (decision.action === ACTIONS.BLOCKED) {
     return await handleBlocked(ctx, { round, decision });

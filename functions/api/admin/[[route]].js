@@ -28,12 +28,13 @@ import {
   getTallies,
   getBallots,
   upsertMeeting,
+  upsertMeetingStatement,
   upsertGame,
   upsertMeetingCopy,
-  attachGameToMeeting,
+  attachGameToMeetingStatement,
   getGameById,
   getMeetingCopy,
-  setMeetingStatus,
+  setMeetingStatusStatement,
   gameInputFromSuggestion,
   gameRowToInput,
   getAutomationEvents,
@@ -140,31 +141,35 @@ async function adminListRounds(db) {
 }
 
 async function roundPayload(db, round) {
-  const suggestions = await getSuggestions(db, round.id);
-  const tallies = await getTallies(db, round.id);
-  const ballots = await getBallots(db, round.id);
+  // The reads only share round.id, so they run in parallel; this is the admin
+  // dashboard's hot path and the scheduler polls it.
+  const [suggestions, tallies, ballots, rankedMarker, automationEvents, meetingRow] = await Promise.all([
+    getSuggestions(db, round.id),
+    getTallies(db, round.id),
+    getBallots(db, round.id),
+    db
+      .prepare('SELECT 1 AS has_ranked_ballots FROM votes WHERE round_id = ? AND rank IS NOT NULL LIMIT 1')
+      .bind(round.id)
+      .first(),
+    getAutomationEvents(db, round.id),
+    getMeetingById(db, round.id),
+  ]);
   let rcvResult = null;
   if (ballots.length === 0) {
     rcvResult = runIrv({
       ballots: [],
       candidateIds: suggestions.filter((suggestion) => suggestion.status === 'approved').map((suggestion) => suggestion.id),
     });
-  } else {
-    const rankedMarker = await db
-      .prepare('SELECT 1 AS has_ranked_ballots FROM votes WHERE round_id = ? AND rank IS NOT NULL LIMIT 1')
-      .bind(round.id)
-      .first();
-    if (rankedMarker) {
-      rcvResult = runIrv({
-        ballots: ballots.map((ballot) => ballot.rankings),
-        candidateIds: suggestions.filter((suggestion) => suggestion.status === 'approved').map((suggestion) => suggestion.id),
-      });
-    }
+  } else if (rankedMarker) {
+    rcvResult = runIrv({
+      ballots: ballots.map((ballot) => ballot.rankings),
+      candidateIds: suggestions.filter((suggestion) => suggestion.status === 'approved').map((suggestion) => suggestion.id),
+    });
   }
-  const automationEvents = await getAutomationEvents(db, round.id);
-  const meetingRow = await getMeetingById(db, round.id);
-  const gameRow = meetingRow && meetingRow.selected_game_id != null ? await getGameById(db, meetingRow.selected_game_id) : null;
-  const meetingCopy = meetingRow ? await getMeetingCopy(db, round.id) : null;
+  const [gameRow, meetingCopy] = await Promise.all([
+    meetingRow && meetingRow.selected_game_id != null ? getGameById(db, meetingRow.selected_game_id) : null,
+    meetingRow ? getMeetingCopy(db, round.id) : null,
+  ]);
   return {
     round,
     meeting: toAdminMeeting(meetingRow),
@@ -241,26 +246,30 @@ async function adminOpenRound(db, request) {
   const meeting = meetingFromInput(body, { id, meetingDate, phase: 'suggesting' });
   if (meeting.error) return fail(meeting.error);
 
-  await db
-    .prepare(
-      `INSERT INTO rounds
-         (id, title, meeting_date, storm_code, phase, suggestions_open_months_before, voting_opens_months_before, voting_closes_months_before, suggestions_open_at, voting_opens_at, voting_closes_at)
-       VALUES (?, ?, ?, ?, 'suggesting', ?, ?, ?, ?, ?, ?)`
-    )
-    .bind(
-      id,
-      cleanLine(body.title, 120) || null,
-      meetingDate || null,
-      null,
-      suggestionsOpenMonthsBefore,
-      votingOpensMonthsBefore,
-      votingClosesMonthsBefore,
-      suggestionsOpenAt || null,
-      votingOpensAt || null,
-      votingClosesAt || null
-    )
-    .run();
-  await upsertMeeting(db, meeting.value);
+  // The round insert and its matching meeting upsert land in one transaction,
+  // so a failure cannot leave a round without a public meeting record.
+  await ensureMeetingContentTables(db);
+  await db.batch([
+    db
+      .prepare(
+        `INSERT INTO rounds
+           (id, title, meeting_date, storm_code, phase, suggestions_open_months_before, voting_opens_months_before, voting_closes_months_before, suggestions_open_at, voting_opens_at, voting_closes_at)
+         VALUES (?, ?, ?, ?, 'suggesting', ?, ?, ?, ?, ?, ?)`
+      )
+      .bind(
+        id,
+        cleanLine(body.title, 120) || null,
+        meetingDate || null,
+        null,
+        suggestionsOpenMonthsBefore,
+        votingOpensMonthsBefore,
+        votingClosesMonthsBefore,
+        suggestionsOpenAt || null,
+        votingOpensAt || null,
+        votingClosesAt || null
+      ),
+    upsertMeetingStatement(db, meeting.value),
+  ]);
   return json({ ok: true, id, meeting: true }, 201);
 }
 
@@ -502,7 +511,6 @@ async function adminSelectGame(db, request, id) {
   const gameInput = gameInputFromSuggestion(suggestion);
   if (meeting.selected_game_id != null) gameInput.id = meeting.selected_game_id;
   const gameId = await upsertGame(db, gameInput);
-  await attachGameToMeeting(db, id, gameId, suggestionId);
 
   const sets = ['winner_suggestion_id = ?'];
   const vals = [suggestionId];
@@ -513,8 +521,15 @@ async function adminSelectGame(db, request, id) {
     nextPhase = 'revealed';
   }
   vals.push(id);
-  await db.prepare('UPDATE rounds SET ' + sets.join(', ') + ' WHERE id = ?').bind(...vals).run();
-  await setMeetingStatus(db, id, phaseToMeetingStatus(nextPhase));
+  // Attach, winner confirmation, and meeting status move together in one
+  // transaction. The game upsert above stays separate because a new game needs
+  // its generated id first; an orphaned games row on failure is harmless and
+  // reused on retry.
+  await db.batch([
+    attachGameToMeetingStatement(db, id, gameId, suggestionId),
+    db.prepare('UPDATE rounds SET ' + sets.join(', ') + ' WHERE id = ?').bind(...vals),
+    setMeetingStatusStatement(db, id, phaseToMeetingStatus(nextPhase)),
+  ]);
 
   return json({ ok: true, gameId });
 }
