@@ -118,9 +118,19 @@ export function isAfterDateOnly(date, boundary) {
   return Boolean(cleanDate && cleanBoundary && cleanDate > cleanBoundary);
 }
 
+// YYYY-MM-DD plus a signed number of whole days; '' if the input is invalid.
+// Used by the scheduler for boundary-relative days such as "the day before
+// voting opens" (the last full suggestion day).
+export function addDaysDateOnly(value, days) {
+  const date = parseDateOnly(value);
+  if (!date || !Number.isInteger(days)) return '';
+  return dateOnly(addDays(date, days));
+}
+
 // Date-only midpoint between two YYYY-MM-DD dates, floored to a whole day.
 // Used to retire a revealed round halfway between its voting-close date and the
-// next round's suggestions-open date. Returns '' if either input is invalid.
+// next round's suggestions-open date, and for the scheduler's halfway
+// suggestion/voting reminders. Returns '' if either input is invalid.
 export function midpointDateOnly(startDate, endDate) {
   const start = parseDateOnly(startDate);
   const end = parseDateOnly(endDate);

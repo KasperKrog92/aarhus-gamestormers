@@ -21,8 +21,11 @@ import {
   blockedMessage,
   deleteDiscordMessage,
   postDiscord,
+  resultsBreakdownMessage,
   suggestionsOpenedMessage,
+  suggestionsReminderMessage,
   votingOpenedMessage,
+  votingReminderMessage,
   winnerAnnouncementFromPayload,
   winnerSetupNeededMessage,
 } from './discord.mjs';
@@ -38,6 +41,7 @@ export function readEnv(env = process.env) {
   const adminToken = String(env.VOTING_ADMIN_TOKEN || '').trim();
   const discordWebhookUrl = String(env.DISCORD_VOTING_WEBHOOK_URL || '').trim();
   const discordAlertsWebhookUrl = String(env.DISCORD_VOTING_ALERTS_WEBHOOK_URL || '').trim();
+  const discordGeneralWebhookUrl = String(env.DISCORD_GENERAL_WEBHOOK_URL || '').trim();
 
   const missing = [];
   if (!baseUrl) missing.push('VOTING_BASE_URL');
@@ -46,7 +50,7 @@ export function readEnv(env = process.env) {
     throw new Error(`Missing required environment variable(s): ${missing.join(', ')}`);
   }
 
-  return { baseUrl, adminToken, discordWebhookUrl, discordAlertsWebhookUrl };
+  return { baseUrl, adminToken, discordWebhookUrl, discordAlertsWebhookUrl, discordGeneralWebhookUrl };
 }
 
 function defaultLogger() {
@@ -109,9 +113,9 @@ function messageIdForEvent(events, eventType) {
   return payload && payload.messageId ? String(payload.messageId) : null;
 }
 
-async function cleanupPostedMessage(ctx, { roundId, messageId, reason }) {
+async function cleanupPostedMessage(ctx, { roundId, messageId, reason, webhookUrl = ctx.webhookUrl }) {
   if (!messageId) return { skipped: true, deleted: false };
-  const result = await ctx.deleteDiscordMessageFn(ctx.webhookUrl, messageId);
+  const result = await ctx.deleteDiscordMessageFn(webhookUrl, messageId);
   if (result.deleted) {
     ctx.logger.info(`Round ${roundId}: deleted Discord message ${messageId}${reason ? ` (${reason})` : ''}.`);
   } else if (!result.skipped) {
@@ -122,7 +126,7 @@ async function cleanupPostedMessage(ctx, { roundId, messageId, reason }) {
   return result;
 }
 
-async function recordEventAfterDiscord(ctx, { roundId, eventType, payload, postedMessageId }) {
+async function recordEventAfterDiscord(ctx, { roundId, eventType, payload, postedMessageId, webhookUrl }) {
   try {
     const record = await ctx.client.recordAutomationEvent({ roundId, eventType, payload });
     if (record.duplicate) {
@@ -130,6 +134,7 @@ async function recordEventAfterDiscord(ctx, { roundId, eventType, payload, poste
         roundId,
         messageId: postedMessageId,
         reason: `duplicate ${eventType} event`,
+        webhookUrl,
       });
     }
     return record;
@@ -138,6 +143,7 @@ async function recordEventAfterDiscord(ctx, { roundId, eventType, payload, poste
       roundId,
       messageId: postedMessageId,
       reason: `failed ${eventType} event record`,
+      webhookUrl,
     });
     ctx.logger.error(
       `Round ${roundId}: posted "${eventType}" Discord message but recording the automation event failed: ${err.message}.`
@@ -256,6 +262,87 @@ async function handleOpenVoting(ctx, { round }) {
   return { action: ACTIONS.OPEN_VOTING, roundId, duplicate: Boolean(record.duplicate), discordPosted: Boolean(discord.posted) };
 }
 
+// Post a general-chat reminder (suggestion/voting window, halfway or last day)
+// and record its idempotency event. Same rolling-post safety as the phase
+// announcements: post with wait so a duplicate or failed event record can
+// delete the just-posted message, but reminders are never deleted otherwise
+// (general chat keeps its history).
+async function handleReminder(ctx, { round, decision }) {
+  const roundId = decision.roundId;
+  const content = decision.action === ACTIONS.REMIND_SUGGESTIONS
+    ? suggestionsReminderMessage({
+        round,
+        baseUrl: ctx.baseUrl,
+        reminder: decision.reminder,
+        gamesCount: approvedGameTitles(ctx.suggestions).length,
+      })
+    : votingReminderMessage({
+        round,
+        baseUrl: ctx.baseUrl,
+        reminder: decision.reminder,
+        ballotCount: ctx.ballotCount,
+      });
+
+  const discord = await announce(ctx, {
+    roundId,
+    eventType: decision.eventType,
+    content,
+    url: ctx.generalWebhookUrl,
+    label: 'Discord general chat',
+    webhookName: 'DISCORD_GENERAL_WEBHOOK_URL',
+    wait: true,
+  });
+  const record = await recordEventAfterDiscord(ctx, {
+    roundId,
+    eventType: decision.eventType,
+    payload: { today: ctx.today, reminder: decision.reminder, messageId: discord.messageId || null, status: discord.status || null },
+    postedMessageId: discord.messageId,
+    webhookUrl: ctx.generalWebhookUrl,
+  });
+  if (record.duplicate) ctx.logger.info(`Round ${roundId}: ${decision.eventType} already recorded; cleaned up duplicate post if needed.`);
+
+  return {
+    action: decision.action,
+    roundId,
+    reminder: decision.reminder,
+    duplicate: Boolean(record.duplicate),
+    discordPosted: Boolean(discord.posted),
+  };
+}
+
+// General-chat pointer to the vote page's ranked-choice breakdown, posted
+// alongside the final winner announcement. Record-first: the event is the lock
+// (also shared with the admin "Post Discord reveal" path, which posts the same
+// link), and a post failure after recording is logged, not retried.
+async function postResultsBreakdown(ctx, { roundPayload }) {
+  const roundId = roundPayload.round.id;
+  if (!ctx.generalWebhookUrl) {
+    ctx.logger.info(`Round ${roundId}: no DISCORD_GENERAL_WEBHOOK_URL set, skipped results breakdown link.`);
+    return { skipped: true, posted: false };
+  }
+  if (hasEvent(roundPayload.automationEvents, 'results_link_posted')) {
+    ctx.logger.info(`Round ${roundId}: results breakdown link already posted, skipping.`);
+    return { skipped: false, posted: false, duplicate: true };
+  }
+  const record = await ctx.client.recordAutomationEvent({
+    roundId,
+    eventType: 'results_link_posted',
+    payload: { today: ctx.today, source: 'scheduler' },
+  });
+  if (record.duplicate) {
+    ctx.logger.info(`Round ${roundId}: results_link_posted already recorded, skipping.`);
+    return { skipped: false, posted: false, duplicate: true };
+  }
+  return await announce(ctx, {
+    roundId,
+    eventType: 'results_link_posted',
+    content: resultsBreakdownMessage({ round: roundPayload.round, baseUrl: ctx.baseUrl }),
+    url: ctx.generalWebhookUrl,
+    label: 'Discord general chat',
+    webhookName: 'DISCORD_GENERAL_WEBHOOK_URL',
+  });
+}
+
 async function handleRevealWinner(ctx, { payload, decision }) {
   const { client, logger, baseUrl } = ctx;
   const round = payload.round;
@@ -300,6 +387,7 @@ async function handleRevealWinner(ctx, { payload, decision }) {
           messageId: messageIdForEvent(payload.automationEvents, 'voting_opened'),
           reason: 'winner announcement posted',
         });
+        await postResultsBreakdown(ctx, { roundPayload: latest });
       }
     } else {
       await alertWinnerSetupNeeded(ctx, { roundPayload: latest });
@@ -420,9 +508,11 @@ export async function runScheduler({ env, today, deps = {} } = {}) {
     baseUrl: config.baseUrl,
     webhookUrl: config.discordWebhookUrl,
     alertsWebhookUrl: config.discordAlertsWebhookUrl,
+    generalWebhookUrl: config.discordGeneralWebhookUrl,
     today: day,
     suggestions: payload.suggestions || [],
     automationEvents: payload.automationEvents || [],
+    ballotCount: Array.isArray(payload.ballots) ? payload.ballots.length : null,
   };
 
   if (decision.action === ACTIONS.ANNOUNCE_SUGGESTIONS) {
@@ -430,6 +520,9 @@ export async function runScheduler({ env, today, deps = {} } = {}) {
   }
   if (decision.action === ACTIONS.OPEN_VOTING) {
     return await handleOpenVoting(ctx, { round });
+  }
+  if (decision.action === ACTIONS.REMIND_SUGGESTIONS || decision.action === ACTIONS.REMIND_VOTING) {
+    return await handleReminder(ctx, { round, decision });
   }
   if (decision.action === ACTIONS.REVEAL_WINNER) {
     return await handleRevealWinner(ctx, { payload, decision });

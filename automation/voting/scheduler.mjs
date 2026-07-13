@@ -5,15 +5,21 @@
 // calls, Discord posts, handoff files) live in the runner so these rules stay
 // easy to test.
 import {
+  addDaysDateOnly,
   cleanDateOnly,
   isAfterDateOnly,
   isBeforeDateOnly,
+  midpointDateOnly,
   todayDateOnly,
 } from '../../functions/_lib/schedule.js';
 
 // Decision actions:
 //   announce_suggestions  post the suggestions-open Discord message
 //   open_voting    move the round suggesting -> voting
+//   remind_suggestions  post a general-chat reminder mid-suggestion-window
+//                  (decision.reminder is 'halfway' or 'last_day', and
+//                  decision.eventType names the idempotency event)
+//   remind_voting  same, mid-voting-window
 //   reveal_winner  move the round voting -> revealed with a winnerSuggestionId
 //   blocked        a transition is due but cannot complete automatically
 //                  (no ballots, or a final IRV tie); needs the maintainer
@@ -21,6 +27,8 @@ import {
 export const ACTIONS = {
   ANNOUNCE_SUGGESTIONS: 'announce_suggestions',
   OPEN_VOTING: 'open_voting',
+  REMIND_SUGGESTIONS: 'remind_suggestions',
+  REMIND_VOTING: 'remind_voting',
   REVEAL_WINNER: 'reveal_winner',
   BLOCKED: 'blocked',
   NOOP: 'noop',
@@ -81,6 +89,40 @@ export function decideRoundActions({
       };
     }
 
+    // Mid-window general-chat reminders. Both need the window boundaries and
+    // the opening announcement already out (so a catch-up pass never posts a
+    // reminder before the announcement it refers to). The last full suggestion
+    // day is the day before voting opens; the halfway reminder fires from the
+    // window midpoint but yields to the last-day reminder when the dates
+    // collide, and simply lapses once the last day arrives.
+    if (suggestionsAt && opensAt && hasEvent(automationEvents, 'suggestions_opened')) {
+      const lastDay = addDaysDateOnly(opensAt, -1);
+      if (day === lastDay && !hasEvent(automationEvents, 'suggestions_last_day_reminded')) {
+        return {
+          action: ACTIONS.REMIND_SUGGESTIONS,
+          reminder: 'last_day',
+          eventType: 'suggestions_last_day_reminded',
+          roundId,
+          reason: `Last suggestion day ${lastDay}; voting opens ${opensAt}.`,
+        };
+      }
+      const halfway = midpointDateOnly(suggestionsAt, opensAt);
+      if (
+        halfway &&
+        !isBeforeDateOnly(day, halfway) &&
+        isBeforeDateOnly(day, lastDay) &&
+        !hasEvent(automationEvents, 'suggestions_halfway_reminded')
+      ) {
+        return {
+          action: ACTIONS.REMIND_SUGGESTIONS,
+          reminder: 'halfway',
+          eventType: 'suggestions_halfway_reminded',
+          roundId,
+          reason: `Suggestion window halfway point ${halfway} reached on ${day}.`,
+        };
+      }
+    }
+
     if (opensAt && isBeforeDateOnly(day, opensAt)) {
       return { action: ACTIONS.NOOP, roundId, reason: `Voting opens on ${opensAt}; today is ${day}.` };
     }
@@ -104,6 +146,36 @@ export function decideRoundActions({
       };
     }
     if (!isAfterDateOnly(day, closesAt)) {
+      // Mid-window general-chat reminders, mirroring the suggesting phase. The
+      // close date is itself a full voting day (the reveal happens the day
+      // after), so the last-day reminder fires on the close date.
+      if (hasEvent(automationEvents, 'voting_opened')) {
+        if (day === closesAt && !hasEvent(automationEvents, 'voting_last_day_reminded')) {
+          return {
+            action: ACTIONS.REMIND_VOTING,
+            reminder: 'last_day',
+            eventType: 'voting_last_day_reminded',
+            roundId,
+            reason: `Voting closes today, ${closesAt}.`,
+          };
+        }
+        const opensAt = cleanDateOnly(round.voting_opens_at);
+        const halfway = opensAt ? midpointDateOnly(opensAt, closesAt) : '';
+        if (
+          halfway &&
+          !isBeforeDateOnly(day, halfway) &&
+          isBeforeDateOnly(day, closesAt) &&
+          !hasEvent(automationEvents, 'voting_halfway_reminded')
+        ) {
+          return {
+            action: ACTIONS.REMIND_VOTING,
+            reminder: 'halfway',
+            eventType: 'voting_halfway_reminded',
+            roundId,
+            reason: `Voting window halfway point ${halfway} reached on ${day}.`,
+          };
+        }
+      }
       return { action: ACTIONS.NOOP, roundId, reason: `Voting closes on ${closesAt}; today is ${day}.` };
     }
 

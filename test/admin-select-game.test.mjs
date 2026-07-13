@@ -337,3 +337,80 @@ test('announcing the winner posts Discord and records the announcement event', a
   const insert = db.statements.find((s) => s.sql.includes('INSERT INTO automation_events'));
   assert.deepEqual(insert.args, [19, 'winner_announcement_posted', '{"source":"admin","status":204}']);
 });
+
+test('announcing the winner also posts the results breakdown link to general chat', async () => {
+  const fetchCalls = [];
+  const makeAnnounceDb = (automationEvents) => makeDb({
+    round: { id: 19, phase: 'revealed', winner_suggestion_id: 5, meeting_date: '2026-09-15' },
+    meeting: {
+      id: 19,
+      meeting_date: '2026-09-15',
+      starts_at_utc: '2026-09-15T16:30:00Z',
+      ends_at_utc: '2026-09-15T19:00:00Z',
+      timezone: 'Europe/Copenhagen',
+      venue_name: 'Folkehuset Møllestien',
+      venue_address: 'Grønnegade 10, 8000 Aarhus C',
+      discord_event_url: 'https://discord.com/events/111/222',
+      selected_game_id: 7,
+      status: 'revealed',
+    },
+    game: {
+      id: 7,
+      title: 'Portal',
+      header_image: 'https://img/portal.jpg',
+      store_url: 'https://store.steampowered.com/app/400',
+      genres: 'Puzzle',
+      platforms: 'Windows',
+      playtime_hours: 4,
+      hltb_url: 'https://howlongtobeat.com/game/723',
+      description_da: 'da',
+      description_en: 'en',
+    },
+    copy: [
+      { lang: 'da', event_description: 'Dansk eventtekst', history_description: '' },
+      { lang: 'en', event_description: 'English event copy', history_description: '' },
+    ],
+    automationEvents,
+  });
+  const env = (db) => ({
+    DB: db,
+    ADMIN_TOKEN: 'test',
+    VOTING_BASE_URL: 'https://www.gamestormers.dk',
+    DISCORD_VOTING_WEBHOOK_URL: 'https://discord.example/webhook',
+    DISCORD_GENERAL_WEBHOOK_URL: 'https://discord.example/general',
+    fetch: async (url, init) => {
+      fetchCalls.push({ url, init });
+      return { ok: true, status: 204 };
+    },
+  });
+
+  const db = makeAnnounceDb([]);
+  const response = await onRequest({
+    request: adminRequest('https://example.com/api/admin/round/19/announce-winner', 'POST', {}),
+    env: env(db),
+    params: { route: ['round', '19', 'announce-winner'] },
+  });
+
+  assert.equal(response.status, 200);
+  const general = fetchCalls.find((call) => call.url === 'https://discord.example/general');
+  assert.ok(general, 'posts the breakdown link to the general webhook');
+  const content = JSON.parse(general.init.body).content;
+  assert.match(content, /winner for meeting #19/i);
+  assert.match(content, /\[the vote page\]\(<https:\/\/www\.gamestormers\.dk\/en\/vote>\)/);
+
+  const inserts = db.statements.filter((s) => s.sql.includes('INSERT INTO automation_events'));
+  assert.deepEqual(inserts.map((s) => s.args[1]).sort(), ['results_link_posted', 'winner_announcement_posted']);
+
+  // Idempotent: with results_link_posted already recorded, no second general post.
+  fetchCalls.length = 0;
+  const db2 = makeAnnounceDb([
+    { id: 2, round_id: 19, event_type: 'results_link_posted', payload_json: null, created_at: '2026-07-10 09:00:00' },
+  ]);
+  const response2 = await onRequest({
+    request: adminRequest('https://example.com/api/admin/round/19/announce-winner', 'POST', {}),
+    env: env(db2),
+    params: { route: ['round', '19', 'announce-winner'] },
+  });
+  assert.equal(response2.status, 200);
+  assert.ok(!fetchCalls.some((call) => call.url === 'https://discord.example/general'));
+});

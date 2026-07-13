@@ -194,11 +194,21 @@ test('readEnv requires the base url and admin token', () => {
   assert.throws(() => readEnv({}), /VOTING_BASE_URL.*VOTING_ADMIN_TOKEN/);
 });
 
-test('readEnv trims values and treats the webhook as optional', () => {
+test('readEnv trims values and treats the webhooks as optional', () => {
   const config = readEnv({ VOTING_BASE_URL: '  https://x  ', VOTING_ADMIN_TOKEN: ' t ' });
-  assert.deepEqual(config, { baseUrl: 'https://x', adminToken: 't', discordWebhookUrl: '', discordAlertsWebhookUrl: '' });
+  assert.deepEqual(config, {
+    baseUrl: 'https://x',
+    adminToken: 't',
+    discordWebhookUrl: '',
+    discordAlertsWebhookUrl: '',
+    discordGeneralWebhookUrl: '',
+  });
   assert.equal(readEnv(ENV).discordWebhookUrl, 'https://discord.example/webhook');
   assert.equal(readEnv(ENV).discordAlertsWebhookUrl, 'https://discord.example/alerts');
+  assert.equal(
+    readEnv({ ...ENV, DISCORD_GENERAL_WEBHOOK_URL: ' https://discord.example/general ' }).discordGeneralWebhookUrl,
+    'https://discord.example/general'
+  );
 });
 
 test('announce_suggestions records the event and posts the suggestions-open template', async () => {
@@ -528,4 +538,168 @@ test('a missing webhook skips the announcement without failing the run', async (
   assert.equal(result.action, 'open_voting');
   assert.equal(result.discordPosted, false);
   assert.match(messages.info.join('\n'), /no DISCORD_VOTING_WEBHOOK_URL/i);
+});
+
+// --- General-chat reminders and results breakdown --------------------------
+
+const GENERAL_ENV = { ...ENV, DISCORD_GENERAL_WEBHOOK_URL: 'https://discord.example/general' };
+
+function midSuggestionPayload(overrides = {}) {
+  return {
+    round: {
+      id: 19,
+      phase: 'suggesting',
+      meeting_date: '2026-09-15',
+      suggestions_open_at: '2026-06-20',
+      voting_opens_at: '2026-06-30',
+    },
+    suggestions: SUGGESTIONS,
+    tallies: {},
+    automationEvents: [{ eventType: 'suggestions_opened' }],
+    ...overrides,
+  };
+}
+
+test('a halfway suggestion reminder posts to general chat and records its event', async () => {
+  const client = makeClient({ current: midSuggestionPayload() });
+  const discord = makeDiscord({ skipped: false, posted: true, status: 200, messageId: '555' });
+  const { logger } = makeLogger();
+
+  const result = await runScheduler({
+    env: GENERAL_ENV,
+    today: '2026-06-25',
+    deps: { client, postDiscord: discord.fn, writeHandoff: async () => 'unused.md', logger },
+  });
+
+  assert.equal(result.action, 'remind_suggestions');
+  assert.equal(result.reminder, 'halfway');
+  assert.equal(result.discordPosted, true);
+  assert.equal(discord.calls.length, 1);
+  assert.equal(discord.calls[0].url, 'https://discord.example/general');
+  assert.match(discord.calls[0].content, /halfway through the suggestion window/i);
+  assert.match(discord.calls[0].content, /3 games have been suggested/);
+  assert.match(discord.calls[0].content, /\/en\/vote/);
+  assert.equal(discord.calls[0].options.wait, true);
+
+  assert.equal(client.calls.recordAutomationEvent.length, 1);
+  const record = client.calls.recordAutomationEvent[0];
+  assert.equal(record.eventType, 'suggestions_halfway_reminded');
+  assert.equal(record.payload.messageId, '555');
+  assert.equal(record.payload.reminder, 'halfway');
+});
+
+test('a duplicate reminder record deletes the just-posted general-chat message', async () => {
+  const client = makeClient({
+    current: midSuggestionPayload(),
+    recordResults: [{ ok: true, duplicate: true, id: null }],
+  });
+  const discord = makeDiscord({ skipped: false, posted: true, status: 200, messageId: '556' });
+  const deletes = makeDeleteDiscord();
+  const { logger } = makeLogger();
+
+  const result = await runScheduler({
+    env: GENERAL_ENV,
+    today: '2026-06-29',
+    deps: { client, postDiscord: discord.fn, deleteDiscordMessage: deletes.fn, writeHandoff: async () => 'unused.md', logger },
+  });
+
+  assert.equal(result.action, 'remind_suggestions');
+  assert.equal(result.reminder, 'last_day');
+  assert.equal(result.duplicate, true);
+  assert.equal(deletes.calls.length, 1);
+  assert.equal(deletes.calls[0].url, 'https://discord.example/general');
+  assert.equal(deletes.calls[0].messageId, '556');
+});
+
+test('a voting halfway reminder includes the current turnout', async () => {
+  const client = makeClient({
+    current: votingPayload({
+      automationEvents: [{ eventType: 'voting_opened' }],
+      ballots: [{ ballotId: 'a', rankings: [101] }, { ballotId: 'b', rankings: [102, 101] }],
+    }),
+  });
+  const discord = makeDiscord({ skipped: false, posted: true, status: 200, messageId: '557' });
+  const { logger } = makeLogger();
+
+  const result = await runScheduler({
+    env: GENERAL_ENV,
+    today: '2026-07-04',
+    deps: { client, postDiscord: discord.fn, writeHandoff: async () => 'unused.md', logger },
+  });
+
+  assert.equal(result.action, 'remind_voting');
+  assert.equal(result.reminder, 'halfway');
+  assert.match(discord.calls[0].content, /halfway through voting/i);
+  assert.match(discord.calls[0].content, /2 ballots are in/);
+  assert.equal(client.calls.recordAutomationEvent[0].eventType, 'voting_halfway_reminded');
+});
+
+test('a reminder without the general webhook still records its event', async () => {
+  const client = makeClient({ current: midSuggestionPayload() });
+  const discord = makeDiscord({ skipped: true, posted: false });
+  const { logger, messages } = makeLogger();
+
+  const result = await runScheduler({
+    env: ENV,
+    today: '2026-06-25',
+    deps: { client, postDiscord: discord.fn, writeHandoff: async () => 'unused.md', logger },
+  });
+
+  assert.equal(result.action, 'remind_suggestions');
+  assert.equal(result.discordPosted, false);
+  assert.equal(client.calls.recordAutomationEvent[0].eventType, 'suggestions_halfway_reminded');
+  assert.equal(client.calls.recordAutomationEvent[0].payload.messageId, null);
+  assert.ok(messages.info.some((m) => m.includes('DISCORD_GENERAL_WEBHOOK_URL')));
+});
+
+test('the scheduler reveal posts the results breakdown link to general chat', async () => {
+  const client = makeClient({
+    current: votingPayload(),
+    adminSequence: [promotedAdminPayload()],
+  });
+  const discord = makeDiscord({ skipped: false, posted: true, status: 200, messageId: '558' });
+  const { logger } = makeLogger();
+
+  const result = await runScheduler({
+    env: GENERAL_ENV,
+    today: '2026-07-10',
+    deps: { client, postDiscord: discord.fn, writeHandoff: async () => 'unused.md', logger },
+  });
+
+  assert.equal(result.action, 'reveal_winner');
+  assert.equal(result.discordPosted, true);
+
+  const generalPosts = discord.calls.filter((call) => call.url === 'https://discord.example/general');
+  assert.equal(generalPosts.length, 1);
+  assert.match(generalPosts[0].content, /winner for meeting #19/i);
+  assert.match(generalPosts[0].content, /breakdown/i);
+  assert.match(generalPosts[0].content, /\/en\/vote/);
+
+  const recorded = client.calls.recordAutomationEvent.map((call) => call.eventType);
+  assert.ok(recorded.includes('winner_announcement_posted'));
+  assert.ok(recorded.includes('results_link_posted'));
+});
+
+test('the results breakdown link is not repeated once recorded', async () => {
+  const client = makeClient({
+    current: votingPayload(),
+    adminSequence: [
+      promotedAdminPayload({
+        automationEvents: [{ eventType: 'winner_revealed' }, { eventType: 'results_link_posted' }],
+      }),
+    ],
+  });
+  const discord = makeDiscord({ skipped: false, posted: true, status: 200, messageId: '559' });
+  const { logger } = makeLogger();
+
+  await runScheduler({
+    env: GENERAL_ENV,
+    today: '2026-07-10',
+    deps: { client, postDiscord: discord.fn, writeHandoff: async () => 'unused.md', logger },
+  });
+
+  const generalPosts = discord.calls.filter((call) => call.url === 'https://discord.example/general');
+  assert.equal(generalPosts.length, 0);
+  const recorded = client.calls.recordAutomationEvent.map((call) => call.eventType);
+  assert.ok(!recorded.includes('results_link_posted'));
 });

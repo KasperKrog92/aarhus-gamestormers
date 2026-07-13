@@ -78,6 +78,7 @@ jobs:
           VOTING_ADMIN_TOKEN: ${{ secrets.VOTING_ADMIN_TOKEN }}
           DISCORD_VOTING_WEBHOOK_URL: ${{ secrets.DISCORD_VOTING_WEBHOOK_URL }}
           DISCORD_VOTING_ALERTS_WEBHOOK_URL: ${{ secrets.DISCORD_VOTING_ALERTS_WEBHOOK_URL }}
+          DISCORD_GENERAL_WEBHOOK_URL: ${{ secrets.DISCORD_GENERAL_WEBHOOK_URL }}
           HEALTHCHECKS_PING_URL: ${{ secrets.HEALTHCHECKS_PING_URL }}
         run: node automation/voting/cli.mjs
 

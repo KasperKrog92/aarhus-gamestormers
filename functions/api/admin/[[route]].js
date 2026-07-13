@@ -12,6 +12,7 @@ import { isAdmin } from '../../_lib/auth.js';
 import {
   deleteDiscordMessage,
   postDiscord,
+  resultsBreakdownMessage,
   winnerAnnouncementFromPayload,
 } from '../../../automation/voting/discord.mjs';
 import {
@@ -56,11 +57,16 @@ const PHASES = ['suggesting', 'voting', 'revealed', 'closed'];
 const STATUSES = ['pending', 'approved', 'rejected'];
 const AUTOMATION_EVENT_TYPES = [
   'suggestions_opened',
+  'suggestions_halfway_reminded',
+  'suggestions_last_day_reminded',
   'voting_opened',
+  'voting_halfway_reminded',
+  'voting_last_day_reminded',
   'winner_revealed',
   'blocked_alerted',
   'winner_setup_needed_alerted',
   'winner_announcement_posted',
+  'results_link_posted',
   'handoff_generated',
 ];
 const DEFAULT_VENUE_NAME = 'Folkehuset Møllestien';
@@ -455,6 +461,22 @@ async function adminAnnounceWinner(db, request, env, id) {
       fetch: env.fetch || globalThis.fetch,
     });
   }
+
+  // General-chat pointer to the vote page's ranked-choice breakdown, posted
+  // alongside the winner announcement. Record-first: results_link_posted is
+  // the lock shared with the scheduler's reveal path, so whichever posts the
+  // announcement also posts the one breakdown link. Best-effort: a missing
+  // webhook or failed post never fails the reveal that already went out.
+  const generalWebhookUrl = clean(env.DISCORD_GENERAL_WEBHOOK_URL, 1000);
+  if (generalWebhookUrl && !automationEventExists(payload, 'results_link_posted')) {
+    const breakdownRecord = await recordAutomationEvent(db, id, 'results_link_posted', { source: 'admin' });
+    if (!breakdownRecord.duplicate) {
+      await postDiscord(generalWebhookUrl, resultsBreakdownMessage({ round: payload.round, baseUrl }), {
+        fetch: env.fetch || globalThis.fetch,
+      });
+    }
+  }
+
   return json({ ok: true, duplicate: record.duplicate, posted: true, status: result.status });
 }
 

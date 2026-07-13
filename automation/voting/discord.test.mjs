@@ -6,9 +6,12 @@ import {
   blockedMessage,
   deleteDiscordMessage,
   postDiscord,
+  resultsBreakdownMessage,
   suggestionsOpenedMessage,
+  suggestionsReminderMessage,
   toWebhookPayload,
   votingOpenedMessage,
+  votingReminderMessage,
   winnerAnnouncementFromPayload,
   winnerRevealedMessage,
   winnerSetupNeededMessage,
@@ -296,4 +299,41 @@ test('deleteDiscordMessage treats missing messages and fetch errors as best-effo
     },
   });
   assert.deepEqual(failed, { skipped: false, deleted: false, status: null, error: 'network down' });
+});
+
+test('suggestion reminders: halfway counts games, last day names the deadline', () => {
+  const halfway = suggestionsReminderMessage({ round: ROUND, baseUrl: BASE, reminder: 'halfway', gamesCount: 1 });
+  assert.match(halfway, /halfway through the suggestion window for meeting #19/i);
+  assert.match(halfway, /1 game has been suggested so far\./);
+  assert.match(halfway, /\[the vote page\]\(<https:\/\/www\.gamestormers\.dk\/en\/vote>\)/);
+  assert.match(halfway, /before voting opens on \*\*20 July 2026\*\*/);
+
+  const empty = suggestionsReminderMessage({ round: ROUND, baseUrl: BASE, reminder: 'halfway', gamesCount: 0 });
+  assert.match(empty, /No suggestions yet - be the first!/);
+
+  const lastDay = suggestionsReminderMessage({ round: ROUND, baseUrl: BASE, reminder: 'last_day' });
+  assert.match(lastDay, /Last day to suggest games for meeting #19/);
+  assert.match(lastDay, /Voting opens tomorrow, 20 July 2026\./);
+  assert.match(lastDay, /\[the vote page\]\(<https:\/\/www\.gamestormers\.dk\/en\/vote>\)/);
+});
+
+test('voting reminders: halfway shows turnout, last day says today', () => {
+  const halfway = votingReminderMessage({ round: ROUND, baseUrl: BASE, reminder: 'halfway', ballotCount: 5 });
+  assert.match(halfway, /halfway through voting for meeting #19/i);
+  assert.match(halfway, /5 ballots are in already\./);
+  assert.match(halfway, /before voting closes on \*\*27 July 2026\*\*/);
+
+  const quiet = votingReminderMessage({ round: ROUND, baseUrl: BASE, reminder: 'halfway', ballotCount: null });
+  assert.ok(!quiet.includes('ballots are in'));
+
+  const lastDay = votingReminderMessage({ round: ROUND, baseUrl: BASE, reminder: 'last_day' });
+  assert.match(lastDay, /Voting closes today for meeting #19/);
+  assert.match(lastDay, /\[the vote page\]\(<https:\/\/www\.gamestormers\.dk\/en\/vote>\)/);
+});
+
+test('results breakdown message links the vote page', () => {
+  const content = resultsBreakdownMessage({ round: ROUND, baseUrl: BASE });
+  assert.match(content, /The winner for meeting #19 on 15 September 2026 has been announced!/);
+  assert.match(content, /ranked-choice count/);
+  assert.match(content, /\[the vote page\]\(<https:\/\/www\.gamestormers\.dk\/en\/vote>\)/);
 });

@@ -234,3 +234,159 @@ test('uses the IRV winner id and reports round-one votes in winner metadata', ()
   assert.equal(decision.winnerSuggestionId, 101);
   assert.equal(decision.winner.votes, 7);
 });
+
+// --- Mid-window reminders ------------------------------------------------
+// The fixture's suggestion window runs 2026-06-20 to 2026-06-30 (halfway
+// 2026-06-25, last full day 2026-06-29); voting runs 2026-06-30 to 2026-07-09
+// inclusive (halfway 2026-07-04, last day the close date itself).
+
+function announcedRound(overrides = {}) {
+  return suggestingRound({ suggestions_open_at: '2026-06-20', ...overrides });
+}
+
+test('reminds halfway through the suggestion window', () => {
+  const decision = decideRoundActions({
+    today: '2026-06-25',
+    round: announcedRound(),
+    automationEvents: [{ eventType: 'suggestions_opened' }],
+  });
+  assert.equal(decision.action, ACTIONS.REMIND_SUGGESTIONS);
+  assert.equal(decision.reminder, 'halfway');
+  assert.equal(decision.eventType, 'suggestions_halfway_reminded');
+});
+
+test('a late pass still catches up the halfway suggestion reminder before the last day', () => {
+  const decision = decideRoundActions({
+    today: '2026-06-27',
+    round: announcedRound(),
+    automationEvents: [{ eventType: 'suggestions_opened' }],
+  });
+  assert.equal(decision.action, ACTIONS.REMIND_SUGGESTIONS);
+  assert.equal(decision.reminder, 'halfway');
+});
+
+test('no suggestion reminder before the halfway point', () => {
+  const decision = decideRoundActions({
+    today: '2026-06-24',
+    round: announcedRound(),
+    automationEvents: [{ eventType: 'suggestions_opened' }],
+  });
+  assert.equal(decision.action, ACTIONS.NOOP);
+});
+
+test('the opening announcement outranks and gates the reminders', () => {
+  // With no suggestions_opened recorded, a catch-up pass posts the opening
+  // announcement first; the reminder can then fire on a later pass.
+  const decision = decideRoundActions({
+    today: '2026-06-25',
+    round: announcedRound(),
+    automationEvents: [],
+  });
+  assert.equal(decision.action, ACTIONS.ANNOUNCE_SUGGESTIONS);
+});
+
+test('the halfway suggestion reminder is not repeated', () => {
+  const decision = decideRoundActions({
+    today: '2026-06-26',
+    round: announcedRound(),
+    automationEvents: [
+      { eventType: 'suggestions_opened' },
+      { eventType: 'suggestions_halfway_reminded' },
+    ],
+  });
+  assert.equal(decision.action, ACTIONS.NOOP);
+});
+
+test('reminds on the last suggestion day, outranking an unfired halfway reminder', () => {
+  const decision = decideRoundActions({
+    today: '2026-06-29',
+    round: announcedRound(),
+    automationEvents: [{ eventType: 'suggestions_opened' }],
+  });
+  assert.equal(decision.action, ACTIONS.REMIND_SUGGESTIONS);
+  assert.equal(decision.reminder, 'last_day');
+  assert.equal(decision.eventType, 'suggestions_last_day_reminded');
+});
+
+test('the last-day suggestion reminder is not repeated', () => {
+  const decision = decideRoundActions({
+    today: '2026-06-29',
+    round: announcedRound(),
+    automationEvents: [
+      { eventType: 'suggestions_opened' },
+      { eventType: 'suggestions_last_day_reminded' },
+    ],
+  });
+  assert.equal(decision.action, ACTIONS.NOOP);
+});
+
+test('opening voting outranks any pending reminder on the open date', () => {
+  const decision = decideRoundActions({
+    today: '2026-06-30',
+    round: announcedRound(),
+    automationEvents: [{ eventType: 'suggestions_opened' }],
+  });
+  assert.equal(decision.action, ACTIONS.OPEN_VOTING);
+});
+
+test('reminds halfway through the voting window', () => {
+  const decision = decideRoundActions({
+    today: '2026-07-04',
+    round: votingRound(),
+    automationEvents: [{ eventType: 'voting_opened' }],
+  });
+  assert.equal(decision.action, ACTIONS.REMIND_VOTING);
+  assert.equal(decision.reminder, 'halfway');
+  assert.equal(decision.eventType, 'voting_halfway_reminded');
+});
+
+test('voting reminders require the voting-open announcement', () => {
+  const decision = decideRoundActions({
+    today: '2026-07-04',
+    round: votingRound(),
+    automationEvents: [],
+  });
+  assert.equal(decision.action, ACTIONS.NOOP);
+});
+
+test('reminds on the close date itself, outranking an unfired halfway reminder', () => {
+  const decision = decideRoundActions({
+    today: '2026-07-09',
+    round: votingRound(),
+    automationEvents: [{ eventType: 'voting_opened' }],
+  });
+  assert.equal(decision.action, ACTIONS.REMIND_VOTING);
+  assert.equal(decision.reminder, 'last_day');
+  assert.equal(decision.eventType, 'voting_last_day_reminded');
+});
+
+test('the voting reminders are not repeated', () => {
+  const halfway = decideRoundActions({
+    today: '2026-07-05',
+    round: votingRound(),
+    automationEvents: [{ eventType: 'voting_opened' }, { eventType: 'voting_halfway_reminded' }],
+  });
+  assert.equal(halfway.action, ACTIONS.NOOP);
+
+  const lastDay = decideRoundActions({
+    today: '2026-07-09',
+    round: votingRound(),
+    automationEvents: [
+      { eventType: 'voting_opened' },
+      { eventType: 'voting_halfway_reminded' },
+      { eventType: 'voting_last_day_reminded' },
+    ],
+  });
+  assert.equal(lastDay.action, ACTIONS.NOOP);
+});
+
+test('the reveal still outranks reminders once voting has closed', () => {
+  const decision = decideRoundActions({
+    today: '2026-07-10',
+    round: votingRound(),
+    suggestions: SUGGESTIONS,
+    rcvResult: CLEAR_RCV_RESULT,
+    automationEvents: [{ eventType: 'voting_opened' }],
+  });
+  assert.equal(decision.action, ACTIONS.REVEAL_WINNER);
+});

@@ -108,6 +108,9 @@ Pages Functions cannot have cron triggers). The Worker needs these secrets, set 
 - `VOTING_ADMIN_TOKEN`: the same value as the Cloudflare Pages `ADMIN_TOKEN`
 - `DISCORD_VOTING_WEBHOOK_URL` and `DISCORD_VOTING_ALERTS_WEBHOOK_URL`: same values and channel semantics as the
   GitHub Actions secrets below
+- `DISCORD_GENERAL_WEBHOOK_URL`: the members' general-chat webhook (the channel that also gets new-suggestion and
+  sale posts). Used for the halfway/last-day suggestion and voting reminders and the results-breakdown link.
+  Optional; if unset, reminders record their events without posting.
 - `CRON_TOKEN`: random value that authenticates the manual HTTP trigger (`POST /` with `Authorization: Bearer
   <CRON_TOKEN>` on the Worker's workers.dev URL runs one pass immediately)
 - `HEALTHCHECKS_PING_URL`: optional dead-man's-switch ping URL from healthchecks.io; pinged after every successful
@@ -131,6 +134,9 @@ the live admin API over HTTPS and needs these **GitHub Actions secrets** (Settin
   reveal fields, plus blocked-round alerts for ties or no-vote outcomes. Optional; if unset, the scheduler still
   writes the handoff artifact and logs missing setup/blocked states. Blocked alerts are not recorded when the webhook
   is unset, so adding the secret later will still send the first private alert for an unresolved blocked round.
+- `DISCORD_GENERAL_WEBHOOK_URL`: same general-chat webhook as on the cron Worker, for the reminder and
+  results-breakdown posts. This value must ALSO be set as a Cloudflare Pages encrypted secret with the same name,
+  because the admin "Post Discord reveal" button posts the results-breakdown link from the Pages Function.
 - `HEALTHCHECKS_PING_URL`: optional; same dead-man's-switch ping URL as on the cron Worker, so the backstop pass
   also counts as "the scheduler ran today".
 

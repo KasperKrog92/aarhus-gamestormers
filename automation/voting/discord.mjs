@@ -191,6 +191,62 @@ export function votingOpenedMessage({ round, baseUrl, games = [] }) {
   return joinBlocks([title, intro, lineup, voteBlock, codeLine, closing]);
 }
 
+// General-chat reminders. Deliberately short and light compared to the phase
+// announcements: one bolded lead line, an optional social-proof line, and the
+// vote link. These post to DISCORD_GENERAL_WEBHOOK_URL (the members' general
+// chat), not the announcements channel.
+export function suggestionsReminderMessage({ round, baseUrl, reminder, gamesCount } = {}) {
+  const opensAt = formatMeetingDate(round && (round.voting_opens_at || round.votingOpensAt));
+  const page = link('the vote page', voteUrl(baseUrl));
+
+  if (reminder === 'last_day') {
+    return joinBlocks([
+      `⏳ **Last day to suggest games for ${meetingLabel(round)}!**${opensAt ? ` Voting opens tomorrow, ${opensAt}.` : ' Voting opens tomorrow.'}`,
+      `Squeeze your suggestion in on ${page}.`,
+    ]);
+  }
+
+  const count = Number.isInteger(gamesCount) && gamesCount > 0
+    ? `${gamesCount} ${gamesCount === 1 ? 'game has' : 'games have'} been suggested so far.`
+    : 'No suggestions yet - be the first!';
+  return joinBlocks([
+    `🎮 **We're halfway through the suggestion window for ${meetingLabel(round)}.**`,
+    count,
+    `Add yours on ${page}${opensAt ? ` before voting opens on **${opensAt}**` : ''}.`,
+  ]);
+}
+
+export function votingReminderMessage({ round, baseUrl, reminder, ballotCount } = {}) {
+  const closesAt = formatMeetingDate(round && (round.voting_closes_at || round.votingClosesAt));
+  const page = link('the vote page', voteUrl(baseUrl));
+
+  if (reminder === 'last_day') {
+    return joinBlocks([
+      `⏰ **Voting closes today for ${meetingLabel(round)}!**`,
+      `Last chance to rank the games on ${page}.`,
+    ]);
+  }
+
+  const count = Number.isInteger(ballotCount) && ballotCount > 0
+    ? `${ballotCount} ${ballotCount === 1 ? 'ballot is' : 'ballots are'} in already.`
+    : '';
+  return joinBlocks([
+    `🗳️ **We're halfway through voting for ${meetingLabel(round)}.**`,
+    count,
+    `Rank your favourites on ${page}${closesAt ? ` before voting closes on **${closesAt}**` : ''}.`,
+  ]);
+}
+
+// General-chat pointer posted alongside the final winner announcement: the
+// announcement itself lives in the announcements channel, this link sends the
+// curious to the vote page's ranked-choice round-by-round breakdown.
+export function resultsBreakdownMessage({ round, baseUrl } = {}) {
+  return joinBlocks([
+    `🏆 **The winner for ${meetingLabel(round)} has been announced!**`,
+    `Curious how the ranked-choice count played out? See the full breakdown on ${link('the vote page', voteUrl(baseUrl))}.`,
+  ]);
+}
+
 // Winner / meeting announcement. Richer than the other two because it doubles as
 // the event sign-up post. Per the agreed flow this is posted after meeting setup
 // (Discord event created, HowLongToBeat link added), so the optional fields are
