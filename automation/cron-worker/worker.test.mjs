@@ -80,6 +80,12 @@ function passEnv(extra = {}) {
 }
 
 // A pass whose decision is noop: current round already announced, nothing due.
+// Tests must pin runPass's `today` inside the quiet stretch of this fixture's
+// window (after the opening announcement, before the 2026-07-16 halfway
+// reminder); an unpinned pass reads the real clock and the decision stops
+// being noop as real time crosses the fixture's reminder and phase dates.
+const NOOP_TODAY = '2026-07-13';
+
 function noopDeps() {
   return {
     client: {
@@ -103,6 +109,7 @@ test('runPass pings the healthcheck after a successful noop pass', async () => {
   const pings = [];
   const result = await runPass(passEnv({ HEALTHCHECKS_PING_URL: 'https://hc.test/ping' }), {
     deps: noopDeps(),
+    today: NOOP_TODAY,
     ping: async (url) => {
       pings.push(url);
       return { skipped: false, ok: true, status: 200 };
@@ -116,6 +123,7 @@ test('runPass pings the healthcheck after a successful noop pass', async () => {
 test('runPass reports a skipped ping when no healthcheck URL is set', async () => {
   const result = await runPass(passEnv(), {
     deps: noopDeps(),
+    today: NOOP_TODAY,
     ping: async (url) => (url ? { skipped: false, ok: true } : { skipped: true, ok: false }),
   });
   assert.equal(result.healthcheckPing, 'skipped');

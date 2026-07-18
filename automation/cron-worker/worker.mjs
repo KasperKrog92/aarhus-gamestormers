@@ -77,10 +77,12 @@ export async function tokenMatches(provided, expected) {
 // One scheduler pass with this host's handoff writer, then the dead-man ping.
 // The ping only fires after a successful pass (noop and blocked count as
 // success; they mean the scheduler looked and decided), so a genuinely failing
-// day sends no ping and healthchecks raises the alarm.
-export async function runPass(env, { deps = {}, ping = pingHealthcheck } = {}) {
+// day sends no ping and healthchecks raises the alarm. `today` is a test hook
+// (YYYY-MM-DD); production callers omit it and get the real current date.
+export async function runPass(env, { deps = {}, ping = pingHealthcheck, today } = {}) {
   const result = await runScheduler({
     env,
+    today,
     deps: { writeHandoff: createDiscordHandoffWriter(env), ...deps },
   });
   const pingResult = await ping(env.HEALTHCHECKS_PING_URL);
