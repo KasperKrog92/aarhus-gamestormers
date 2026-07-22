@@ -977,16 +977,16 @@ img { display: block; max-width: 100%; height: auto; }
 }
 .footer-credit {
   font-size: 0.75rem;
-  color: rgba(247,244,238,0.28);
+  color: rgba(247,244,238,0.55);
 }
 .footer-credit a {
-  color: rgba(247,244,238,0.4);
-  border-bottom: 1px solid rgba(247,244,238,0.15);
+  color: rgba(247,244,238,0.7);
+  border-bottom: 1px solid rgba(247,244,238,0.3);
   transition: color 0.15s, border-color 0.15s;
 }
 .footer-credit a:hover {
-  color: rgba(247,244,238,0.7);
-  border-color: rgba(247,244,238,0.4);
+  color: var(--cream);
+  border-color: rgba(247,244,238,0.7);
 }
 
 /* ─── Responsive ─────────────────────────────────────────────────────────────── */

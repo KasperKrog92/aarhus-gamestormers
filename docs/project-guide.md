@@ -108,6 +108,10 @@ The base reset includes `[hidden] { display: none !important; }`. Keep that rule
 
 - `.btn-primary`, `.btn-ghost`, `.btn-green`: button variants.
 - `.gs-hero`, `.gs-how`, `.gs-events`, `.gs-about`, `.gs-history`, `.gs-footer`: section wrappers.
+- `.footer-credit`: shared logo and website authorship credit. Every Danish
+  public footer links "Hjemmeside af Kasper Krog" and every English footer
+  links "Website by Kasper Krog" to `https://kasper-krog.dk/` with
+  `rel="author"`. Keep all eight public page footers structurally synchronized.
 - `.event-card`, `.event-cover`, `.event-body`: upcoming event cards.
 - `.event-details`, `.event-detail`, `.event-detail-label`, `.event-detail-value`: date, time, and venue tiles inside event cards.
 - `.event-detail-time`: keeps approximate ranges such as `18:30-~21:00` on one line.
@@ -130,7 +134,7 @@ The base reset includes `[hidden] { display: none !important; }`. Keep that rule
 - `.suggestion-description`: localized Steam-imported description on voting suggestion cards. It is initially clamped to three lines; when text is hidden, its adjacent `.suggestion-description-toggle` reveals the full description and can collapse it again.
 - `.suggestion-pitch`: optional member pitch on voting suggestion cards. It is wrapped and labelled separately from the game description.
 
-When editing `css/style.css`, bump the `?v=N` query string on **every** page that links it (all pages share one version number, `?v=76` as of 2026-07-13). One shared token keeps a returning visitor's cache warm across pages and prevents one page from serving stale CSS next to another; do not let the numbers diverge per page again.
+When editing `css/style.css`, bump the `?v=N` query string on **every** page that links it (all pages share one version number, `?v=77` as of 2026-07-22). One shared token keeps a returning visitor's cache warm across pages and prevents one page from serving stale CSS next to another; do not let the numbers diverge per page again.
 
 The legal-page styles (`.gs-legal`, `.legal-prose`, `.legal-card`, used by the privacy and 404 pages) live in `style.css`, not inline in the pages. A future optimization, deliberately not done blind: the admin console styles (`style.css` "Admin curation page" section) ship to every public visitor and could be split into their own file, but the shared 860px media query interleaves admin and public selectors, so a split needs visual verification of `vote-admin.html` at narrow widths.
 
